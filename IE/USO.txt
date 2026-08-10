@@ -1,0 +1,504 @@
+===============================================================================
+ IE — MANUAL DE USO
+ Caja de herramientas de Instalaciones Electricas / circuitos magneticos.
+ Todo es estatico: se llama IE.nombre(...). No hay que crear objetos.
+===============================================================================
+
+ INSTALACION
+   Poner IE.m en el path de MATLAB, o trabajar parado en su carpeta.
+   Verificar que anda:   >> testIE          (89 lineas, todas deben dar true)
+
+ CONVENCIONES QUE VALEN PARA TODO
+   - Angulos en GRADOS en la interfaz.
+   - Tension y corriente en RMS salvo aviso.
+   - Secuencia de fases POSITIVA (ABC): B atrasa 120 a A, C atrasa 240.
+   - mu es SIEMPRE permeabilidad RELATIVA (adimensional). El aire es mu = 1.
+     mu0 = 4*pi*1e-7 lo pone el codigo, nunca lo pasas vos.
+   - dA es crecimiento PROPORCIONAL del area del entrehierro:
+       A_gap = A*(1 + dA).   dA = 0.10 significa 10% mas de area.
+
+ INDICE
+   1. FASORES Y CIRCUITOS
+      pol2rec  parZ  f2l  l2f  fasores  divV  divI  potencias
+   2. CIRCUITO MAGNETICO SIMBOLICO
+      ecuacionesB  datosB  ecuacionesSeg  datosSeg  despejar  faradayB
+   3. CIRCUITO MAGNETICO NUMERICO
+      reluctSeg  fluxO  fluxE
+   4. RECETAS
+   5. LIMITES CONOCIDOS
+
+
+===============================================================================
+ 1. FASORES Y CIRCUITOS
+===============================================================================
+
+-------------------------------------------------------------------------------
+ X = IE.pol2rec(x, teta)
+-------------------------------------------------------------------------------
+ Polar -> rectangular (complejo). Vectorizada.
+   x    : modulo(s)
+   teta : angulo(s) en GRADOS
+   X    : complejo(s), siempre COLUMNA
+
+ >> IE.pol2rec(10, 30)
+    ans = 8.6603 + 5.0000i
+
+ >> Z = IE.pol2rec([8; 12], [-30; 45])       % varios de una
+ >> Z = [10+5j; IE.pol2rec([8; 12], [-30; 45])]   % mezclado con rectangulares
+
+ OJO: devuelve columna aunque le pases fila.
+
+-------------------------------------------------------------------------------
+ Zp = IE.parZ(Z)
+-------------------------------------------------------------------------------
+ Equivalente de impedancias EN PARALELO. Acepta fila o columna, real o
+ compleja, cualquier cantidad.
+
+ >> IE.parZ([10 10])            % ans = 5
+ >> IE.parZ([10; 20; 30])       % ans = 5.4545
+ >> IE.parZ([10; 1j*10])        % ans = 5 + 5i
+
+ Antirresonancia (L y C puros iguales) da Inf. Es correcto, no es un bug.
+
+-------------------------------------------------------------------------------
+ E_L = IE.f2l(E_F)        FASE  -> LINEA   (multiplica por sqrt(3))
+ E_F = IE.l2f(E_L)        LINEA -> FASE    (divide  por sqrt(3))
+-------------------------------------------------------------------------------
+ Solo MODULOS. El desfase de 30 grados no lo aplican: para eso esta fasores.
+
+ >> IE.f2l(220)     % ans = 381.05
+ >> IE.l2f(380)     % ans = 219.39
+
+ Valido en sistemas equilibrados. Se lee "de fase a linea" y "de linea a
+ fase": el primer caracter es lo que ENTRA.
+
+-------------------------------------------------------------------------------
+ M = IE.fasores(E_AN)
+ M = IE.fasores(E_AN, ang0)
+-------------------------------------------------------------------------------
+ Tabla completa de un trifasico equilibrado, secuencia POSITIVA (ABC).
+   E_AN : magnitud RMS de la fase A. ESCALAR.
+   ang0 : angulo de E_AN en grados. Opcional, 0 por defecto.
+
+   M : matriz 6x4
+        columnas ->  [ RMS   angulo(grados)   Pico   Pico-a-pico ]
+        filas    ->  1 AN   2 BN   3 CN   4 AB   5 BC   6 CA
+
+ >> M = IE.fasores(220)
+      220.00     0.00    311.13    622.25     <- AN
+      220.00   240.00    311.13    622.25     <- BN
+      220.00   120.00    311.13    622.25     <- CN
+      381.05    30.00    538.89   1077.78     <- AB
+      381.05   270.00    538.89   1077.78     <- BC
+      381.05   150.00    538.89   1077.78     <- CA
+
+ >> M = IE.fasores(220, 15)      % gira todo 15 grados
+
+ Los angulos salen en [0, 360). BN = 240 es lo mismo que -120.
+ Coherencia garantizada: E_AB = E_AN - E_BN exacto, y la linea adelanta
+ 30 grados a su fase.
+
+ Para pasar la tabla a complejos:
+ >> fases  = IE.pol2rec(M(1:3,1), M(1:3,2));
+ >> lineas = IE.pol2rec(M(4:6,1), M(4:6,2));
+
+-------------------------------------------------------------------------------
+ Vz = IE.divV(V, Z)       divisor de TENSION  (Z en SERIE)
+ Iz = IE.divI(I, Z)       divisor de CORRIENTE (Z en PARALELO)
+-------------------------------------------------------------------------------
+   V o I : total aplicado / que entra al nodo
+   Z     : vector de impedancias
+   salida: columna, un valor por elemento
+
+ >> IE.divV(120, [10; 20; 30])     % [20; 40; 60],  suman 120
+ >> IE.divI(6,   [10; 20; 30])     % [3.27; 1.64; 1.09],  suman 6
+
+ Comprobacion rapida: divV suma V, divI suma I. Si no, algo pusiste mal.
+
+-------------------------------------------------------------------------------
+ T = IE.potencias(V, I)
+-------------------------------------------------------------------------------
+ Triangulo de potencias. V e I son FASORES COMPLEJOS RMS, escalares o
+ vectores del mismo tamano (varias cargas de una).
+
+   T.S     potencia compleja  V.*conj(I)      [VA]
+   T.P     activa    real(S)                  [W]
+   T.Q     reactiva  imag(S)                  [VAR]
+   T.magS  aparente  abs(S)                   [VA]
+   T.theta angulo del triangulo               [grados]
+   T.FP    factor de potencia  cos(theta)     [-]
+   T.Stot  suma compleja de todo              [VA]
+   T.tipo  "atrasado" / "adelantado" / "unitario", UNO POR ELEMENTO
+
+ >> T = IE.potencias(220, IE.pol2rec(5, -30))
+    T.P = 952.6   T.Q = 550.0   T.FP = 0.866   T.tipo = "atrasado"
+
+ >> T = IE.potencias([100;100;100], [1; 1j; -1j])   % tres cargas juntas
+    T.tipo = ["unitario"; "adelantado"; "atrasado"]
+
+ Criterio: Q > 0 -> inductiva -> la corriente ATRASA.
+
+
+===============================================================================
+ 2. CIRCUITO MAGNETICO SIMBOLICO
+ Para despejar cualquier variable de las leyes basicas sin hacer cuentas.
+===============================================================================
+
+ NOMENCLATURA
+   B    densidad de flujo            [T]
+   H    intensidad de campo          [A/m]
+   mu   permeabilidad RELATIVA       [-]
+   len  longitud media del camino    [m]      (2*pi*R en un toroide)
+   N    numero de vueltas            [-]
+   I    corriente                    [A]
+   Fi   flujo magnetico              [Wb]
+   dFi  derivada del flujo, dFi/dt   [Wb/s]
+   A    seccion transversal          [m^2]
+   v    tension inducida             [V]
+   R    reluctancia                  [A-vuelta/Wb]
+
+-------------------------------------------------------------------------------
+ [val, res] = IE.datosB(d, inc)
+-------------------------------------------------------------------------------
+ LA QUE MAS VAS A USAR. Le pasas lo que sabes y te despeja lo que falta.
+
+   d   : struct con SOLO lo conocido, en cualquier orden
+   inc : incognita, texto ('Fi') o simbolo (S.Fi)
+   val : expresion simbolica -> pasala por double() o vpa(val,6)
+   res : struct con TODAS las variables que se determinaron de paso
+
+ Modelo (4 ecuaciones):
+   H = N*I/len          Ampere
+   B = mu*mu0*H         curva del material (lineal)
+   B = Fi/A             definicion de densidad de flujo
+   v = N*dFi            Faraday
+
+ >> d = struct('mu',5000, 'len',0.3, 'N',200, 'A',1e-3, 'I',2);
+ >> double(IE.datosB(d, 'Fi'))
+    ans = 0.0083776
+
+ Funciona en cualquier direccion:
+ >> d2 = struct('mu',5000, 'len',0.3, 'N',200, 'A',1e-3, 'Fi',0.0083776);
+ >> double(IE.datosB(d2, 'I'))
+    ans = 2.0000
+
+ La 2da salida te da los pasos intermedios gratis (util para el desarrollo):
+ >> [Fi, res] = IE.datosB(d, 'Fi');
+ >> double(res.H)    % 1333.3 A/m
+ >> double(res.B)    % 8.3776 T ... ojo, este nucleo esta saturadisimo
+
+ Si los datos no alcanzan te avisa y te dice que si pudo determinar.
+ Si los datos se contradicen, tira error IE:datosContradictorios.
+
+-------------------------------------------------------------------------------
+ [val, res] = IE.datosSeg(d, inc)
+-------------------------------------------------------------------------------
+ Igual pero sobre UN TRAMO con entrehierro. Variables disponibles:
+   len  A  mu  g  dA  Rn  Rg  Rs  Fi  B  Bg
+ donde Rn = reluctancia del hierro, Rg = del gap, Rs = Rn + Rg,
+       B = densidad en el hierro, Bg = en el entrehierro.
+
+ >> ds = struct('len',0.3, 'A',1e-3, 'mu',5000, 'g',1e-3, 'dA',0.10);
+ >> double(IE.datosSeg(ds, 'Rs'))
+    ans = 7.7102e+05        % hierro 47587 + gap 723432
+
+ >> ds.Fi = 1e-3;
+ >> double(IE.datosSeg(ds, 'Bg'))    % 0.9091 T en el gap
+ >> double(IE.datosSeg(ds, 'B'))     % 1.0000 T en el hierro (mayor: menos area)
+
+-------------------------------------------------------------------------------
+ [eqs, S] = IE.ecuacionesB()
+ [eqs, S] = IE.ecuacionesSeg()
+-------------------------------------------------------------------------------
+ Devuelven el sistema simbolico SIN resolver, mas el diccionario de simbolos.
+ Sirve si queres manipular las ecuaciones a mano.
+
+   eqs : vector simbolico con las leyes
+   S   : struct donde S.N es el SIMBOLO N (no un valor)
+
+ S es indispensable: cada llamada crea simbolos nuevos, asi que una N que
+ declares vos por fuera NO es la misma N que esta adentro de eqs. Usando S
+ siempre pegan.
+
+ >> [eqs, S] = IE.ecuacionesB();
+ >> eqs = subs(eqs, [S.N S.A S.len S.mu], [200 1e-3 0.3 5000]);
+ >> double(solve(eqs(1:3), [S.H S.B S.Fi]).Fi)      % ojo, ver abajo
+
+ IMPORTANTE: solve(eqs, incognita) a secas suele devolver VACIO aunque los
+ datos alcancen, porque exige satisfacer TODAS las ecuaciones moviendo una
+ sola variable. Por eso existe IE.despejar. Si vas a mano, resolve para
+ TODAS las incognitas juntas, no para una.
+
+-------------------------------------------------------------------------------
+ [val, res] = IE.despejar(eqs, S, d, inc)
+-------------------------------------------------------------------------------
+ El motor que usan datosB y datosSeg. Solo lo llamas directo si armaste vos
+ un sistema simbolico propio.
+
+ Metodo: sustitucion hacia adelante. Busca una ecuacion con UNA sola
+ incognita, la despeja, propaga el valor a todas, y repite. Es literalmente
+ el metodo a mano.
+
+ >> [eqs, S] = IE.ecuacionesSeg();
+ >> double(IE.despejar(eqs, S, ...
+        struct('len',.3, 'A',1e-3, 'mu',5e3, 'g',0), 'Rn'))
+    ans = 47746
+
+ OJO con g: si no lo pasas queda como incognita y Rn no se puede despejar
+ (te avisa con IE:sinSolucion). Sin entrehierro hay que escribir g = 0.
+
+-------------------------------------------------------------------------------
+ [v_t, Fi_t, L] = IE.faradayB(d, I_t)
+ [v_t, Fi_t, L] = IE.faradayB(d, I_t, t)
+-------------------------------------------------------------------------------
+ ANALISIS TEMPORAL. Esto si deriva de verdad (datosB no puede: es algebraico).
+
+   d   : struct con N, A, len, mu
+   I_t : corriente como EXPRESION SIMBOLICA en t
+   t   : la variable de tiempo. Opcional; por defecto sym('t').
+         PASALA si tu t viene de otro lado.
+
+   v_t  : tension inducida  v(t) = N*dFi/dt      [V]
+   Fi_t : flujo             Fi(t)                [Wb]
+   L    : inductancia       mu*mu0*N^2*A/len     [H]
+
+ >> syms t
+ >> d = struct('N',200, 'A',1e-3, 'len',0.3, 'mu',5000);
+ >> [v, Fi, L] = IE.faradayB(d, 2*sin(377*t));
+ >> vpa(v, 6)
+    ans = 631.67*cos(377.0*t)
+ >> double(L)
+    ans = 0.83776
+
+ Equivale a v = L*di/dt, pero se deja en forma de Faraday porque es la que
+ hay que reconocer en el parcial.
+
+
+===============================================================================
+ 3. CIRCUITO MAGNETICO NUMERICO
+ Tres funciones. Con reluctSeg armas cualquier nucleo que no sea O ni E.
+===============================================================================
+
+-------------------------------------------------------------------------------
+ EL STRUCT DE TRAMO  (lo comen reluctSeg, fluxO y fluxE)
+-------------------------------------------------------------------------------
+   len   longitud media del tramo                [m]    OBLIGATORIO
+   mu    permeabilidad RELATIVA                  [-]    OBLIGATORIO
+   A     seccion                                 [m^2]  (o dar a y b)
+   a, b  lados de la seccion rectangular         [m]    -> A = a*b
+   g     entrehierro DENTRO del tramo            [m]    opcional, 0
+   dA    crecimiento proporcional del area       [-]    opcional
+   n     veces que el tramo aparece en serie     [-]    opcional, 1
+
+ FRINGING: el flujo se abre al cruzar el gap, asi que la seccion efectiva
+ del entrehierro es mayor:  A_gap = A*(1 + dA).
+   - Si das a y b y NO das dA, se calcula solo:  A_gap = (a+g)*(b+g)
+   - Si das dA explicito, MANDA EL TUYO (el dato de la catedra gana).
+   - Si no das ninguno, dA = 0 (sin fringing).
+
+ El campo n es para tramos repetidos. Ejemplo: un U+I tiene dos contactos
+ identicos, entonces gap.n = 2 y no hace falta escribir el tramo dos veces.
+
+ >> s  = struct('len',0.3, 'A',1e-3, 'mu',5000);                    % simple
+ >> sg = struct('len',0.3, 'A',1e-3, 'mu',5000, 'g',1e-3, 'dA',0.1);% con gap
+ >> sab= struct('len',0.3, 'mu',5000, 'a',0.02, 'b',0.05, 'g',1e-3);% fringing solo
+
+-------------------------------------------------------------------------------
+ [R, det] = IE.reluctSeg(s)
+-------------------------------------------------------------------------------
+ Reluctancia de UN tramo. La pieza para armar a mano cualquier nucleo.
+
+   R   : reluctancia total del tramo, ya multiplicada por n   [A-v/Wb]
+   det : struct con el detalle
+           det.Rn    parte del hierro
+           det.Rg    parte del entrehierro
+           det.A     seccion del hierro
+           det.Agap  seccion efectiva del gap = A*(1+dA)
+           det.g  det.dA  det.n  det.mu
+
+ >> [R, det] = IE.reluctSeg(sg);
+ >> det.Rn / R * 100      % que porcentaje aporta el hierro
+
+ PARA ARMAR NUCLEOS RAROS:
+   serie    -> sumar:      Rt = IE.reluctSeg(s1) + IE.reluctSeg(s2) + ...
+   paralelo -> IE.parZ:    Rp = IE.parZ([IE.reluctSeg(s1), IE.reluctSeg(s2)])
+   despues:  Fi = N*I/Rt
+
+ Errores que tira a proposito:
+   IE:gapMayorQueTramo    g > len
+   IE:muRelativa          mu < 1 (pusiste la absoluta)
+   IE:areaInconsistente   diste a, b Y A y no coinciden
+   IE:faltaArea           no diste ni A ni (a,b)
+
+-------------------------------------------------------------------------------
+ r = IE.fluxO(seg, N, I)
+ r = IE.fluxO(seg, N, I, Bsat)
+-------------------------------------------------------------------------------
+ NUCLEO TIPO O: camino magnetico CERRADO en SERIE. Cuadrado, rectangular,
+ toroide, U+I, E-I armado. Todos son un solo lazo: el flujo no se divide.
+
+     +-------+      Rt = R1 + R2 + R3 + R4 (+ Rgap)
+     |       |      Fi = N*I / Rt
+     |       |
+     +-------+
+
+   seg  : los tramos. Dos formas:
+            cell array  {s1, s2, s3}     <- USA ESTA
+            struct array [s1 s2 s3]
+          El cell array existe porque MATLAB no deja concatenar structs con
+          campos distintos (uno con 'g' y otro sin). Con llaves no importa.
+   N, I : vueltas y corriente
+   Bsat : umbral de aviso de saturacion [T]. Opcional, 1.5 por defecto.
+
+   r.fmm    N*I                                        [A-vuelta]
+   r.Rt     reluctancia total                          [A-v/Wb]
+   r.Fi     flujo (uno solo, es serie)                 [Wb]
+   r.L      inductancia N^2/Rt                         [H]
+   r.R      reluctancia por tramo                      [A-v/Wb]
+   r.frac   fraccion de Rt que aporta cada tramo       [-]
+   r.caida  caida de fmm por tramo, Fi*R               [A-vuelta]
+   r.B      densidad en el HIERRO de cada tramo        [T]
+   r.Bg     densidad en el ENTREHIERRO (NaN si no hay) [T]
+   r.F      fuerza de atraccion por entrehierro        [N]
+   r.Ftot   fuerza total                               [N]
+   r.sat    logico: tramos con B por encima de Bsat
+
+ FUERZA:  F = Bg^2 * A_gap / (2*mu0)  por cada superficie de contacto.
+          Si el tramo tiene n = 2, la fuerza ya viene multiplicada por 2.
+
+ >> s = struct('len',0.3, 'A',1e-3, 'mu',5000);
+ >> r = IE.fluxO({s, s, s, s}, 100, 1);
+ >> r.Fi        % 5.2360e-04 Wb
+ >> r.L         % 0.052360 H
+ >> r.B(1)      % 0.52360 T   comodo, no satura
+
+ Subiendo la fmm hasta saturar:
+ >> r = IE.fluxO({s, s, s, s}, 1000, 1);
+    Warning: Tramo(s) [1 2 3 4] con B = 5.24 T, por encima de Bsat = 1.50 T.
+    Este modelo es LINEAL ... el flujo es MENOR que el calculado.
+ El warning NO es un error: el numero sale igual. Te esta diciendo que ese
+ numero es optimista y que el caso real hay que hacerlo con la curva B-H.
+
+ CONTROL QUE SIEMPRE DEBE DAR:   sum(r.caida) == r.fmm    (ley de Ampere)
+
+ >> abs(sum(r.caida) - r.fmm) < 1e-9      % true
+
+-------------------------------------------------------------------------------
+ [Fi, Rt, r] = IE.fluxE(R, b, N, I)
+ [Fi, Rt, r] = IE.fluxE(R, b, N, I, sentido)
+-------------------------------------------------------------------------------
+ NUCLEO TIPO E: bobina en UNA pierna, el flujo vuelve repartido por las
+ otras dos, que quedan en PARALELO.
+
+     +-+-+        Rt = R(b) + ( R(otra1) // R(otra2) )
+     | | |        Fi(b)     = N*I / Rt
+     +-+-+        Fi(otras) = divisor sobre R, con signo opuesto
+
+   R : las 3 piernas. Tres formas:
+         vector numerico   [R1 R2 R3]     reluctancias ya calculadas
+         cell array        {s1, s2, s3}   tramos
+         struct array      [s1 s2 s3]     tramos
+   b : indice 1, 2 o 3 de la pierna BOBINADA
+   N, I    : vueltas y corriente
+   sentido : +1 / -1, orientacion de la fmm. Opcional, +1.
+
+   Fi : 3x1. Todos los flujos medidos ENTRANDO al yugo superior, o sea
+        sum(Fi) = 0. Las piernas de retorno salen con signo OPUESTO a Fi(b).
+   Rt : reluctancia vista por la bobina
+   r  : siempre trae r.R, r.frac, r.L, r.Fi.
+        Si pasaste TRAMOS (no numeros pelados) trae ademas
+        r.B, r.Bg, r.F, r.Ftot, r.sat.
+
+ >> [Fi, Rt] = IE.fluxE([1e5 2e5 2e5], 1, 100, 1);
+ >> Fi
+    5.0000e-04     <- pierna 1, la bobinada
+   -2.5000e-04     <- vuelve por la 2
+   -2.5000e-04     <- vuelve por la 3
+ >> sum(Fi)        % 0, ley de nodos magnetica
+
+ >> [Fi, Rt, r] = IE.fluxE({s, s, s}, 2, 100, 1);   % con geometria
+ >> r.B                                             % densidad por pierna
+
+ CONTROL QUE SIEMPRE DEBE DAR:   sum(Fi) == 0
+
+ QUE DESPRECIA (leer antes de confiar en el numero):
+   1) Los YUGOS (las barras que unen las 3 piernas) NO estan modelados.
+      Se asume su reluctancia despreciable. Vale si son cortos y gruesos;
+      deja de valer si hay entrehierro en el yugo.
+   2) Flujo de dispersion entre piernas: cero.
+   3) Es lineal, sin curva B-H.
+   Para el E simetrico con bobina en la pierna central el error es chico.
+   Si las piernas son muy asimetricas o hay gap en el yugo, arma las mallas
+   a mano con reluctSeg y parZ.
+
+
+===============================================================================
+ 4. RECETAS
+===============================================================================
+
+ --- Toroide con entrehierro, cuanto flujo y que fuerza ---------------------
+ >> nuc = struct('len',0.25, 'a',0.02, 'b',0.02, 'mu',4000, 'g',1e-3);
+ >> r = IE.fluxO({nuc}, 500, 1.5);
+ >> r.Fi, r.B, r.Bg, r.Ftot
+ (el fringing lo calcula solo porque diste a y b)
+
+ --- Electroiman U+I: es un O con el gap en n = 2 ---------------------------
+ >> p  = struct('len',0.06, 'a',0.02, 'b',0.02, 'mu',4000);   % pierna
+ >> y  = struct('len',0.04, 'a',0.02, 'b',0.02, 'mu',4000);   % yugo
+ >> gp = struct('len',5e-4, 'a',0.02, 'b',0.02, 'mu',4000, 'g',5e-4, 'n',2);
+ >> r  = IE.fluxO({p, y, p, y, gp}, 1200, 0.35);
+ >> r.Ftot        % 84.1 N, la fuerza para despegar la barra (los 2 contactos)
+ >> r.frac(5)     % 0.95 -> el gap se come el 95% de la reluctancia
+
+ --- Que corriente necesito para un B dado ----------------------------------
+ >> d = struct('mu',5000, 'len',0.3, 'N',200, 'A',1e-3, 'B',1.2);
+ >> double(IE.datosB(d, 'I'))
+
+ --- Nucleo que no es ni O ni E: armalo con reluctSeg -----------------------
+ >> R1 = IE.reluctSeg(tramo1);
+ >> R2 = IE.reluctSeg(tramo2);
+ >> R3 = IE.reluctSeg(tramo3);
+ >> Rt = R1 + IE.parZ([R2 R3]);       % serie con un paralelo
+ >> Fi = N*I/Rt;
+
+ --- Trifasico: tabla completa y potencia -----------------------------------
+ >> M = IE.fasores(220);
+ >> Vf = IE.pol2rec(M(1,1), M(1,2));           % fase A como complejo
+ >> If = Vf / (10 + 8j);                       % carga por fase
+ >> T  = IE.potencias(Vf, If);
+ >> T.P*3, T.FP, T.tipo                        % potencia trifasica total
+
+ --- Divisores en serie-paralelo --------------------------------------------
+ >> Z  = [10; IE.pol2rec(20, 60); 15-5j];
+ >> Vz = IE.divV(380, Z);        % cuanto cae en cada una
+ >> sum(Vz)                      % 380, control
+
+
+===============================================================================
+ 5. LIMITES CONOCIDOS
+===============================================================================
+
+ - TODO EL MODELO MAGNETICO ES LINEAL. mu es constante, no hay curva B-H.
+   Si un tramo pasa de ~1.5 T, fluxO avisa. Ese aviso significa: el numero
+   que te dio es OPTIMISTA. En la realidad mu se desploma al saturar y el
+   flujo real es MENOR. Con saturacion hay que ir a la curva B-H a mano.
+
+ - fluxE ignora los yugos y la dispersion entre piernas (ver su seccion).
+
+ - f2l y l2f son solo modulos, no aplican el desfase de 30 grados.
+
+ - fasores asume equilibrio perfecto y secuencia positiva.
+
+ - potencias no distingue potencia por fase de potencia trifasica: si le
+   pasas magnitudes de fase te da potencia de fase. Multiplica por 3 vos.
+
+ - datosB usa un modelo de UN camino uniforme. Para nucleos con varios
+   tramos distintos usa fluxO o arma con reluctSeg.
+
+
+===============================================================================
+ SI ALGO SE ROMPE
+   >> testIE          89 controles. Si alguno da false, ahi esta el problema.
+   El control mas sensible es "fluxO Ampere: sum(caida)=fmm": si ese cae,
+   se rompio algo en las reluctancias.
+===============================================================================

@@ -4,9 +4,10 @@
 # Permitir recorrer directorios
 !*/
 
-# Solo fuentes MATLAB y LaTeX
+# Solo fuentes MATLAB, LaTeX y notas de texto
 !*.m
 !*.tex
+!*.txt
 
 # El propio .gitignore
 !.gitignore
