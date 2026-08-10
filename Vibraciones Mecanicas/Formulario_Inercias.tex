@@ -1,0 +1,273 @@
+% =====================================================================
+%  Formulario de inercias, centroides y momentos de inercia de area
+%  Vibraciones Mecanicas - Universidad Rafael Landivar
+%  Santiago Cruz Rivera - Carne 1310823
+%  Compilar con: pdflatex Formulario_Inercias.tex
+% =====================================================================
+\documentclass[10pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage[margin=1.2cm]{geometry}
+\usepackage{multicol}
+\usepackage{array}
+\usepackage{booktabs}
+
+\setlength{\parindent}{0pt}
+\setlength{\columnsep}{0.9cm}
+\pagestyle{empty}
+
+% Compactar el espaciado alrededor de las ecuaciones
+\setlength{\abovedisplayskip}{3pt}
+\setlength{\belowdisplayskip}{3pt}
+\setlength{\abovedisplayshortskip}{2pt}
+\setlength{\belowdisplayshortskip}{2pt}
+
+\newcommand{\seccion}[1]{%
+  \vspace{2mm}\hrule\vspace{1mm}%
+  \textbf{\footnotesize\MakeUppercase{#1}}\vspace{1mm}\hrule\vspace{2mm}}
+
+% Barra de centroide
+\newcommand{\bx}{\bar{x}}
+\newcommand{\by}{\bar{y}}
+
+\begin{document}
+\small
+
+\begin{center}\renewcommand{\arraystretch}{1.45}\normalsize
+  \textbf{\large FORMULARIO — INERCIAS, CENTROS DE MASA Y MOMENTOS DE INERCIA}
+\end{center}
+\vspace{-2mm}
+
+% =====================================================================
+\seccion{Momentos de inercia de masa}
+
+Definición general y radio de giro:
+\begin{equation*}
+  I = \int r^{2}\,dm = \sum_i m_i r_i^{2},
+  \qquad
+  k = \sqrt{\frac{I}{m}}
+  \qquad [\mathrm{kg\cdot m^{2}}]
+\end{equation*}
+
+Teorema de ejes paralelos (Steiner). $d$ = distancia entre el eje que pasa
+por el centro de masa y el eje paralelo considerado:
+\begin{equation*}
+  I_{O} = \bar{I}_{cm} + m\,d^{2}
+\end{equation*}
+
+\begin{center}\renewcommand{\arraystretch}{1.45}\normalsize
+\begin{tabular}{@{}llc@{}}
+\toprule
+\textbf{Cuerpo} & \textbf{Eje} & \textbf{Momento de inercia} \\
+\midrule
+Cilindro sólido o disco   & eje de simetría (longitudinal) & $I = \frac{1}{2}MR^{2}$ \\
+Cilindro sólido           & diámetro central (transversal) & $I = \frac{1}{4}MR^{2} + \frac{1}{12}ML^{2}$ \\
+Anillo (aro delgado)      & eje de simetría                & $I = MR^{2}$ \\
+Anillo (aro delgado)      & un diámetro                    & $I = \frac{1}{2}MR^{2}$ \\
+Esfera sólida             & un diámetro                    & $I = \frac{2}{5}MR^{2}$ \\
+Delgada capa esférica     & un diámetro                    & $I = \frac{2}{3}MR^{2}$ \\
+Varilla delgada           & perpendicular, por el centro   & $I = \frac{1}{12}ML^{2}$ \\
+Varilla delgada           & perpendicular, por un extremo  & $I = \frac{1}{3}ML^{2}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\vspace{1mm}
+Comprobación de Steiner con la varilla:
+$\frac{1}{12}ML^{2} + M\!\left(\frac{L}{2}\right)^{\!2} = \frac{1}{3}ML^{2}$.
+
+% =====================================================================
+\seccion{Centro de masa y centroide — fórmula del punto promedio}
+
+El centroide es un \emph{promedio ponderado} de posiciones. El peso de cada
+posición es la magnitud que se reparte (masa, área, longitud o volumen):
+
+\begin{multicols}{2}
+
+Sistema discreto de masas (punto promedio):
+\begin{equation*}
+  \bx = \frac{\displaystyle\sum_i m_i\,x_i}{\displaystyle\sum_i m_i},
+  \qquad
+  \by = \frac{\displaystyle\sum_i m_i\,y_i}{\displaystyle\sum_i m_i}
+\end{equation*}
+
+Cuerpo continuo:
+\begin{equation*}
+  \bx = \frac{\displaystyle\int x\,dm}{\displaystyle\int dm},
+  \qquad
+  \by = \frac{\displaystyle\int y\,dm}{\displaystyle\int dm}
+\end{equation*}
+
+\columnbreak
+
+Áreas compuestas (el caso más usado):
+\begin{equation*}
+  \bx = \frac{\displaystyle\sum_i \bx_i\,A_i}{\displaystyle\sum_i A_i},
+  \qquad
+  \by = \frac{\displaystyle\sum_i \by_i\,A_i}{\displaystyle\sum_i A_i}
+\end{equation*}
+
+Área continua:
+\begin{equation*}
+  \bx = \frac{\displaystyle\int x\,dA}{A},
+  \qquad
+  \by = \frac{\displaystyle\int y\,dA}{A}
+\end{equation*}
+
+\end{multicols}
+
+Los productos $\sum \bx_i A_i$ y $\sum \by_i A_i$ son los \textbf{primeros momentos
+de área} $Q_y$ y $Q_x$. Un agujero o recorte entra en la suma con $A_i$
+\emph{negativa}. Si el cuerpo es homogéneo, centro de masa y centroide coinciden;
+si hay un eje de simetría, el centroide cae sobre él.
+
+\vspace{2mm}
+\begin{center}\renewcommand{\arraystretch}{1.45}\normalsize
+\begin{tabular}{@{}lccc@{}}
+\toprule
+\textbf{Figura} & $\bx$ & $\by$ & \textbf{Área} \\
+\midrule
+Área triangular (base $b$, altura $h$)      & ---                 & $\frac{h}{3}$        & $\frac{bh}{2}$ \\
+Área de cuarto de círculo                   & $\frac{4r}{3\pi}$  & $\frac{4r}{3\pi}$    & $\frac{\pi r^{2}}{4}$ \\
+Área semicircular                           & $0$                 & $\frac{4r}{3\pi}$    & $\frac{\pi r^{2}}{2}$ \\
+Área de cuarto de elipse                    & $\frac{4a}{3\pi}$  & $\frac{4b}{3\pi}$    & $\frac{\pi ab}{4}$ \\
+Área semielíptica                           & $0$                 & $\frac{4b}{3\pi}$    & $\frac{\pi ab}{2}$ \\
+Área semiparabólica                         & $\frac{3a}{8}$     & $\frac{3h}{5}$       & $\frac{2ah}{3}$ \\
+Área parabólica                             & $0$                 & $\frac{3h}{5}$       & $\frac{4ah}{3}$ \\
+Enjuta parabólica \quad $y = kx^{2}$        & $\frac{3a}{4}$     & $\frac{3h}{10}$      & $\frac{ah}{3}$ \\
+Enjuta general \quad $y = kx^{n}$           & $\frac{n+1}{n+2}\,a$ & $\frac{n+1}{4n+2}\,h$ & $\frac{ah}{n+1}$ \\
+Sector circular (semiángulo $\alpha$)       & $\frac{2r\sin\alpha}{3\alpha}$ & $0$      & $\alpha r^{2}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\vspace{1mm}
+En el área triangular, $\by = h/3$ se mide desde la base; $\bx$ queda a un tercio
+del camino desde cada lado según la orientación de los ejes. En el sector circular
+$\alpha$ va en radianes y se mide desde la bisectriz.
+
+% =====================================================================
+\seccion{Momentos de inercia de área}
+
+Definiciones. $I_x$ e $I_y$ son momentos \emph{rectangulares}; $J_O$ es el
+momento \emph{polar}:
+\begin{equation*}
+  I_x = \int y^{2}\,dA,
+  \qquad
+  I_y = \int x^{2}\,dA,
+  \qquad
+  J_O = \int r^{2}\,dA = I_x + I_y
+  \qquad [\mathrm{m^{4}}]
+\end{equation*}
+
+Teorema de ejes paralelos para áreas ($\bar{I}$ = respecto al eje centroidal):
+\begin{equation*}
+  I = \bar{I} + A\,d^{2},
+  \qquad
+  J_O = \bar{J}_C + A\,d^{2}
+\end{equation*}
+
+Radio de giro de área:
+\begin{equation*}
+  r_x = \sqrt{\frac{I_x}{A}},
+  \qquad
+  r_y = \sqrt{\frac{I_y}{A}},
+  \qquad
+  r_O = \sqrt{\frac{J_O}{A}} = \sqrt{r_x^{2}+r_y^{2}}
+\end{equation*}
+
+\begin{center}\renewcommand{\arraystretch}{1.45}\normalsize
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Figura} & \textbf{Ejes centroidales} & \textbf{Ejes en la base / origen} \\
+\midrule
+Rectángulo ($b\times h$)
+  & $\bar{I}_{x'} = \frac{1}{12}bh^{3}$
+  & $I_{x} = \frac{1}{3}bh^{3}$ \\
+  & $\bar{I}_{y'} = \frac{1}{12}b^{3}h$
+  & $I_{y} = \frac{1}{3}b^{3}h$ \\
+  & $\bar{J}_{C} = \frac{1}{12}bh\,(b^{2}+h^{2})$
+  & \\
+\midrule
+Triángulo ($b\times h$)
+  & $\bar{I}_{x'} = \frac{1}{36}bh^{3}$
+  & $I_{x} = \frac{1}{12}bh^{3}$ \\
+\midrule
+Círculo (radio $r$)
+  & $\bar{I}_{x} = \bar{I}_{y} = \frac{1}{4}\pi r^{4}$
+  & $J_{O} = \frac{1}{2}\pi r^{4}$ \\
+\midrule
+Semicírculo (radio $r$)
+  & ---
+  & $I_{x} = I_{y} = \frac{1}{8}\pi r^{4}$ \\
+  &
+  & $J_{O} = \frac{1}{4}\pi r^{4}$ \\
+\midrule
+Cuarto de círculo (radio $r$)
+  & ---
+  & $I_{x} = I_{y} = \frac{1}{16}\pi r^{4}$ \\
+  &
+  & $J_{O} = \frac{1}{8}\pi r^{4}$ \\
+\midrule
+Elipse (semiejes $a$, $b$)
+  & $\bar{I}_{x} = \frac{1}{4}\pi ab^{3}$
+  & $J_{O} = \frac{1}{4}\pi ab\,(a^{2}+b^{2})$ \\
+  & $\bar{I}_{y} = \frac{1}{4}\pi a^{3}b$
+  & \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\vspace{1mm}
+En el semicírculo y el cuarto de círculo los valores tabulados son respecto a los
+ejes $x$, $y$ que pasan por el centro $O$ del círculo original, \emph{no} por el
+centroide del área. Para llevarlos al centroide hay que restar $A\bar{y}^{2}$ con
+$\bar{y} = 4r/3\pi$.
+
+\vspace{2mm}
+Secciones huecas: se restan las propiedades del hueco, siempre que ambas figuras
+compartan el mismo eje de referencia.
+\begin{equation*}
+  I = I_{ext} - I_{int},
+  \qquad
+  A = A_{ext} - A_{int}
+\end{equation*}
+
+Formas frecuentes en vibraciones:
+\begin{equation*}
+  I_{circ} = \frac{\pi d^{4}}{64},
+  \qquad
+  J_{0,circ} = \frac{\pi d^{4}}{32} = \frac{\pi R^{4}}{2},
+  \qquad
+  A_{anillo} = \frac{\pi}{4}\left(D^{2}-d^{2}\right)
+\end{equation*}
+
+% =====================================================================
+\seccion{Nomenclatura}
+
+\begin{multicols}{3}
+\begin{tabbing}
+\hspace{1.1cm}\=\kill
+$M,\,m$ \> masa [kg] \\
+$A$ \> área [m$^2$] \\
+$R,\,r$ \> radio [m] \\
+$D,\,d$ \> diámetro [m] \\
+$L,\,l$ \> longitud [m] \\
+$b,\,h$ \> base y altura [m] \\
+$a,\,b$ \> semiejes de elipse [m] \\
+$d$ \> distancia entre ejes [m] \\
+$\alpha$ \> semiángulo del sector [rad] \\
+$I$ \> inercia de masa [kg$\cdot$m$^2$] \\
+$\bar{I}$ \> inercia respecto al centroide \\
+$I_x,I_y$ \> inercia de área [m$^4$] \\
+$J_O$ \> inercia polar de área [m$^4$] \\
+$Q_x,Q_y$ \> primer momento de área [m$^3$] \\
+$k$ \> radio de giro de masa [m] \\
+$r_x,r_y$ \> radio de giro de área [m] \\
+$\bx,\by$ \> coordenadas del centroide [m] \\
+\end{tabbing}
+\end{multicols}
+
+\end{document}

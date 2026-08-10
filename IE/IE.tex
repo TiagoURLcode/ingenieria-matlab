@@ -1,0 +1,701 @@
+% =====================================================================
+%  IE — Formulario de Instalaciones Electricas / Circuitos Magneticos
+%  Compilar:  pdflatex IE.tex   (dos veces, por el indice)
+%  Documento de respaldo teorico de la clase IE.m
+% =====================================================================
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[spanish,es-tabla,es-noshorthands,es-nodecimaldot]{babel}
+\usepackage[margin=2.3cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{empheq}
+\usepackage{siunitx}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{tikz}
+\usepackage{enumitem}
+\usepackage[colorlinks=true,linkcolor=black,urlcolor=blue]{hyperref}
+
+\sisetup{per-mode=symbol, inter-unit-product=\ensuremath{{}\cdot{}}}
+
+% unidades electricas que siunitx no trae de fabrica
+\DeclareSIUnit{\voltampere}{VA}
+\DeclareSIUnit{\var}{VAR}
+\DeclareSIUnit{\vuelta}{vuelta}
+
+% --- atajos ----------------------------------------------------------
+\newcommand{\mur}{\mu_r}
+\newcommand{\muz}{\mu_0}
+\newcommand{\Rel}{\mathcal{R}}          % reluctancia
+\newcommand{\fmm}{\mathcal{F}}          % fuerza magnetomotriz
+\newcommand{\ju}{\mathrm{j}}
+\newcommand{\fn}[1]{\texttt{#1}}        % nombre de funcion MATLAB
+\newcommand{\Av}{\unit{\ampere}\text{-vuelta}}
+
+% cabecera de tabla de variables
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+
+\title{\textbf{Formulario IE}\\[2mm]
+\large Instalaciones Eléctricas y Circuitos Magnéticos\\
+\normalsize Respaldo teórico de la caja de herramientas \fn{IE.m}}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+\vspace{-15mm}
+\tableofcontents
+\bigskip
+\hrule
+\bigskip
+
+% =====================================================================
+\section{Convenciones y constantes}
+% =====================================================================
+
+\begin{itemize}[nosep,leftmargin=*]
+  \item Ángulos en \textbf{grados} en la interfaz; radianes solo dentro del cálculo.
+  \item Tensiones y corrientes en valor \textbf{eficaz (RMS)} salvo aviso explícito.
+  \item Secuencia de fases \textbf{positiva (ABC)}: B atrasa \ang{120} a A, C atrasa \ang{240}.
+  \item $\mur$ es siempre la permeabilidad \textbf{relativa} (adimensional). El aire y el vacío tienen $\mur = 1$.
+  \item Los modelos magnéticos son \textbf{lineales}: $\mur$ constante, sin curva $B$--$H$.
+\end{itemize}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}llll@{}}
+\toprule
+\textbf{Constante} & \textbf{Símbolo} & \textbf{Valor} & \textbf{Unidad} \\
+\midrule
+Permeabilidad del vacío   & $\muz$      & $4\pi\times10^{-7} \approx 1.2566\times10^{-6}$ & \unit{\henry\per\metre} \\
+Permitividad del vacío    & $\varepsilon_0$ & $8.8542\times10^{-12}$ & \unit{\farad\per\metre} \\
+Factor de cresta senoidal & $\sqrt{2}$  & $1.41421$ & --- \\
+Factor trifásico          & $\sqrt{3}$  & $1.73205$ & --- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent\textbf{Permeabilidad absoluta:} $\mu = \mur\,\muz$ \; [\unit{\henry\per\metre}]. En todo el formulario
+$\mur$ aparece siempre acompañada de $\muz$; nunca se usa la absoluta sola.
+
+% =====================================================================
+\section{Fasores, impedancias y potencia}
+% =====================================================================
+
+\subsection{Representación fasorial}
+
+Una senoide $v(t) = V_{\max}\cos(\omega t + \theta)$ se representa por el fasor complejo RMS
+\[
+  \bar{V} = V \angle \theta = V\,e^{\ju\theta} = V\cos\theta + \ju\,V\sin\theta,
+  \qquad V = \frac{V_{\max}}{\sqrt{2}}.
+\]
+
+\begin{align}
+  \text{Polar} \to \text{Rectangular:}&\quad \bar{X} = x\,e^{\ju\theta} = x\cos\theta + \ju\,x\sin\theta \\
+  \text{Rectangular} \to \text{Polar:}&\quad x = |\bar{X}| = \sqrt{a^2+b^2}, \qquad
+                                             \theta = \arctan\!\left(\frac{b}{a}\right)
+\end{align}
+
+Relaciones entre valores de una senoide:
+\[
+  V_{\max} = \sqrt{2}\,V_{\text{RMS}}, \qquad
+  V_{pp} = 2V_{\max} = 2\sqrt{2}\,V_{\text{RMS}}, \qquad
+  \omega = 2\pi f .
+\]
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}cL{7.6cm}c@{}}
+\toprule
+\textbf{Símbolo} & \textbf{Descripción} & \textbf{Unidad} \\
+\midrule
+$\bar{V},\bar{I}$ & Fasores de tensión y corriente (RMS, complejos) & \unit{\volt},\ \unit{\ampere} \\
+$V_{\max}$        & Valor de pico (amplitud) & \unit{\volt} \\
+$V_{pp}$          & Valor de pico a pico & \unit{\volt} \\
+$\theta$          & Fase inicial & \unit{\degree} \\
+$f$               & Frecuencia & \unit{\hertz} \\
+$\omega$          & Pulsación, $\omega = 2\pi f$ & \unit{\radian\per\second} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Impedancia}
+
+\[
+  \bar{Z} = R + \ju X = |Z|\angle\varphi,
+  \qquad
+  X = X_L - X_C = \omega L - \frac{1}{\omega C},
+  \qquad
+  \bar{Y} = \frac{1}{\bar{Z}} = G + \ju B .
+\]
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}cL{7.6cm}c@{}}
+\toprule
+\textbf{Símbolo} & \textbf{Descripción} & \textbf{Unidad} \\
+\midrule
+$\bar{Z}$ & Impedancia compleja & \unit{\ohm} \\
+$R$       & Resistencia (parte real) & \unit{\ohm} \\
+$X$       & Reactancia (parte imaginaria); $X>0$ inductiva, $X<0$ capacitiva & \unit{\ohm} \\
+$\bar{Y}$ & Admitancia, inversa de $\bar{Z}$ & \unit{\siemens} \\
+$L$       & Inductancia & \unit{\henry} \\
+$C$       & Capacidad & \unit{\farad} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Asociación.}
+\begin{align}
+  \text{Serie:}&\quad \bar{Z}_{eq} = \sum_{k=1}^{n} \bar{Z}_k \\
+  \text{Paralelo:}&\quad \bar{Z}_{eq} = \left(\sum_{k=1}^{n} \frac{1}{\bar{Z}_k}\right)^{\!-1}
+  \qquad\Longrightarrow\qquad
+  \bar{Z}_{eq} = \frac{\bar{Z}_1\bar{Z}_2}{\bar{Z}_1+\bar{Z}_2} \ \ (n=2)
+\end{align}
+
+\paragraph{Divisores.} Con $\bar{V}$ aplicada a la serie y $\bar{I}$ entrando al nodo del paralelo:
+\begin{align}
+  \text{Tensión:}&\quad \bar{V}_k = \bar{V}\,\frac{\bar{Z}_k}{\displaystyle\sum_j \bar{Z}_j}
+  &&\text{control:}\ \ \sum_k \bar{V}_k = \bar{V} \\[2mm]
+  \text{Corriente:}&\quad \bar{I}_k = \bar{I}\,\frac{\bar{Y}_k}{\displaystyle\sum_j \bar{Y}_j}
+                       = \bar{I}\,\frac{1/\bar{Z}_k}{\displaystyle\sum_j 1/\bar{Z}_j}
+  &&\text{control:}\ \ \sum_k \bar{I}_k = \bar{I}
+\end{align}
+
+\subsection{Transformación estrella--triángulo (Kennelly)}
+
+Es una transformación de \textbf{impedancias}, no de tensiones. El orden es
+$\Delta = [\bar{Z}_{ab},\bar{Z}_{bc},\bar{Z}_{ca}]$ y $Y = [\bar{Z}_a,\bar{Z}_b,\bar{Z}_c]$,
+donde $\bar{Z}_a$ es el brazo que cuelga del nodo $a$ hacia el neutro.
+
+\paragraph{Caso general.} $\Delta \to Y$: cada brazo es el producto de las dos ramas que
+tocan ese nodo, sobre la suma de las tres.
+\begin{equation}
+  \bar{Z}_a = \frac{\bar{Z}_{ab}\,\bar{Z}_{ca}}{\bar{Z}_{ab}+\bar{Z}_{bc}+\bar{Z}_{ca}},
+  \qquad
+  \bar{Z}_b = \frac{\bar{Z}_{ab}\,\bar{Z}_{bc}}{\bar{Z}_{ab}+\bar{Z}_{bc}+\bar{Z}_{ca}},
+  \qquad
+  \bar{Z}_c = \frac{\bar{Z}_{bc}\,\bar{Z}_{ca}}{\bar{Z}_{ab}+\bar{Z}_{bc}+\bar{Z}_{ca}}
+\end{equation}
+
+\noindent $Y \to \Delta$: cada rama es $P$ sobre el brazo \textbf{opuesto}, con
+$P = \bar{Z}_a\bar{Z}_b + \bar{Z}_b\bar{Z}_c + \bar{Z}_c\bar{Z}_a$.
+\begin{equation}
+  \bar{Z}_{ab} = \frac{P}{\bar{Z}_c},
+  \qquad
+  \bar{Z}_{bc} = \frac{P}{\bar{Z}_a},
+  \qquad
+  \bar{Z}_{ca} = \frac{P}{\bar{Z}_b}
+\end{equation}
+
+\paragraph{Caso equilibrado.} Si las tres impedancias son iguales:
+\begin{equation}
+  \boxed{\ \bar{Z}_Y = \frac{\bar{Z}_\Delta}{3} \ }
+  \qquad\qquad
+  \boxed{\ \bar{Z}_\Delta = 3\,\bar{Z}_Y \ }
+\end{equation}
+
+\begin{quote}\small
+\textbf{Cuidado con el 3 y el $\sqrt{3}$.} El factor $3$ es de \emph{impedancias};
+el factor $\sqrt{3}$ es de \emph{tensiones} (sección siguiente). No son intercambiables.
+La misma impedancia conectada en $\Delta$ consume tres veces la potencia que en $Y$:
+por eso al pasar a $Y$ hay que dividir por 3 para conservar el comportamiento.
+\end{quote}
+
+\subsection{Sistema trifásico equilibrado}
+
+Con secuencia positiva y $\bar{E}_{AN} = E\angle\theta_0$:
+\begin{equation}
+  \bar{E}_{AN} = E\angle\theta_0, \qquad
+  \bar{E}_{BN} = E\angle(\theta_0 - \ang{120}), \qquad
+  \bar{E}_{CN} = E\angle(\theta_0 - \ang{240}) .
+\end{equation}
+
+Las tensiones de línea salen de la diferencia de dos de fase:
+\begin{equation}
+  \bar{E}_{AB} = \bar{E}_{AN} - \bar{E}_{BN} = \sqrt{3}\,E \angle(\theta_0 + \ang{30}) .
+\end{equation}
+
+\noindent Es decir, la línea es $\sqrt{3}$ veces mayor \emph{y} adelanta \ang{30} a su fase homóloga:
+\begin{equation}
+  \boxed{\ E_L = \sqrt{3}\,E_F \ }
+  \qquad\qquad
+  \boxed{\ E_F = \frac{E_L}{\sqrt{3}} \ }
+\end{equation}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}lccc@{}}
+\toprule
+\textbf{Conexión} & \textbf{Tensión} & \textbf{Corriente} & \textbf{Potencia activa} \\
+\midrule
+Estrella ($Y$)     & $E_L = \sqrt{3}\,E_F$ & $I_L = I_F$            & $P = \sqrt{3}\,E_L I_L\cos\varphi$ \\
+Triángulo ($\Delta$) & $E_L = E_F$          & $I_L = \sqrt{3}\,I_F$ & $P = \sqrt{3}\,E_L I_L\cos\varphi$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent En estrella la corriente de línea \emph{es} la de fase; en triángulo lo que coincide
+es la tensión. La expresión de la potencia en función de magnitudes de línea es la misma
+para las dos conexiones: por eso conviene trabajar siempre en variables de línea.
+La potencia total es $3$ veces la de una fase: $P_{3\phi} = 3\,E_F I_F \cos\varphi$.
+
+\subsection{Potencia}
+
+Con fasores RMS, la potencia compleja es
+\begin{equation}
+  \boxed{\ \bar{S} = \bar{V}\,\bar{I}^{*} = P + \ju Q \ }
+\end{equation}
+
+\begin{align}
+  P     &= \Re\{\bar{S}\} = V I \cos\varphi &&\text{activa}      & [\unit{\watt}] \\
+  Q     &= \Im\{\bar{S}\} = V I \sin\varphi &&\text{reactiva}    & [\unit{\var}] \\
+  |S|   &= |\bar{V}||\bar{I}| = \sqrt{P^2+Q^2} &&\text{aparente} & [\unit{\voltampere}] \\
+  \mathrm{FP} &= \cos\varphi = \frac{P}{|S|} &&\text{factor de potencia} & [-]
+\end{align}
+
+\noindent El ángulo del triángulo es $\varphi = \arg(\bar{S}) = \theta_V - \theta_I$.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}lccl@{}}
+\toprule
+\textbf{Signo de $Q$} & \textbf{Carácter} & \textbf{Corriente} & \textbf{Ejemplo} \\
+\midrule
+$Q > 0$ & Inductiva  & atrasa a la tensión   & motor, bobina \\
+$Q = 0$ & Resistiva  & en fase               & estufa, lámpara incandescente \\
+$Q < 0$ & Capacitiva & adelanta a la tensión & banco de capacitores \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Por qué el conjugado.} Si se escribiera $\bar{S} = \bar{V}\bar{I}$ el ángulo
+resultante sería $\theta_V + \theta_I$, que no tiene significado físico. El conjugado hace
+aparecer la \emph{diferencia} $\theta_V - \theta_I$, que es el desfase real entre tensión y
+corriente y por lo tanto el ángulo del triángulo de potencias.
+
+\paragraph{Corrección del factor de potencia.} Para llevar el FP de $\cos\varphi_1$ a
+$\cos\varphi_2$ manteniendo $P$:
+\begin{equation}
+  Q_C = P\,(\tan\varphi_1 - \tan\varphi_2),
+  \qquad
+  C = \frac{Q_C}{\omega V^2} \quad [\unit{\farad}].
+\end{equation}
+
+% =====================================================================
+\section{Circuito magnético}
+% =====================================================================
+
+\subsection{Variables y unidades}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}cL{7.4cm}ll@{}}
+\toprule
+\textbf{Símbolo} & \textbf{Descripción} & \textbf{Unidad} & \textbf{Equivalencia} \\
+\midrule
+$B$    & Densidad de flujo magnético (inducción) & \unit{\tesla}   & \unit{\weber\per\metre\squared} \\
+$H$    & Intensidad de campo magnético           & \unit{\ampere\per\metre} & \Av/\unit{\metre} \\
+$\Phi$ & Flujo magnético                         & \unit{\weber}   & \unit{\volt\second} \\
+$\dot{\Phi}$ & Derivada del flujo, $\mathrm{d}\Phi/\mathrm{d}t$ & \unit{\weber\per\second} & \unit{\volt} \\
+$\mur$ & Permeabilidad relativa del material     & ---             & $\mu/\muz$ \\
+$\muz$ & Permeabilidad del vacío                 & \unit{\henry\per\metre} & $4\pi\times10^{-7}$ \\
+$\ell$ & Longitud media del camino magnético     & \unit{\metre}   & $2\pi R$ en un toroide \\
+$A$    & Sección transversal del núcleo          & \unit{\metre\squared} & $a\cdot b$ si es rectangular \\
+$N$    & Número de vueltas de la bobina          & ---             & \\
+$I$    & Corriente por la bobina                 & \unit{\ampere}  & \\
+$\fmm$ & Fuerza magnetomotriz, $NI$              & \Av             & \\
+$\Rel$ & Reluctancia                             & \Av/\unit{\weber} & \unit{\per\henry} \\
+$\mathcal{P}$ & Permeancia, $1/\Rel$             & \unit{\henry}   & \\
+$g$    & Longitud del entrehierro                & \unit{\metre}   & \\
+$\delta_A$ & Crecimiento proporcional del área en el gap & ---     & \\
+$L$    & Inductancia                             & \unit{\henry}   & \unit{\weber\per\ampere} \\
+$F$    & Fuerza de atracción en el entrehierro   & \unit{\newton}  & \\
+$v$    & Tensión inducida (f.e.m.)               & \unit{\volt}    & \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Las cuatro leyes básicas}
+
+Éste es el sistema que resuelve \fn{IE.datosB}:
+
+\begin{empheq}[box=\fbox]{align}
+  H  &= \frac{N I}{\ell}      &&\text{Ley de Ampère} \label{eq:ampere}\\
+  B  &= \mur\,\muz\,H         &&\text{Relación } B\text{--}H \text{ del material (lineal)} \label{eq:bh}\\
+  B  &= \frac{\Phi}{A}        &&\text{Definición de densidad de flujo} \label{eq:phi}\\
+  v  &= N\,\frac{\mathrm{d}\Phi}{\mathrm{d}t} &&\text{Ley de Faraday} \label{eq:faraday}
+\end{empheq}
+
+\noindent Combinando \eqref{eq:ampere}--\eqref{eq:phi}:
+\begin{equation}
+  \Phi = \frac{\mur\,\muz\,N I A}{\ell}
+       = \frac{NI}{\ell/(\mur\muz A)}
+       = \frac{\fmm}{\Rel}.
+\end{equation}
+
+\begin{quote}\small
+\textbf{Por qué Ampère y $B$--$H$ van separadas.} Fusionarlas en
+$B = \mur\muz NI/\ell$ obliga a que $\mur$ cargue dos significados distintos
+(relativa aquí, absoluta en $\mu = B/H$) y el sistema queda contradictorio.
+Dejarlas separadas mantiene una sola definición de $\mur$.
+\end{quote}
+
+\subsection{Ley de Hopkinson y reluctancia}
+
+La analogía con el circuito eléctrico es exacta mientras el modelo sea lineal:
+
+\begin{equation}
+  \boxed{\ \fmm = \Phi\,\Rel \ }
+  \qquad\text{(análoga a } V = I R\text{)}
+  \qquad\qquad
+  \Rel = \frac{\ell}{\mur\,\muz\,A}
+\end{equation}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}lll@{}}
+\toprule
+& \textbf{Circuito eléctrico} & \textbf{Circuito magnético} \\
+\midrule
+Excitación   & Tensión $V$ \hfill [\unit{\volt}]      & F.m.m. $\fmm = NI$ \hfill [\Av] \\
+Respuesta    & Corriente $I$ \hfill [\unit{\ampere}]  & Flujo $\Phi$ \hfill [\unit{\weber}] \\
+Oposición    & Resistencia $R = \rho\ell/A$ \hfill [\unit{\ohm}] & Reluctancia $\Rel = \ell/(\mur\muz A)$ \hfill [\Av/\unit{\weber}] \\
+Inversa      & Conductancia $G$ \hfill [\unit{\siemens}] & Permeancia $\mathcal{P}$ \hfill [\unit{\henry}] \\
+Ley de mallas& $\sum V = 0$                           & $\sum \fmm = 0$ (Ampère) \\
+Ley de nodos & $\sum I = 0$                           & $\sum \Phi = 0$ \\
+En serie     & $R_{eq} = \sum R_k$                    & $\Rel_{eq} = \sum \Rel_k$ \\
+En paralelo  & $1/R_{eq} = \sum 1/R_k$                & $1/\Rel_{eq} = \sum 1/\Rel_k$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent \textbf{Dónde se rompe la analogía:} $\rho$ es constante, $\mur$ \emph{no}.
+Al saturar, $\mur$ se desploma y $\Rel$ crece. La analogía vale solo por debajo del codo
+de la curva $B$--$H$.
+
+\subsection{Entrehierro y dispersión de bordes (\emph{fringing})}
+
+Un tramo con entrehierro se descompone en dos reluctancias en serie: hierro y aire.
+La longitud del gap se \textbf{descuenta} de la del hierro.
+
+\begin{equation}
+  \Rel_n = \frac{\ell - g}{\mur\,\muz\,A},
+  \qquad
+  \Rel_g = \frac{g}{\muz\,A_g},
+  \qquad
+  \Rel_s = \Rel_n + \Rel_g .
+\end{equation}
+
+Al cruzar el entrehierro el flujo se abre, así que la sección efectiva del aire es
+\textbf{mayor} que la del hierro:
+\begin{equation}
+  \boxed{\ A_g = A\,(1 + \delta_A) \ }
+\end{equation}
+
+\noindent Si se conoce la geometría rectangular $a \times b$, la regla estándar es agregar
+$g$ a cada lado:
+\begin{equation}
+  A_g = (a+g)(b+g)
+  \qquad\Longrightarrow\qquad
+  \delta_A = \frac{(a+g)(b+g)}{a\,b} - 1 .
+\end{equation}
+
+Como el flujo es el mismo pero las secciones difieren, las densidades también:
+\begin{equation}
+  B = \frac{\Phi}{A} \quad\text{(hierro)},
+  \qquad\qquad
+  B_g = \frac{\Phi}{A_g} = \frac{B}{1+\delta_A} \quad\text{(entrehierro)} .
+\end{equation}
+
+\noindent Es decir $B_g < B$: el entrehierro tiene más área, así que menos densidad.
+
+\begin{quote}\small
+\textbf{El entrehierro domina.} Con $\mur \sim 5000$, un gap de \qty{1}{\milli\metre} en un
+camino de \qty{300}{\milli\metre} aporta más del \qty{90}{\percent} de la reluctancia total.
+Un milímetro de aire equivale a varios metros de hierro. Por eso el gap es la variable de
+diseño que gobierna el circuito.
+\end{quote}
+
+\subsection{Inductancia y ley de Faraday}
+
+\begin{equation}
+  \lambda = N\Phi \quad [\unit{\weber}\text{-vuelta}],
+  \qquad
+  \boxed{\ L = \frac{\lambda}{I} = \frac{N\Phi}{I} = \frac{N^2}{\Rel} = \frac{\mur\muz N^2 A}{\ell} \ }
+\end{equation}
+
+\noindent La inductancia crece con $N^2$: una es por el flujo que la bobina genera, la otra
+por las vueltas que ese flujo concatena.
+
+\paragraph{Tensión inducida.} Las dos formas son equivalentes:
+\begin{equation}
+  v(t) = N\,\frac{\mathrm{d}\Phi}{\mathrm{d}t}
+       = L\,\frac{\mathrm{d}i}{\mathrm{d}t} .
+\end{equation}
+
+\paragraph{Caso senoidal.} Con $\Phi(t) = \Phi_{\max}\sin(\omega t)$:
+\begin{equation}
+  v(t) = N\omega\Phi_{\max}\cos(\omega t)
+  \qquad\Longrightarrow\qquad
+  V_{\text{RMS}} = \frac{N\omega\Phi_{\max}}{\sqrt{2}}
+                 = \boxed{\,4.44\,N f \Phi_{\max}\,}
+\end{equation}
+donde $4.44 = 2\pi/\sqrt{2}$. Es la \textbf{fórmula fundamental del transformador}.
+
+\paragraph{Energía almacenada.}
+\begin{equation}
+  W = \tfrac{1}{2} L I^2 \quad [\unit{\joule}],
+  \qquad
+  w = \frac{B^2}{2\muz} \quad [\unit{\joule\per\metre\cubed}] \ \text{(densidad en el aire)} .
+\end{equation}
+
+\subsection{Fuerza en el entrehierro}
+
+\begin{equation}
+  \boxed{\ F = \frac{B_g^2\,A_g}{2\,\muz} \ } \qquad [\unit{\newton}]
+\end{equation}
+
+\noindent \textbf{Por cada superficie de contacto.} Un electroimán en U con una barra
+encima tiene \emph{dos} contactos: la fuerza total es el doble. La fuerza va con $B_g^2$,
+así que duplicar la corriente cuadruplica la fuerza (mientras no sature).
+
+\subsection{Núcleo tipo O — camino cerrado en serie}
+
+\begin{center}
+\begin{tikzpicture}[scale=0.85]
+  \draw[line width=6pt] (0,0) rectangle (4,2.6);
+  \node at (2,-0.6) {$\Rel_t = \Rel_1+\Rel_2+\Rel_3+\Rel_4 \ (+\,\Rel_g)$};
+  \node[above] at (2,1.4) {$\Phi$};
+  \draw[->,line width=1pt] (1.3,1.3) -- (2.7,1.3);
+  \node[left] at (-0.35,1.3) {$N,\,I$};
+  \foreach \y in {0.7,1.0,1.3,1.6,1.9} \draw[line width=1pt] (-0.28,\y) arc (90:270:0.13);
+\end{tikzpicture}
+\end{center}
+
+Cuadrado, rectangular, toroide, U+I, E-I armado: todos son un solo lazo. El flujo no se
+divide y las reluctancias se suman.
+
+\begin{align}
+  \fmm &= N I  & \Rel_t &= \sum_k \Rel_k \\
+  \Phi &= \frac{\fmm}{\Rel_t} = \frac{NI}{\sum_k \Rel_k}
+       & L &= \frac{N^2}{\Rel_t}
+\end{align}
+
+\noindent Caída de f.m.m. en cada tramo y control de Ampère:
+\begin{equation}
+  \fmm_k = \Phi\,\Rel_k
+  \qquad\qquad
+  \boxed{\ \sum_k \fmm_k = \fmm = NI \ }
+\end{equation}
+
+\noindent Ese control es el análogo magnético de la ley de mallas y es la verificación más
+sensible del cálculo: si no cierra, hay un error en las reluctancias.
+
+\subsection{Núcleo tipo E — dos caminos en paralelo}
+
+\begin{center}
+\begin{tikzpicture}[scale=0.85]
+  \draw[line width=6pt] (0,0) rectangle (5,2.6);
+  \draw[line width=6pt] (2.5,0) -- (2.5,2.6);
+  \node at (2.5,-1.0) {$\Rel_t = \Rel_b + \left(\Rel_{o_1} \parallel \Rel_{o_2}\right)$};
+  \node[above] at (2.5,2.75) {yugo};
+  \foreach \y in {0.7,1.0,1.3,1.6,1.9} \draw[line width=1pt] (2.28,\y) arc (90:270:0.13);
+  \node[left] at (2.05,1.3) {$N,\,I$};
+  \node[below] at (0,-0.15) {$o_1$};
+  \node[below] at (2.5,-0.15) {$b$};
+  \node[below] at (5,-0.15) {$o_2$};
+\end{tikzpicture}
+\end{center}
+
+La bobina va en una pierna $b$; el flujo vuelve repartido por las otras dos, que quedan en
+paralelo.
+
+\begin{align}
+  \Rel_t &= \Rel_b + \left(\frac{1}{\Rel_{o_1}} + \frac{1}{\Rel_{o_2}}\right)^{\!-1}
+  & \Phi_b &= \frac{N I}{\Rel_t} \\[2mm]
+  \Phi_{o_k} &= -\,\Phi_b\,\frac{1/\Rel_{o_k}}{1/\Rel_{o_1}+1/\Rel_{o_2}}
+  & \sum_k \Phi_k &= 0
+\end{align}
+
+\noindent El reparto es el mismo divisor que el de corriente: inverso a la reluctancia.
+El signo negativo indica que el flujo \emph{vuelve} por esas piernas; midiendo todos los
+flujos entrando al yugo superior, la suma es cero (ley de nodos magnética).
+
+\paragraph{Qué desprecia este modelo.}
+\begin{enumerate}[nosep,leftmargin=*]
+  \item Los \textbf{yugos} (barras horizontales) se suponen de reluctancia despreciable.
+        Vale si son cortos y gruesos; deja de valer si hay entrehierro en el yugo.
+  \item \textbf{Flujo de dispersión} entre piernas: cero. Todo lo que sale de $b$ vuelve
+        por las otras dos.
+  \item Es \textbf{lineal}: sin saturación.
+\end{enumerate}
+
+% =====================================================================
+\section{Transformador ideal}
+% =====================================================================
+
+\subsection{Origen: Faraday sobre un núcleo común}
+
+Las dos bobinas están arrolladas sobre el mismo núcleo, así que ven el
+\textbf{mismo} $\mathrm{d}\Phi/\mathrm{d}t$:
+\begin{equation}
+  V_p = N_p\,\frac{\mathrm{d}\Phi}{\mathrm{d}t},
+  \qquad
+  V_s = N_s\,\frac{\mathrm{d}\Phi}{\mathrm{d}t}
+  \qquad\Longrightarrow\qquad
+  \frac{V_p}{V_s} = \frac{N_p}{N_s} .
+\end{equation}
+
+En el núcleo ideal $\Rel \to 0$, con lo cual la f.m.m. neta debe ser nula:
+\begin{equation}
+  N_p I_p - N_s I_s = \Phi\,\Rel = 0
+  \qquad\Longrightarrow\qquad
+  \frac{I_s}{I_p} = \frac{N_p}{N_s} .
+\end{equation}
+
+\subsection{Relación de transformación}
+
+\begin{equation}
+  \boxed{\ a = \frac{N_p}{N_s} \ } \quad\text{(constante primaria)}
+  \qquad\qquad
+  \boxed{\ b = \frac{N_s}{N_p} = \frac{1}{a} \ } \quad\text{(constante secundaria)}
+\end{equation}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ccc@{}}
+\toprule
+\textbf{Magnitud} & \textbf{Referida al primario} & \textbf{Referida al secundario} \\
+\midrule
+Tensión    & $V_p = a\,V_s$    & $V_s = b\,V_p$ \\
+Corriente  & $I_p = I_s/a$     & $I_s = I_p/b$ \\
+Impedancia & $Z_p = a^2\,Z_s$  & $Z_s = b^2\,Z_p$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent \textbf{La tensión y la corriente van con $a$; la impedancia con $a$ al
+cuadrado.} Ese cuadrado es el que más se olvida. Sale de dividir las dos primeras:
+\begin{equation}
+  Z_p = \frac{V_p}{I_p} = \frac{a\,V_s}{I_s/a} = a^2\,\frac{V_s}{I_s} = a^2 Z_s .
+\end{equation}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}cL{7.2cm}c@{}}
+\toprule
+\textbf{Símbolo} & \textbf{Descripción} & \textbf{Unidad} \\
+\midrule
+$a$      & Relación de transformación, $N_p/N_s$ & --- \\
+$b$      & Relación inversa, $N_s/N_p = 1/a$ & --- \\
+$N_p,N_s$& Vueltas de primario y secundario & --- \\
+$V_p,V_s$& Tensiones de primario y secundario & \unit{\volt} \\
+$I_p,I_s$& Corrientes de primario y secundario & \unit{\ampere} \\
+$Z_p$    & Impedancia \emph{vista} desde el primario & \unit{\ohm} \\
+$Z_s$    & Impedancia de carga conectada al secundario & \unit{\ohm} \\
+$\dot{\Phi}$ & $\mathrm{d}\Phi/\mathrm{d}t$, común a las dos bobinas & \unit{\weber\per\second} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent Criterio rápido: $a > 1$ es \textbf{reductor} (baja la tensión, sube la
+corriente); $a < 1$ es \textbf{elevador}.
+
+\subsection{Conservación de la potencia}
+
+En el transformador ideal no hay pérdidas ni almacenamiento, así que entra lo mismo que sale:
+\begin{equation}
+  \bar{S}_p = \bar{V}_p \bar{I}_p^{*}
+            = (a\bar{V}_s)\left(\frac{\bar{I}_s}{a}\right)^{\!*}
+            = \bar{V}_s \bar{I}_s^{*} = \bar{S}_s .
+\end{equation}
+Como $a$ es real, referir no rota fases: el factor de potencia visto desde el primario es
+el mismo que el de la carga.
+
+\subsection{Dimensionamiento del núcleo}
+
+De la fórmula fundamental de la sección 3.5, con $\Phi_{\max} = B_{\max} A$:
+\begin{equation}
+  V = 4.44\,N f\,B_{\max}\,A
+  \qquad\Longrightarrow\qquad
+  N_p = \frac{V_p}{4.44\,f\,B_{\max}\,A} .
+\end{equation}
+$B_{\max}$ se elige por debajo de la saturación (típicamente \qtyrange{1.2}{1.6}{\tesla} en
+chapa de hierro-silicio).
+
+\subsection{Qué significa ``ideal''}
+
+\begin{enumerate}[nosep,leftmargin=*]
+  \item Sin resistencia de bobinados ($R_p = R_s = 0$): no hay pérdidas en el cobre.
+  \item Sin flujo de dispersión ($X_p = X_s = 0$): todo el flujo concatena ambas bobinas.
+  \item Sin pérdidas en el hierro (histéresis ni corrientes de Foucault).
+  \item Corriente de magnetización nula ($\mur \to \infty$, $\Rel \to 0$).
+\end{enumerate}
+
+\noindent Consecuencia: rendimiento \qty{100}{\percent} y regulación de tensión nula. Si el
+problema pide \emph{regulación} o \emph{rendimiento}, este modelo no alcanza — hay que
+agregar la rama de excitación y las impedancias serie $R_{eq}$, $X_{eq}$ del circuito
+equivalente real.
+
+% =====================================================================
+\section{Límites de los modelos}
+% =====================================================================
+
+\begin{enumerate}[leftmargin=*]
+  \item \textbf{Todo el modelo magnético es lineal.} $\mur$ es constante y no hay curva
+        $B$--$H$. Si algún tramo supera $\sim\qty{1.5}{\tesla}$, el resultado es
+        \emph{optimista}: en la realidad $\mur$ se desploma al saturar y el flujo real es
+        \textbf{menor} que el calculado. Con saturación hay que ir a la curva $B$--$H$.
+  \item \textbf{El núcleo E ignora los yugos} y la dispersión entre piernas.
+  \item \textbf{$E_L = \sqrt{3}E_F$ es solo de módulos}; el desfase de \ang{30} hay que
+        aplicarlo aparte.
+  \item \textbf{El sistema trifásico se asume equilibrado} y en secuencia positiva.
+  \item \textbf{La potencia calculada es por fase.} Para la trifásica total hay que
+        multiplicar por 3.
+  \item \textbf{El transformador es ideal}: sin pérdidas, sin dispersión, sin corriente de
+        magnetización.
+\end{enumerate}
+
+% =====================================================================
+\appendix
+\section{Correspondencia con \fn{IE.m}}
+% =====================================================================
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{@{}lL{6.4cm}l@{}}
+\toprule
+\textbf{Función} & \textbf{Qué calcula} & \textbf{Sección} \\
+\midrule
+\fn{pol2rec}     & $x\angle\theta \to a + \ju b$ & 2.1 \\
+\fn{parZ}        & Impedancias en paralelo & 2.2 \\
+\fn{divV}, \fn{divI} & Divisores de tensión y corriente & 2.2 \\
+\fn{d2e}, \fn{e2d}   & Transformación $\Delta \leftrightarrow Y$ (Kennelly) & 2.3 \\
+\fn{f2l}, \fn{l2f}   & $E_L = \sqrt{3}E_F$ y su inversa (módulos) & 2.4 \\
+\fn{fasores}     & Tabla completa del trifásico equilibrado & 2.4 \\
+\fn{potencias}   & Triángulo de potencias, $\bar{S} = \bar{V}\bar{I}^{*}$ & 2.5 \\
+\midrule
+\fn{ecuacionesB}, \fn{datosB} & Las cuatro leyes básicas & 3.2 \\
+\fn{despejar}    & Motor de sustitución hacia adelante & --- \\
+\fn{ecuacionesSeg}, \fn{datosSeg} & Tramo con entrehierro & 3.4 \\
+\fn{reluctSeg}   & Reluctancia de un tramo, con \emph{fringing} & 3.4 \\
+\fn{faradayB}    & Análisis temporal: $v(t)$, $\Phi(t)$, $L$ & 3.5 \\
+\fn{fluxO}       & Núcleo cerrado en serie, con fuerza y saturación & 3.7 \\
+\fn{fluxE}       & Núcleo de tres piernas & 3.8 \\
+\midrule
+\fn{ecuacionesTrafo}, \fn{datosTrafo} & Modelo simbólico del transformador ideal & 4 \\
+\fn{trafo}       & Resuelve todo el transformador de una & 4 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\vfill
+\noindent\hrulefill\\
+\small Documento de respaldo de \fn{IE.m}. Las convenciones de signos, unidades y
+secuencia de fases son las mismas en ambos.
+
+\end{document}

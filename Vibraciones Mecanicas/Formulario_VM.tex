@@ -1,0 +1,237 @@
+\documentclass[10pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage[margin=1.2cm]{geometry}
+\usepackage{multicol}
+\usepackage{array}
+
+\setlength{\parindent}{0pt}
+\setlength{\columnsep}{0.9cm}
+\pagestyle{empty}
+
+% Compactar el espaciado alrededor de las ecuaciones
+\setlength{\abovedisplayskip}{3pt}
+\setlength{\belowdisplayskip}{3pt}
+\setlength{\abovedisplayshortskip}{2pt}
+\setlength{\belowdisplayshortskip}{2pt}
+
+\newcommand{\seccion}[1]{%
+  \vspace{2mm}\hrule\vspace{1mm}%
+  \textbf{\footnotesize\MakeUppercase{#1}}\vspace{1mm}\hrule\vspace{2mm}}
+
+\begin{document}
+\small
+
+\begin{center}
+  \textbf{\large FORMULARIO — VIBRACIONES MECÁNICAS}
+\end{center}
+\vspace{-2mm}
+
+\begin{multicols}{2}
+
+\seccion{Movimiento armónico simple}
+
+Ecuación diferencial del sistema libre no amortiguado:
+\begin{equation*}
+  m\ddot{x} + kx = 0
+  \qquad\Longleftrightarrow\qquad
+  \ddot{x} + \omega_n^{2}x = 0
+\end{equation*}
+
+Ecuación general del movimiento:
+\begin{equation*}
+  x(t) = A\cos(\omega_n t) + B\sin(\omega_n t)
+\end{equation*}
+
+Primera derivada (velocidad):
+\begin{equation*}
+  \dot{x}(t) = -A\,\omega_n\sin(\omega_n t) + B\,\omega_n\cos(\omega_n t)
+\end{equation*}
+
+Segunda derivada (aceleración):
+\begin{equation*}
+  \ddot{x}(t) = -A\,\omega_n^{2}\cos(\omega_n t) - B\,\omega_n^{2}\sin(\omega_n t)
+\end{equation*}
+\begin{equation*}
+  \ddot{x}(t) = -\omega_n^{2}\,x(t)
+\end{equation*}
+
+Constantes con condiciones iniciales
+$x(0)=x_0$, $\dot{x}(0)=v_0$:
+\begin{equation*}
+  A = x_0,
+  \qquad
+  B = \frac{v_0}{\omega_n}
+\end{equation*}
+
+Forma equivalente amplitud--fase:
+\begin{equation*}
+  x(t) = X\sin(\omega_n t + \phi)
+\end{equation*}
+\begin{equation*}
+  \dot{x}(t) = X\,\omega_n\cos(\omega_n t + \phi)
+\end{equation*}
+\begin{equation*}
+  \ddot{x}(t) = -X\,\omega_n^{2}\sin(\omega_n t + \phi)
+\end{equation*}
+\begin{equation*}
+  X = \sqrt{A^{2}+B^{2}} = \sqrt{x_0^{2}+\left(\frac{v_0}{\omega_n}\right)^{2}}
+\end{equation*}
+\begin{equation*}
+  \phi = \arctan\!\left(\frac{A}{B}\right)
+       = \arctan\!\left(\frac{x_0\,\omega_n}{v_0}\right)
+\end{equation*}
+
+En sistemas rotacionales se sustituye $x \rightarrow \theta$,
+$m \rightarrow I_0$, $k \rightarrow k_t$.
+
+Periodo y frecuencia:
+\begin{equation*}
+  T = \frac{2\pi}{\omega_n}\ [\mathrm{s}],
+  \qquad
+  f = \frac{1}{T} = \frac{\omega_n}{2\pi}\ [\mathrm{Hz}]
+\end{equation*}
+
+\seccion{Frecuencias naturales}
+
+Sistema masa--resorte:
+\begin{equation*}
+  \omega_n = \sqrt{\frac{k}{m}}
+\end{equation*}
+
+Péndulo simple:
+\begin{equation*}
+  \omega_n = \sqrt{\frac{g}{l}}
+\end{equation*}
+
+Péndulo físico (compuesto):
+\begin{equation*}
+  \omega_n = \sqrt{\frac{m\,g\,l}{I_0}}
+\end{equation*}
+
+Péndulo de torsión:
+\begin{equation*}
+  \omega_n = \sqrt{\frac{k_t}{I_0}}
+\end{equation*}
+
+Teorema de ejes paralelos (Steiner):
+\begin{equation*}
+  I_0 = I_{cm} + m\,l^{2}
+\end{equation*}
+
+\seccion{Rigidez equivalente}
+
+Resortes en serie:
+\begin{equation*}
+  \frac{1}{k_{eq}} = \sum_{i=1}^{n}\frac{1}{k_i}
+  \qquad
+  k_{eq} = \frac{1}{\displaystyle\sum_{i=1}^{n}\frac{1}{k_i}}
+\end{equation*}
+
+Resortes en paralelo:
+\begin{equation*}
+  k_{eq} = \sum_{i=1}^{n} k_i
+\end{equation*}
+
+Barra a tracción/compresión:
+\begin{equation*}
+  k = \frac{E\,A}{l}
+\end{equation*}
+
+Eje a torsión:
+\begin{equation*}
+  k_t = \frac{J_0\,G}{l}
+\end{equation*}
+
+Cuerpo sobre plano inclinado:
+\begin{equation*}
+  k_{eq} = \frac{M\,g\,\sin\alpha}{2\,R\,\theta}
+\end{equation*}
+
+Viga en voladizo con carga en el extremo:
+\begin{equation*}
+  y_{max} = \frac{P\,L^{3}}{3\,E\,I},
+  \qquad
+  k = \frac{P}{y_{max}} = \frac{3\,E\,I}{L^{3}}
+\end{equation*}
+
+\seccion{Propiedades del material}
+
+Módulo de elasticidad (Young):
+\begin{equation*}
+  E = \frac{\sigma}{\varepsilon} = \frac{P\,L}{A\,\Delta L}
+\end{equation*}
+
+Esfuerzo normal y deformación unitaria:
+\begin{equation*}
+  \sigma = \frac{P}{A},
+  \qquad
+  \varepsilon = \frac{\Delta L}{L}
+\end{equation*}
+
+Esfuerzo cortante por torsión:
+\begin{equation*}
+  \tau = \frac{M\,R}{J_0}
+\end{equation*}
+
+Deformación angular por cortante:
+\begin{equation*}
+  \gamma = \frac{R\,\theta}{L}
+\end{equation*}
+
+Módulo de rigidez al cortante:
+\begin{equation*}
+  G = \frac{\tau}{\gamma}
+\end{equation*}
+
+Momento polar de inercia (sección circular maciza):
+\begin{equation*}
+  J_0 = \frac{\pi d^{4}}{32} = \frac{\pi R^{4}}{2}
+\end{equation*}
+
+Momento de inercia de área:
+\begin{equation*}
+  I_{rect} = \frac{b\,h^{3}}{12},
+  \qquad
+  I_{circ} = \frac{\pi d^{4}}{64}
+\end{equation*}
+
+\seccion{Nomenclatura}
+
+\begin{tabbing}
+\hspace{1.3cm}\=\kill
+$x$ \> posición [m] \\
+$\dot{x}$ \> velocidad [m/s] \\
+$\ddot{x}$ \> aceleración [m/s$^2$] \\
+$A,B$ \> constantes de integración [m] \\
+$X$ \> amplitud [m] \\
+$\phi$ \> ángulo de fase [rad] \\
+$\omega_n$ \> frecuencia natural [rad/s] \\
+$T$ \> periodo [s] \\
+$f$ \> frecuencia [Hz] \\
+$m,\,M$ \> masa [kg] \\
+$k$ \> rigidez [N/m] \\
+$k_t$ \> rigidez torsional [N$\cdot$m/rad] \\
+$E$ \> módulo de Young [Pa] \\
+$G$ \> módulo cortante [Pa] \\
+$A$ \> área de sección [m$^2$] \\
+$l,\,L$ \> longitud [m] \\
+$I_0$ \> inercia de masa [kg$\cdot$m$^2$] \\
+$I$ \> inercia de área [m$^4$] \\
+$J_0$ \> inercia polar de área [m$^4$] \\
+$P$ \> carga puntual [N] \\
+$y_{max}$ \> deflexión máxima [m] \\
+$b,h$ \> base y altura de sección [m] \\
+$d$ \> diámetro [m] \\
+$\sigma$ \> esfuerzo normal [Pa] \\
+$\tau$ \> esfuerzo cortante [Pa] \\
+$\varepsilon$ \> deformación unitaria [--] \\
+$\gamma$ \> deformación cortante [--] \\
+$\theta$ \> ángulo de giro [rad] \\
+$g$ \> $9{,}81$ m/s$^2$ \\
+\end{tabbing}
+
+\end{multicols}
+\end{document}

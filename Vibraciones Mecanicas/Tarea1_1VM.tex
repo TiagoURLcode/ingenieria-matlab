@@ -1,0 +1,638 @@
+% =====================================================================
+%  Tarea #1.1 - Vibraciones libres
+%  Vibraciones Mecanicas - Universidad Rafael Landivar
+%  Santiago Cruz Rivera - Carne 1310823
+%  Compilar con: pdflatex Tarea1_1VM.tex   (dos veces)
+% =====================================================================
+\documentclass[12pt,letterpaper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-tabla]{babel}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{float}
+\usepackage{caption}
+
+% ------------------------- Colores y estilo de codigo ----------------
+\definecolor{mlkeyword}{RGB}{0,0,255}
+\definecolor{mlcomment}{RGB}{34,139,34}
+\definecolor{mlstring}{RGB}{160,32,240}
+\definecolor{fondo}{RGB}{248,248,248}
+\definecolor{fondoconsola}{RGB}{240,240,240}
+\definecolor{urlazul}{RGB}{0,51,102}
+
+\lstdefinestyle{matlab}{
+  language=Matlab,
+  backgroundcolor=\color{fondo},
+  basicstyle=\ttfamily\footnotesize,
+  keywordstyle=\color{mlkeyword},
+  commentstyle=\color{mlcomment}\itshape,
+  stringstyle=\color{mlstring},
+  numbers=left,
+  numberstyle=\tiny\color{gray},
+  numbersep=8pt,
+  frame=single,
+  rulecolor=\color{gray},
+  breaklines=true,
+  breakatwhitespace=false,
+  showstringspaces=false,
+  tabsize=2,
+  captionpos=b,
+  columns=flexible,
+  literate={á}{{\'a}}1 {é}{{\'e}}1 {í}{{\'i}}1 {ó}{{\'o}}1 {ú}{{\'u}}1 {ñ}{{\~n}}1
+}
+\lstset{style=matlab}
+
+% Estilo para la salida de la ventana de comandos (texto plano, sin numeros)
+\lstdefinestyle{consola}{
+  language=,
+  backgroundcolor=\color{fondoconsola},
+  basicstyle=\ttfamily\footnotesize,
+  numbers=none,
+  frame=single,
+  rulecolor=\color{gray},
+  breaklines=true,
+  showstringspaces=false,
+  columns=fullflexible,
+  keepspaces=true,
+  literate={á}{{\'a}}1 {é}{{\'e}}1 {í}{{\'i}}1 {ó}{{\'o}}1 {ú}{{\'u}}1 {ñ}{{\~n}}1
+}
+
+% ------------------------- Encabezado de secciones -------------------
+\usepackage{titlesec}
+\titleformat{\section}{\large\bfseries\color{urlazul}}{Problema \thesection.}{0.5em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{}{0em}{}
+
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\footnotesize Vibraciones Mecánicas --- Tarea \#1.1}
+\fancyhead[R]{\footnotesize Santiago Cruz Rivera --- 1310823}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\begin{document}
+
+% =====================================================================
+%                              CARÁTULA
+% =====================================================================
+\begin{titlepage}
+\centering
+\thispagestyle{empty}
+
+\vspace*{1.5cm}
+
+{\LARGE\bfseries UNIVERSIDAD RAFAEL LANDÍVAR\par}
+\vspace{0.4cm}
+{\large Facultad de Ingeniería\par}
+
+\vspace{2.5cm}
+
+\rule{\textwidth}{1.2pt}
+\vspace{0.6cm}
+
+{\Huge\bfseries VIBRACIONES MECÁNICAS\par}
+\vspace{0.8cm}
+{\LARGE TAREA \#1.1\par}
+\vspace{0.5cm}
+{\Large Vibraciones libres\par}
+
+\vspace{0.6cm}
+\rule{\textwidth}{1.2pt}
+
+\vspace{3cm}
+
+{\Large\bfseries Santiago Cruz Rivera\par}
+\vspace{0.4cm}
+{\large Carné: 1310823\par}
+
+\vfill
+
+{\large Guatemala, \today\par}
+
+\end{titlepage}
+
+% =====================================================================
+%                            PROBLEMA 1
+% =====================================================================
+\section{Sistema lineal masa--resorte}
+
+\subsection{Enunciado}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{img/ej1.png}
+\caption*{Enunciado del problema 1.}
+\end{figure}
+
+\noindent\emph{Nota:} el inciso (a) pide el tiempo para que el bloque \emph{se mueva
+3.00}; las unidades del enunciado (s) son un error tipográfico, ya que lo que se busca
+es el tiempo necesario para recorrer un desplazamiento de $x = 3.00$ in.
+
+\subsection{Fórmulas utilizadas}
+
+\textbf{Masa a partir del peso} (sistema inglés, $g = 386$ in/s$^2$):
+\begin{equation}
+m = \frac{W}{g} = \frac{3}{386} = 7.772\times10^{-3}\ \frac{\text{lb}\cdot\text{s}^2}{\text{in}}
+\end{equation}
+
+\textbf{Frecuencia natural:}
+\begin{equation}
+\omega_n = \sqrt{\frac{k}{m}} = \sqrt{\frac{2}{3/386}} = 16.0416\ \text{rad/s}
+\end{equation}
+
+\textbf{Solución general} del movimiento armónico simple:
+\begin{equation}
+x(t) = A\cos(\omega_n t) + B\sin(\omega_n t)
+\end{equation}
+
+El impacto ocurre cuando el sistema está \emph{en la posición de equilibrio}, es decir
+$x(0) = 0$, lo que obliga a $A = 0$. Queda entonces un seno puro:
+\begin{equation}
+x(t) = B\sin(\omega_n t), \qquad v(t) = B\,\omega_n\cos(\omega_n t)
+\end{equation}
+
+Como $v(0) = v_{\max} = B\,\omega_n$, la constante del seno (que aquí es la amplitud) es:
+\begin{equation}
+\boxed{\;B = \frac{v_{\max}}{\omega_n} = \frac{90.0}{16.0416} = 5.6104\ \text{in}\;}
+\end{equation}
+
+\textbf{(a) Tiempo para llegar a $x = 3.00$ in:} despejando de $x = B\sin(\omega_n t)$,
+\begin{equation}
+t = \frac{1}{\omega_n}\,\arcsin\!\left(\frac{x}{B}\right)
+\end{equation}
+
+\textbf{(b) Velocidad y aceleración en ese punto:}
+\begin{equation}
+v = B\,\omega_n\cos(\omega_n t), \qquad a = -\omega_n^{2}\,x
+\end{equation}
+
+La aceleración se obtiene directamente de $a(t) = -\omega_n^{2}x(t)$, sin necesidad de
+evaluar funciones trigonométricas.
+
+\subsection{Código MATLAB}
+\lstinputlisting[firstline=1,lastline=22,firstnumber=1]{Tarea1_1VM.m}
+
+\subsection{Resultados}
+\begin{lstlisting}[style=consola]
+ejercicio 1
+a) Tiempo para desplazarse x = 3.00 in:
+   t = 0.03517 s
+
+b) En x = 3.00 in:
+   Velocidad     v = 76.0526 in/s
+   Aceleracion   a = -772.0000 in/s^2
+\end{lstlisting}
+
+\noindent Con $\omega_n = 16.0416$ rad/s y $B = 5.6104$ in:
+\[
+t = 0.03517\ \text{s}, \qquad v = 76.05\ \text{in/s}, \qquad a = -772.0\ \text{in/s}^2
+\]
+El signo negativo de la aceleración indica que apunta hacia la posición de equilibrio
+(fuerza restitutiva del resorte).
+
+\newpage
+% =====================================================================
+%                            PROBLEMA 2
+% =====================================================================
+\section{Sistema masa--resorte a torsión: inercia del giroscopio}
+
+\subsection{Enunciado}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{img/ej2.png}
+\caption*{Enunciado del problema 2.}
+\end{figure}
+
+\subsection{Fórmulas utilizadas}
+
+El mismo cable delgado se usa en los dos ensayos, por lo que su rigidez torsional $k_t$
+es la misma. La esfera de acero, de geometría conocida, sirve para \emph{calibrar} el
+cable; con ese $k_t$ se obtiene después la inercia del giroscopio.
+
+\textbf{Masa de la esfera de acero} ($\rho = 490$ lb/ft$^3 = 490/1728$ lb/in$^3$,
+$d = 1.25$ in $\Rightarrow r = 0.625$ in):
+\begin{equation}
+m_e = \frac{\rho\,V}{g} = \frac{\rho}{g}\cdot\frac{4}{3}\pi r^{3}
+\end{equation}
+
+\textbf{Inercia de una esfera maciza respecto a su diámetro:}
+\begin{equation}
+I_e = \frac{2}{5}\,m_e\,r^{2}
+\end{equation}
+
+\textbf{Péndulo de torsión:}
+\begin{equation}
+\omega_n = \sqrt{\frac{k_t}{I}} \quad\Longrightarrow\quad k_t = \omega_n^{2}\,I,
+\qquad \omega_n = \frac{2\pi}{T}
+\end{equation}
+
+\emph{Ensayo 1} --- esfera de acero, $T_e = 3.80$ s:
+\begin{equation}
+\omega_e = \frac{2\pi}{3.80}, \qquad k_t = \omega_e^{2}\,I_e
+\end{equation}
+
+\emph{Ensayo 2} --- giroscopio, $T_g = 6.00$ s:
+\begin{equation}
+\omega_g = \frac{2\pi}{6.00}, \qquad
+\boxed{\;I_g = \frac{k_t}{\omega_g^{2}} = I_e\left(\frac{\omega_e}{\omega_g}\right)^{2}
+= I_e\left(\frac{T_g}{T_e}\right)^{2}\;}
+\end{equation}
+
+\noindent El peso de 4.00 oz del giroscopio es un dato redundante: en un péndulo de
+torsión la frecuencia depende de la inercia rotacional, no de la masa.
+
+\subsection{Código MATLAB}
+\lstinputlisting[firstline=25,lastline=41,firstnumber=25]{Tarea1_1VM.m}
+
+\subsection{Resultados}
+\begin{lstlisting}[style=consola]
+ejercicio 2
+a)   Inercia        I  = 2.9265e-04 lb*in*s^2
+\end{lstlisting}
+
+\noindent Sustituyendo: $m_e = 2.0876\times10^{-4}$ lb$\cdot$s$^2$/in,
+$I_e = 3.2619\times10^{-5}$ lb$\cdot$in$\cdot$s$^2$,
+$k_t = 8.9207\times10^{-5}$ lb$\cdot$in/rad, y finalmente
+\[
+I_g = 2.9265\times10^{-4}\ \text{lb}\cdot\text{in}\cdot\text{s}^2
+\]
+
+\newpage
+% =====================================================================
+%                            PROBLEMA 3
+% =====================================================================
+\section{Arreglo en T como péndulo compuesto}
+
+\subsection{Enunciado}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{img/ej3.png}
+\caption*{Enunciado del problema 3.}
+\end{figure}
+
+\subsection{Fórmulas utilizadas}
+
+Se resuelve de forma \emph{simbólica}: ambas barras tienen masa $m$ y longitud $l$, y el
+arreglo gira alrededor del pasador $A$. Se supone oscilación de ángulo pequeño
+($\sin\theta \approx \theta$).
+
+\textbf{Inercia respecto al pivote $A$.} La barra vertical $AB$ gira respecto a su
+extremo:
+\begin{equation}
+I_{AB} = \frac{m\,l^{2}}{3}
+\end{equation}
+
+La barra horizontal $CD$ tiene su centro de masa en $B$, a una distancia $l$ de $A$;
+por el teorema de ejes paralelos (Steiner):
+\begin{equation}
+I_{CD} = \frac{m\,l^{2}}{12} + m\,l^{2} = \frac{13}{12}\,m\,l^{2}
+\end{equation}
+
+\begin{equation}
+I_{A} = I_{AB} + I_{CD} = \frac{m l^{2}}{3} + \frac{13\,m l^{2}}{12}
+      = \frac{17}{12}\,m\,l^{2}
+\end{equation}
+
+\textbf{Momento restitutivo del peso.} El centro de masa de $AB$ está a $l/2$ y el de
+$CD$ a $l$ del pivote:
+\begin{equation}
+M = m g \frac{l}{2} + m g\, l = \frac{3}{2}\,m\,g\,l
+\end{equation}
+
+\textbf{Frecuencia natural del péndulo físico:}
+\begin{equation}
+\omega_n = \sqrt{\frac{M}{I_A}}
+= \sqrt{\frac{\tfrac{3}{2}\,m g l}{\tfrac{17}{12}\,m l^{2}}}
+\quad\Longrightarrow\quad
+\boxed{\;\omega_n = \sqrt{\frac{18\,g}{17\,l}}\;}
+\end{equation}
+
+\begin{equation}
+f = \frac{\omega_n}{2\pi} = \frac{3\sqrt{34}}{34\,\pi}\sqrt{\frac{g}{l}}
+\approx 0.1638\,\sqrt{\frac{g}{l}}\ \ \text{Hz}
+\end{equation}
+
+\noindent Ni la masa $m$ ni el ángulo inicial aparecen en el resultado: la frecuencia
+depende únicamente de la geometría y de $g$.
+
+\subsection{Código MATLAB}
+\lstinputlisting[firstline=44,lastline=55,firstnumber=44]{Tarea1_1VM.m}
+
+\subsection{Resultados}
+\begin{lstlisting}[style=consola]
+ejercicio 3
+   omega = ((18*g3)/(17*l3))^(1/2) rad/s
+   f     = (3*34^(1/2)*(g3/l3)^(1/2))/(34*pi) Hz
+\end{lstlisting}
+
+\noindent MATLAB devuelve el resultado en forma cerrada, idéntico al desarrollo
+analítico:
+\[
+\omega_n = \sqrt{\frac{18 g}{17 l}}, \qquad
+f = \frac{3\sqrt{34}}{34\pi}\sqrt{\frac{g}{l}}
+\]
+
+\newpage
+% =====================================================================
+%                            PROBLEMA 4
+% =====================================================================
+\section{Cilindro rodante sobre plano inclinado (método de energías)}
+
+\subsection{Enunciado}
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{img/ej4.png}
+\caption*{Enunciado del problema 4.}
+\end{figure}
+
+\subsection{Fórmulas utilizadas}
+
+El cilindro \emph{rueda sin deslizar}, por lo que su energía cinética incluye
+traslación y rotación. Con la condición de rodadura $v = r\dot{\theta}$ y
+$I_G = \tfrac{1}{2}m r^{2}$:
+\begin{equation}
+T = \frac{1}{2}m v^{2} + \frac{1}{2}I_G\dot{\theta}^{2}
+  = \frac{1}{2}m v^{2} + \frac{1}{2}\left(\frac{1}{2}m r^{2}\right)\frac{v^{2}}{r^{2}}
+  = \frac{3}{4}\,m\,v^{2}
+\end{equation}
+
+Escribiendo $T = \tfrac{1}{2}m_{ef}v^{2}$ se identifica la \textbf{masa efectiva}:
+\begin{equation}
+\boxed{\;m_{ef} = \frac{3}{2}\,m = \frac{3}{2}\cdot\frac{W}{g}\;}
+\end{equation}
+
+\textbf{Frecuencia natural, periodo y velocidad máxima:}
+\begin{equation}
+\omega_n = \sqrt{\frac{k}{m_{ef}}} = \sqrt{\frac{2k}{3m}},
+\qquad \tau = \frac{2\pi}{\omega_n},
+\qquad v_{\max} = A\,\omega_n
+\end{equation}
+
+\noindent El ángulo $\beta = 14^{\circ}$ \textbf{no afecta} a $\omega_n$: la componente
+del peso a lo largo del plano es constante, de modo que sólo corre la posición de
+equilibrio, sin alterar la ecuación diferencial del movimiento medido desde ese
+equilibrio. Por eso $\beta$ aparece en el código sólo como dato documentado.
+
+\subsection{Código MATLAB}
+\lstinputlisting[firstline=57,lastline=75,firstnumber=57]{Tarea1_1VM.m}
+
+\subsection{Resultados}
+\begin{lstlisting}[style=consola]
+ejercicio 4
+   Masa efectiva   m_ef = 0.058290 lb*s^2/in
+   Frec. natural   w    = 8.7864 rad/s
+a) Periodo        tau   = 0.7151 s
+b) Vel. maxima    vmax  = 3.5145 in/s
+\end{lstlisting}
+
+\noindent Con $W = 15.0$ lb, $k = 4.5$ lb/in y $A = 0.4$ in:
+\[
+m = 0.03886\ \frac{\text{lb}\cdot\text{s}^2}{\text{in}}, \qquad
+m_{ef} = 0.05829\ \frac{\text{lb}\cdot\text{s}^2}{\text{in}}
+\]
+\[
+\omega_n = 8.7864\ \text{rad/s}, \qquad
+\tau = 0.7151\ \text{s}, \qquad
+v_{\max} = 3.5145\ \text{in/s}
+\]
+
+\newpage
+% =====================================================================
+%                            PROBLEMA 5
+% =====================================================================
+\section{Volante oscilando como péndulo compuesto}
+
+\subsection{Enunciado}
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{img/ej5.png}
+\caption*{Enunciado del problema 5.}
+\end{figure}
+
+\subsection{Fórmulas utilizadas}
+
+El volante se cuelga del punto $A$ de su llanta y oscila como péndulo físico. La
+distancia del pivote al centro de masa es el radio:
+\begin{equation}
+d = \frac{14\ \text{in}}{2} = 7\ \text{in} = \frac{7}{12}\ \text{ft} = 0.5833\ \text{ft}
+\end{equation}
+
+\textbf{Periodo del péndulo compuesto:}
+\begin{equation}
+\tau = 2\pi\sqrt{\frac{I_A}{W\,d}}
+\quad\Longrightarrow\quad
+\boxed{\;I_A = \frac{W\,d\,\tau^{2}}{4\pi^{2}} = \frac{W\,d}{\omega_n^{2}}\;},
+\qquad \omega_n = \frac{2\pi}{\tau}
+\end{equation}
+
+\textbf{Traslado al centro de masa} (teorema de ejes paralelos), con
+$m = W/g$ y $g = 32.2$ ft/s$^2$:
+\begin{equation}
+I_A = I_G + m\,d^{2}
+\quad\Longrightarrow\quad
+\boxed{\;I_G = I_A - m\,d^{2}\;}
+\end{equation}
+
+\subsection{Código MATLAB}
+\lstinputlisting[firstline=78,lastline=90,firstnumber=78]{Tarea1_1VM.m}
+
+\subsection{Resultados}
+\begin{lstlisting}[style=consola]
+ejercicio 5
+   Inercia en G   I_G   = 1.0957 slug*ft^2
+\end{lstlisting}
+
+\noindent Con $W = 85.0$ lb, $\tau = 1.26$ s y $d = 0.5833$ ft:
+\[
+m = 2.6398\ \text{slug}, \qquad
+\omega_n = 4.9866\ \text{rad/s}, \qquad
+I_A = 1.9940\ \text{slug}\cdot\text{ft}^2
+\]
+\[
+I_G = 1.9940 - (2.6398)(0.5833)^2 = 1.0957\ \text{slug}\cdot\text{ft}^2
+\]
+
+\newpage
+% =====================================================================
+%                            PROBLEMA 6
+% =====================================================================
+\section{Torre de acero con tanque de agua}
+
+\subsection{Enunciado}
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{img/ej6.png}
+\caption*{Enunciado del problema 6.}
+\end{figure}
+
+\subsection{Fórmulas utilizadas}
+
+La columna trabaja \emph{a compresión axial}, por lo que se modela como un resorte de
+rigidez $k = EA/L$ con la masa del tanque concentrada en su extremo.
+
+\textbf{Área de la sección cuadrada hueca} (150 mm exterior, 80.0 mm interior):
+\begin{equation}
+A = 0.150^{2} - 0.080^{2} = 0.0161\ \text{m}^2
+\end{equation}
+
+\textbf{(a) Deflexión estática.} De la definición del módulo de Young
+$E = \dfrac{P L}{A\,\delta}$ se despeja:
+\begin{equation}
+\boxed{\;\delta = \frac{P\,L}{A\,E}\;}, \qquad P = m\,g = 2000(9.8) = 19\,600\ \text{N}
+\end{equation}
+
+\textbf{(b) Frecuencia natural:}
+\begin{equation}
+k = \frac{E\,A}{L}, \qquad
+\omega_n = \sqrt{\frac{k}{m}}, \qquad
+f = \frac{\omega_n}{2\pi}
+\end{equation}
+
+\textbf{(c) Periodo:}
+\begin{equation}
+T = \frac{1}{f} = \frac{2\pi}{\omega_n}
+\end{equation}
+
+\textbf{(d) Aceleración máxima.} Tomando la deflexión estática como amplitud del
+movimiento:
+\begin{equation}
+a_{\max} = -\omega_n^{2}\,\delta
+\end{equation}
+
+Conviene notar que este resultado \emph{debe} dar $-g$, ya que
+\begin{equation}
+\omega_n^{2}\,\delta = \frac{k}{m}\cdot\frac{m g}{k} = g
+\end{equation}
+lo que sirve como verificación de todo el cálculo.
+
+\subsection{Código MATLAB}
+\lstinputlisting[firstline=92,lastline=110,firstnumber=92]{Tarea1_1VM.m}
+
+\subsection{Funciones utilizadas de \texttt{VM.m}}
+
+\noindent\texttt{VM.datosKR(E,A,l)} --- rigidez axial $k = EA/l$:
+\lstinputlisting[firstline=45,lastline=54,firstnumber=45]{VM.m}
+
+\noindent\texttt{VM.datosE(P,L,A,cambioL)} --- módulo de Young; aquí se usa al revés,
+con \texttt{solve} se despeja la deflexión $\delta$:
+\lstinputlisting[firstline=57,lastline=68,firstnumber=57]{VM.m}
+
+\noindent\texttt{VM.datosOmega(k,m)} --- frecuencia natural $\omega_n = \sqrt{k/m}$:
+\lstinputlisting[firstline=70,lastline=78,firstnumber=70]{VM.m}
+
+\subsection{Resultados}
+\begin{lstlisting}[style=consola]
+ejercicio 6
+delta = 7.3043e-05 m = 0.0730 mm
+
+f       = 58.30 Hz
+
+T = 0.01715 s = 17.15 ms
+
+a_max = -9.800 m/s^2
+\end{lstlisting}
+
+\noindent Con $E = 200$ GPa, $A = 0.0161$ m$^2$, $L = 12.0$ m y $m = 2000$ kg:
+\[
+k = \frac{(200\times10^{9})(0.0161)}{12} = 2.6833\times10^{8}\ \text{N/m},
+\qquad \omega_n = 366.31\ \text{rad/s}
+\]
+\[
+\delta = 0.0730\ \text{mm}, \qquad
+f = 58.30\ \text{Hz}, \qquad
+T = 17.15\ \text{ms}, \qquad
+a_{\max} = -9.80\ \text{m/s}^2
+\]
+
+\noindent La aceleración máxima coincide exactamente con $-g$, tal como predice la
+comprobación analítica.
+
+\newpage
+% =====================================================================
+%                            PROBLEMA 7
+% =====================================================================
+\section{Brazo robótico \emph{pick-and-place}}
+
+\subsection{Enunciado}
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{img/ej7.png}
+\caption*{Enunciado del problema 7.}
+\end{figure}
+
+\subsection{Fórmulas utilizadas}
+
+Los tres tramos tubulares transmiten \emph{la misma fuerza axial} y sus deformaciones se
+suman, por lo que se comportan como resortes \textbf{en serie}.
+
+\textbf{Área de cada sección anular:}
+\begin{equation}
+A_i = \frac{\pi}{4}\left(D_i^{2} - d_i^{2}\right)
+\end{equation}
+
+\textbf{Rigidez axial de cada tramo:}
+\begin{equation}
+k_i = \frac{E_i\,A_i}{l_i}
+\end{equation}
+
+\textbf{Rigidez equivalente en serie:}
+\begin{equation}
+\boxed{\;\frac{1}{k_{eq}} = \frac{1}{k_1}+\frac{1}{k_2}+\frac{1}{k_3}
+\quad\Longrightarrow\quad k_{eq} = \frac{1}{\sum_i 1/k_i}\;}
+\end{equation}
+
+\textbf{Masa del objeto transportado} ($g = 386.4$ in/s$^2$):
+\begin{equation}
+m = \frac{W}{g} = \frac{10}{386.4} = 0.025880\ \frac{\text{lb}\cdot\text{s}^2}{\text{in}}
+\end{equation}
+
+\textbf{Frecuencia natural axial:}
+\begin{equation}
+\omega_n = \sqrt{\frac{k_{eq}}{m}}, \qquad f = \frac{\omega_n}{2\pi}
+\end{equation}
+
+Se desprecia la masa de los propios tramos frente a la del objeto de 10 lb.
+
+\subsection{Código MATLAB}
+\lstinputlisting[firstline=113,lastline=148,firstnumber=113]{Tarea1_1VM.m}
+
+\subsection{Funciones utilizadas de \texttt{VM.m}}
+
+\noindent\texttt{VM.datosSerieR(k)} --- rigidez equivalente de resortes en serie:
+\lstinputlisting[firstline=25,lastline=33,firstnumber=25]{VM.m}
+
+\noindent Este problema usa además \texttt{VM.datosKR} (rigidez axial) y
+\texttt{VM.datosOmega} (frecuencia natural), ya listadas en el Problema 6.
+
+\subsection{Resultados}
+\begin{lstlisting}[style=consola]
+ejercicio 7
+f       = 410.44 Hz
+\end{lstlisting}
+
+\begin{center}
+\begin{tabular}{lccc}
+\hline
+\textbf{Tramo} & \textbf{1} & \textbf{2} & \textbf{3} \\
+\hline
+$D$ [in]            & 2.00     & 1.50     & 1.00     \\
+$d$ [in]            & 1.75     & 1.25     & 0.75     \\
+$l$ [in]            & 12       & 10       & 8        \\
+$A$ [in$^2$]        & 0.73631  & 0.53996  & 0.34361  \\
+$k$ [lb/in]         & 613\,592 & 539\,961 & 429\,515 \\
+\hline
+\end{tabular}
+\end{center}
+
+\noindent Rigidez equivalente y frecuencia:
+\[
+k_{eq} = 1.7212\times10^{5}\ \text{lb/in}, \qquad
+\omega_n = 2578.89\ \text{rad/s}, \qquad
+f = 410.44\ \text{Hz}
+\]
+
+\end{document}

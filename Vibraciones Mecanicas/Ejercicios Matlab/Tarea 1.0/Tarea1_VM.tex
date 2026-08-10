@@ -1,0 +1,366 @@
+% =====================================================================
+%  Tarea #1 - Vibracion libre de 1 GDL, sistemas discretos
+%  Vibraciones Mecanicas - Universidad Rafael Landivar
+%  Santiago Cruz Rivera - Carne 1310823
+%  Compilar con: pdflatex Tarea1_VM.tex   (dos veces)
+% =====================================================================
+\documentclass[12pt,letterpaper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-tabla]{babel}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{float}
+\usepackage{caption}
+
+% ------------------------- Colores y estilo de codigo ----------------
+\definecolor{mlkeyword}{RGB}{0,0,255}
+\definecolor{mlcomment}{RGB}{34,139,34}
+\definecolor{mlstring}{RGB}{160,32,240}
+\definecolor{fondo}{RGB}{248,248,248}
+\definecolor{urlazul}{RGB}{0,51,102}
+
+\lstdefinestyle{matlab}{
+  language=Matlab,
+  backgroundcolor=\color{fondo},
+  basicstyle=\ttfamily\footnotesize,
+  keywordstyle=\color{mlkeyword},
+  commentstyle=\color{mlcomment}\itshape,
+  stringstyle=\color{mlstring},
+  numbers=left,
+  numberstyle=\tiny\color{gray},
+  numbersep=8pt,
+  frame=single,
+  rulecolor=\color{gray},
+  breaklines=true,
+  breakatwhitespace=false,
+  showstringspaces=false,
+  tabsize=2,
+  captionpos=b,
+  columns=flexible,
+  literate={á}{{\'a}}1 {é}{{\'e}}1 {í}{{\'i}}1 {ó}{{\'o}}1 {ú}{{\'u}}1 {ñ}{{\~n}}1
+}
+\lstset{style=matlab}
+
+% ------------------------- Encabezado de secciones -------------------
+\usepackage{titlesec}
+\titleformat{\section}{\large\bfseries\color{urlazul}}{Problema \thesection.}{0.5em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{}{0em}{}
+
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\footnotesize Vibraciones Mecánicas --- Tarea \#1}
+\fancyhead[R]{\footnotesize Santiago Cruz Rivera --- 1310823}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\begin{document}
+
+% =====================================================================
+%                              CARÁTULA
+% =====================================================================
+\begin{titlepage}
+\centering
+\thispagestyle{empty}
+
+\vspace*{1.5cm}
+
+{\LARGE\bfseries UNIVERSIDAD RAFAEL LANDÍVAR\par}
+\vspace{0.4cm}
+{\large Facultad de Ingeniería\par}
+
+\vspace{2.5cm}
+
+\rule{\textwidth}{1.2pt}
+\vspace{0.6cm}
+
+{\Huge\bfseries VIBRACIONES MECÁNICAS\par}
+\vspace{0.8cm}
+{\LARGE TAREA \#1\par}
+\vspace{0.5cm}
+{\Large Vibración libre de 1 GDL --- Sistemas discretos\par}
+
+\vspace{0.6cm}
+\rule{\textwidth}{1.2pt}
+
+\vspace{3cm}
+
+{\Large\bfseries Santiago Cruz Rivera\par}
+\vspace{0.4cm}
+{\large Carné: 1310823\par}
+
+\vfill
+
+{\large Guatemala, \today\par}
+
+\end{titlepage}
+
+% =====================================================================
+%                            PROBLEMA 1
+% =====================================================================
+\section{Movimiento armónico de una mesa vibratoria}
+
+\subsection{Enunciado}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{img/ej1.png}
+\caption*{Enunciado del problema 1.}
+\end{figure}
+
+\subsection{Fórmulas utilizadas}
+
+Frecuencia angular a partir de la frecuencia cíclica:
+\begin{equation}
+\omega = 2\pi f
+\end{equation}
+
+Para que el paquete $B$ no deslice sobre la mesa $C$, la fuerza de fricción estática
+debe ser capaz de proporcionar la aceleración del paquete. En el límite de deslizamiento:
+\begin{equation}
+F_{\max} = m\,a_{\max}, \qquad N = mg, \qquad F_{\max} = \mu_s N
+\end{equation}
+
+Sustituyendo, la masa se cancela y la aceleración máxima admisible resulta:
+\begin{equation}
+m\,a_{\max} = \mu_s\,m\,g \quad \Longrightarrow \quad a_{\max} = \mu_s\, g
+\end{equation}
+
+En movimiento armónico simple, $x(t) = A\sin(\omega t)$, por lo que la aceleración máxima es:
+\begin{equation}
+a_{\max} = \omega^{2} A
+\end{equation}
+
+Igualando ambas expresiones se despeja la amplitud máxima permitida:
+\begin{equation}
+\boxed{\;A_{\max} = \frac{\mu_s\, g}{\omega^{2}} = \frac{\mu_s\, g}{(2\pi f)^{2}}\;}
+\end{equation}
+
+Conversión al sistema inglés:
+\begin{equation}
+A_{\text{US}} \,[\text{in}] = A\,[\text{m}] \times 39.37
+\end{equation}
+
+\subsection{Código MATLAB}
+\lstinputlisting[firstline=1,lastline=12,firstnumber=1]{Tarea1_VM.m}
+
+\subsection{Resultados}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.62\textwidth]{R1.png}
+\caption*{Salida de la ventana de comandos --- Problema 1.}
+\end{figure}
+
+\noindent Con $f = 3$ Hz, $\mu_s = 0.40$ y $g = 9.81$ m/s$^2$:
+\[
+\omega = 18.850\ \text{rad/s}, \qquad a_{\max} = 3.924\ \text{m/s}^2,
+\qquad A_{\max} = 11.04\ \text{mm} = 0.4348\ \text{in}
+\]
+
+\newpage
+% =====================================================================
+%                            PROBLEMA 2
+% =====================================================================
+\section{Bloque de 75 lb con arreglos de resortes}
+
+\subsection{Enunciado}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{img/ej2.png}
+\caption*{Enunciado del problema 2.}
+\end{figure}
+
+\subsection{Fórmulas utilizadas}
+
+\textbf{Masa a partir del peso} (sistema inglés, $g = 386.4$ in/s$^2$):
+\begin{equation}
+m = \frac{W}{g} = \frac{75}{386.4} = 0.19410\ \frac{\text{lb}\cdot\text{s}^2}{\text{in}}
+\end{equation}
+
+\textbf{Rigidez equivalente.} Resortes en paralelo (mismo desplazamiento) y en serie
+(misma fuerza):
+\begin{equation}
+k_{eq}^{\;\text{paralelo}} = \sum_{i} k_i, \qquad
+\frac{1}{k_{eq}^{\;\text{serie}}} = \sum_{i}\frac{1}{k_i}
+\end{equation}
+
+\emph{Sistema 1:} el resorte superior de 90 lb/in y los dos resortes inferiores de
+45 lb/in actúan todos en paralelo sobre el bloque:
+\begin{equation}
+k_{e1} = 90 + 2(45) = 180\ \text{lb/in}
+\end{equation}
+
+\emph{Sistema 2:} los dos resortes de 90 lb/in están en serie:
+\begin{equation}
+k_{e2} = \frac{1}{\dfrac{1}{90}+\dfrac{1}{90}} = \frac{90}{2} = 45\ \text{lb/in}
+\end{equation}
+
+\textbf{Parámetros del movimiento armónico simple:}
+\begin{align}
+\omega_n &= \sqrt{\frac{k_{eq}}{m}} \\[4pt]
+f &= \frac{\omega_n}{2\pi} \\[4pt]
+T &= \frac{1}{f} = \frac{2\pi}{\omega_n} \\[4pt]
+v_{\max} &= A\,\omega_n \\[4pt]
+a_{\max} &= A\,\omega_n^{2}
+\end{align}
+
+\subsection{Código MATLAB}
+\lstinputlisting[firstline=14,lastline=40,firstnumber=14]{Tarea1_VM.m}
+
+\subsection{Resultados}
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{R2.png}
+\caption*{Salida de la ventana de comandos --- Problema 2.}
+\end{figure}
+
+\begin{center}
+\begin{tabular}{lcc}
+\hline
+\textbf{Parámetro} & \textbf{Sistema 1} & \textbf{Sistema 2} \\
+\hline
+$k_{eq}$ [lb/in]        & 180    & 45     \\
+$\omega_n$ [rad/s]      & 30.45  & 15.23  \\
+$f$ [Hz]                & 4.85   & 2.42   \\
+$T$ [s]                 & 0.21   & 0.41   \\
+$v_{\max}$ [in/s]       & 60.91  & 30.45  \\
+$a_{\max}$ [in/s$^2$]   & 1854.72& 463.68 \\
+\hline
+\end{tabular}
+\end{center}
+
+\newpage
+% =====================================================================
+%                            PROBLEMA 3
+% =====================================================================
+\section{Determinación de la masa del bloque \emph{C} y su período}
+
+\subsection{Enunciado}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{img/ej3.png}
+\caption*{Enunciado del problema 3.}
+\end{figure}
+
+\subsection{Fórmulas utilizadas}
+
+Relación entre período y frecuencia natural:
+\begin{equation}
+T = \frac{2\pi}{\omega_n} \quad \Longrightarrow \quad \omega_n = \frac{2\pi}{T}
+\end{equation}
+
+Frecuencia natural del sistema masa--resorte:
+\begin{equation}
+\omega_n = \sqrt{\frac{k}{m}} \quad \Longrightarrow \quad k = \omega_n^{2}\, m
+\end{equation}
+
+Como la rigidez $k$ del arreglo de resortes no cambia al retirar bloques, se plantea
+un sistema de dos ecuaciones con dos incógnitas ($k$ y $m_C$):
+
+\emph{Condición 1} --- con los bloques $A$, $B$ y $C$ ($T_1 = 0.8$ s):
+\begin{equation}
+k = \omega_{1}^{2}\,(m_A + m_B + m_C), \qquad \omega_1 = \frac{2\pi}{0.8}
+\end{equation}
+
+\emph{Condición 2} --- retirando el bloque $A$ ($T_2 = 0.7$ s):
+\begin{equation}
+k = \omega_{2}^{2}\,(m_B + m_C), \qquad \omega_2 = \frac{2\pi}{0.7}
+\end{equation}
+
+Igualando ambas expresiones de $k$:
+\begin{equation}
+\omega_1^{2}(m_A+m_B+m_C) = \omega_2^{2}(m_B+m_C)
+\quad\Longrightarrow\quad
+\boxed{\;m_C = \frac{\omega_1^{2}\,m_A - (\omega_2^{2}-\omega_1^{2})\,m_B}{\omega_2^{2}-\omega_1^{2}}\;}
+\end{equation}
+
+\emph{Condición 3} --- retirando $A$ y $B$, queda únicamente $C$:
+\begin{equation}
+\omega_3 = \sqrt{\frac{k}{m_C}}, \qquad T_3 = \frac{2\pi}{\omega_3}
+\end{equation}
+
+En MATLAB el sistema se resuelve simbólicamente con \texttt{syms} y \texttt{solve}.
+
+\subsection{Código MATLAB}
+\lstinputlisting[firstline=42,lastline=64,firstnumber=42]{Tarea1_VM.m}
+
+\subsection{Resultados}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.52\textwidth]{r3.png}
+\caption*{Salida de la ventana de comandos --- Problema 3.}
+\end{figure}
+
+\noindent Con $\omega_1 = 7.854$ rad/s y $\omega_2 = 8.976$ rad/s:
+\[
+k = 789.57\ \text{N/m}, \qquad m_C = 6.80\ \text{kg}, \qquad
+\omega_3 = 10.77\ \text{rad/s}, \qquad T_3 = 0.58\ \text{s}
+\]
+
+\newpage
+% =====================================================================
+%                            PROBLEMA 4
+% =====================================================================
+\section{Viga en voladizo como resorte equivalente}
+
+\subsection{Enunciado}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{img/ej4.png}
+\caption*{Enunciado del problema 4.}
+\end{figure}
+
+\subsection{Fórmulas utilizadas}
+
+\textbf{(a) Constante de resorte equivalente.} De mecánica de materiales, la deflexión
+en el extremo libre $B$ de una viga en voladizo con carga puntual $P$ es:
+\begin{equation}
+\delta_B = \frac{P L^{3}}{3EI}
+\end{equation}
+
+Por definición de rigidez, $k = P/\delta$, por lo tanto:
+\begin{equation}
+\boxed{\;k_{eq} = \frac{P}{\delta_B} = \frac{3EI}{L^{3}}\;}
+\end{equation}
+
+Con $L = 10\ \text{ft} = 120\ \text{in}$, $E = 29\times10^{6}\ \text{lb/in}^2$ e
+$I = 12.4\ \text{in}^4$.
+
+\textbf{(b) Frecuencia de vibración.} La masa del bloque de 520 lb es:
+\begin{equation}
+m = \frac{W}{g} = \frac{520}{386.4} = 1.3457\ \frac{\text{lb}\cdot\text{s}^2}{\text{in}}
+\end{equation}
+
+\begin{equation}
+\omega_n = \sqrt{\frac{k_{eq}}{m}}, \qquad
+f = \frac{\omega_n}{2\pi}, \qquad
+T = \frac{2\pi}{\omega_n}
+\end{equation}
+
+\subsection{Código MATLAB}
+\lstinputlisting[firstline=66,lastline=75,firstnumber=66]{Tarea1_VM.m}
+
+\subsection{Resultados}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.52\textwidth]{r4.png}
+\caption*{Salida de la ventana de comandos --- Problema 4.}
+\end{figure}
+
+\noindent Sustituyendo valores:
+\[
+k_{eq} = \frac{3(29\times10^{6})(12.4)}{120^{3}} = 624.31\ \text{lb/in}
+\]
+\[
+\omega_n = \sqrt{\frac{624.31}{1.3457}} = 21.54\ \text{rad/s}
+\]
+\[
+f = \frac{\omega_n}{2\pi} = 3.43\ \text{Hz}, \qquad
+T = \frac{2\pi}{\omega_n} = 0.29\ \text{s}
+\]
+
+\end{document}

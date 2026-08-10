@@ -1,0 +1,15 @@
+# Ignorar todo por defecto
+*
+
+# Permitir recorrer directorios
+!*/
+
+# Solo fuentes MATLAB y LaTeX
+!*.m
+!*.tex
+
+# El propio .gitignore
+!.gitignore
+
+# Carpeta de ejemplos de MATLAB: bloqueada por completo
+Examples/
