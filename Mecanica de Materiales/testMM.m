@@ -10,9 +10,9 @@ s0 = P0/A0;                      % 66.667 MPa
 
 %% 1 ecuacionesAxial: estructura del modelo
 [eqs, S] = MM.ecuacionesAxial();
-ok('ecuacionesAxial da 6 ecuaciones', numel(eqs) == 6);
+ok('ecuacionesAxial da 8 ecuaciones', numel(eqs) == 8);
 ok('diccionario completo', all(isfield(S, ...
-    {'P','A','sig','eps','E','L','delta','k'})));
+    {'P','A','sig','eps','E','L','delta','k','nu','epsp','dia','ddia'})));
 ok('S trae simbolos, no valores', isa(S.P,'sym') && isa(S.eps,'sym'));
 
 %% 2 datosAxial: el camino directo
@@ -25,18 +25,37 @@ ok('k = E*A/L',         tol(double(MM.datosAxial(d,'k')),     E0*A0/L0));
 ok('k = P/delta',       tol(double(MM.datosAxial(d,'k')),     P0/d0));
 
 %% 3 despeje INVERSO: entra por donde venga el enunciado
+%  Escrito en pares nombre-valor: los datos y, al final, la incognita.
 ok('despeja P desde delta', ...
-    tol(double(MM.datosAxial(struct('delta',d0,'L',L0,'E',E0,'A',A0),'P')), P0));
+    tol(double(MM.datosAxial('delta',d0,'L',L0,'E',E0,'A',A0,'P')), P0));
 ok('despeja A desde sig', ...
-    tol(double(MM.datosAxial(struct('P',P0,'sig',s0),'A')), A0));
+    tol(double(MM.datosAxial('P',P0,'sig',s0,'A')), A0));
 ok('despeja E desde delta', ...
-    tol(double(MM.datosAxial(struct('P',P0,'L',L0,'delta',d0,'A',A0),'E')), E0));
+    tol(double(MM.datosAxial('P',P0,'L',L0,'delta',d0,'A',A0,'E')), E0));
 ok('despeja L desde eps', ...
-    tol(double(MM.datosAxial(struct('delta',d0,'eps',d0/L0),'L')), L0));
+    tol(double(MM.datosAxial('delta',d0,'eps',d0/L0,'L')), L0));
 ok('despeja A desde k', ...
-    tol(double(MM.datosAxial(struct('k',E0*A0/L0,'E',E0,'L',L0),'A')), A0));
+    tol(double(MM.datosAxial('k',E0*A0/L0,'E',E0,'L',L0,'A')), A0));
 ok('entra por sig y eps (Hooke solo)', ...
-    tol(double(MM.datosAxial(struct('sig',s0,'eps',s0/E0),'E')), E0));
+    tol(double(MM.datosAxial('sig',s0,'eps',s0/E0,'E')), E0));
+
+%% 3b las dos formas de llamada dan lo mismo
+ok('pares == struct (datosAxial)', ...
+    tol(double(MM.datosAxial('P',P0,'L',L0,'E',E0,'A',A0,'delta')), ...
+        double(MM.datosAxial(d,'delta'))));
+ok('pares == struct (axial)', ...
+    tol(MM.axial('P',P0,'L',L0,'E',E0,'A',A0).delta, MM.axial(d).delta));
+ok('incognita como simbolo', tol(double(MM.datosAxial(d, S.delta)), d0));
+try
+    MM.datosAxial('P',P0,'L',L0); ok('falta la incognita', false);
+catch ME
+    ok('detecta incognita faltante', strcmp(ME.identifier,'MM:parInvalido'));
+end
+try
+    MM.axial('P',P0,'L'); ok('axial con par colgando', false);
+catch ME
+    ok('axial rechaza par incompleto', strcmp(ME.identifier,'MM:parInvalido'));
+end
 
 %% 4 despejar devuelve las intermedias gratis
 [~, res] = MM.datosAxial(d, 'delta');
@@ -49,6 +68,28 @@ dc = struct('P',-P0,'L',L0,'E',E0,'A',A0);
 ok('compresion: delta < 0', double(MM.datosAxial(dc,'delta')) < 0);
 ok('compresion: |delta| igual', tol(abs(double(MM.datosAxial(dc,'delta'))), d0));
 ok('compresion: sig < 0', double(MM.datosAxial(dc,'sig')) < 0);
+
+%% 5b Poisson: la lateral sale de la axial, y al reves tambien
+nu0 = 0.30;
+ok('epsp = -nu*eps', tol(double(MM.datosAxial( ...
+    struct('P',P0,'L',L0,'E',E0,'A',A0,'nu',nu0), 'epsp')), -nu0*d0/L0));
+ok('despeja nu desde epsp', tol(double(MM.datosAxial( ...
+    struct('eps',d0/L0,'epsp',-nu0*d0/L0), 'nu')), nu0));
+ok('traccion: la seccion se achica', double(MM.datosAxial( ...
+    struct('eps',d0/L0,'nu',nu0), 'epsp')) < 0);
+ok('sin nu no hay epsp', ~isfield(MM.axial(d), 'epsp'));
+
+% ddia = epsp*dia, negativo en traccion
+dia0 = 0.02;
+ok('ddia = epsp*dia', tol(double(MM.datosAxial( ...
+    'P',P0,'L',L0,'E',E0,'A',A0,'nu',nu0,'dia',dia0,'ddia')), ...
+    -nu0*(d0/L0)*dia0));
+ok('traccion: el diametro se achica', double(MM.datosAxial( ...
+    'eps',d0/L0,'nu',nu0,'dia',dia0,'ddia')) < 0);
+ok('despeja nu desde ddia medido', tol(double(MM.datosAxial( ...
+    'eps',d0/L0,'dia',dia0,'ddia',-nu0*(d0/L0)*dia0,'nu')), nu0));
+ok('sin dia no hay ddia', ~isfield(MM.axial( ...
+    'P',P0,'L',L0,'E',E0,'A',A0,'nu',nu0), 'ddia'));
 
 %% 6 axial: resuelve todo de una
 r = MM.axial(d);
@@ -83,29 +124,46 @@ MM.datosAxial(struct('P',P0), 'delta');
 [~, id] = lastwarn; warning(w);
 ok('avisa si faltan datos', strcmp(id,'MM:sinSolucion'));
 
-%% 8 seccion: las tres geometrias
-ok('seccion A directa',   tol(MM.seccion(struct('A',A0)), A0));
-ok('seccion circular',    tol(MM.seccion(struct('dia',0.02)), pi*0.02^2/4));
-ok('seccion rectangular', tol(MM.seccion(struct('a',0.02,'b',0.015)), 3e-4));
-ok('seccion tubo', tol(MM.seccion(struct('dia',0.02,'hueco',0.016)), ...
+%% 8 seccion: las tres geometrias, en pares nombre-valor
+ok('seccion A directa',   tol(MM.seccion('A',A0), A0));
+ok('seccion circular',    tol(MM.seccion('dia',0.02), pi*0.02^2/4));
+ok('seccion rectangular', tol(MM.seccion('a',0.02,'b',0.015), 3e-4));
+ok('seccion tubo', tol(MM.seccion('dia',0.02,'hueco',0.016), ...
     pi*(0.02^2-0.016^2)/4));
 ok('seccion A y geometria coherentes', ...
-    tol(MM.seccion(struct('a',0.02,'b',0.015,'A',3e-4)), 3e-4));
+    tol(MM.seccion('a',0.02,'b',0.015,'A',3e-4), 3e-4));
+ok('acepta comillas dobles', tol(MM.seccion("dia",0.02), pi*0.02^2/4));
+
+% La forma struct sigue viva: es la que usa escalonada con el tramo entero.
+ok('struct == pares', tol(MM.seccion(struct('dia',0.02)), MM.seccion('dia',0.02)));
+ok('struct con campos de mas', ...
+    tol(MM.seccion(struct('N',1,'L',2,'E',3,'dia',0.02)), pi*0.02^2/4));
+
 try
-    MM.seccion(struct('a',0.02,'b',0.015,'A',300)); ok('A vs geometria', false);
+    MM.seccion('a',0.02,'b',0.015,'A',300); ok('A vs geometria', false);
 catch ME
     ok('detecta A vs geometria (unidades)', ...
         strcmp(ME.identifier,'MM:areaInconsistente'));
 end
 try
-    MM.seccion(struct('L',1)); ok('falta area', false);
+    MM.seccion('L',1); ok('falta area', false);
 catch ME
     ok('exige area o geometria', strcmp(ME.identifier,'MM:faltaArea'));
 end
 try
-    MM.seccion(struct('dia',0.02,'hueco',0.03)); ok('hueco invalido', false);
+    MM.seccion('dia',0.02,'hueco',0.03); ok('hueco invalido', false);
 catch ME
     ok('rechaza hueco >= dia', strcmp(ME.identifier,'MM:huecoInvalido'));
+end
+try
+    MM.seccion('dia'); ok('par incompleto', false);
+catch ME
+    ok('rechaza par incompleto', strcmp(ME.identifier,'MM:parInvalido'));
+end
+try
+    MM.seccion(0.02, 'dia'); ok('nombre y valor al reves', false);
+catch ME
+    ok('rechaza nombre-valor invertido', strcmp(ME.identifier,'MM:parInvalido'));
 end
 
 %% 9 escalonada: coherencia con la barra uniforme

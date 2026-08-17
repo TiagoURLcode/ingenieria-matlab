@@ -21,6 +21,21 @@ classdef MM
     %   Efectos térmicos, sistemas indeterminados y factor de seguridad
     %   (secciones 4 y 5 del formulario). El motor MM.despejar ya sirve para
     %   eso: alcanza con escribir otra función ecuacionesXXX y pasársela.
+    %
+    % A REVISAR — POISSON FUERA DE LA SECCIÓN CIRCULAR
+    %   La deformación lateral entra hoy por una sola ecuación del modelo,
+    %   epsp == ddia/dia, y eso amarra el cálculo a una sección CIRCULAR.
+    %   Con una cuadrada o rectangular no hay 'dia' que pasar y la cuenta
+    %   queda a mano: da = epsp*a, db = epsp*b (ver la nota al final de
+    %   ecuacionesAxial).
+    %   Falta una función aparte que tome epsp —o nu y eps— y devuelva el
+    %   cambio de CADA dimensión según la geometría, del mismo modo que
+    %   MM.seccion resuelve el área para dia, para (a,b) o para A directa.
+    %   Ojo al hacerlo: si las dimensiones laterales pasan a ser variables
+    %   del sistema, dejan de ser independientes de A, y ahí sí conviene
+    %   que el área y la geometría estén atadas por ecuación (hoy no lo
+    %   están: axial acepta A y dia que no cierran entre sí y no protesta).
+    %   Sin implementar ni depurar todavía.
 
     methods(Static)
 
@@ -34,6 +49,10 @@ classdef MM
         %    L      longitud original sin deformar           [m]
         %    delta  elongación (+) o acortamiento (-) total  [m]
         %    k      rigidez, k = P/delta                     [N/m]
+        %    nu     relación de Poisson (nu > 0)             [-]
+        %    epsp   deformación unitaria LATERAL, epsilon'   [-]
+        %    dia    diámetro original de la sección          [m]
+        %    ddia   cambio de diámetro, (-) si se achica     [m]
         %  Ojo con la pareja k y E*A: k es la rigidez de LA BARRA (depende de
         %  L), E*A es la rigidez AXIAL de la sección (no depende de L).
         %  k = E*A/L es la que las une.
@@ -45,7 +64,7 @@ classdef MM
         %  símbolos para que otras funciones lo usen.
         %
         %  Salidas:
-        %    eqs : vector simbólico con las 6 relaciones, sin resolver.
+        %    eqs : vector simbólico con las 8 relaciones, sin resolver.
         %    S   : struct-diccionario. S.P es el SÍMBOLO P (no un valor).
         %          Es indispensable devolverlo: cada llamada a sym() crea
         %          objetos nuevos, así que una P declarada afuera NO es la
@@ -74,11 +93,12 @@ classdef MM
             % 'eps' y 'E' son funciones de MATLAB (epsilon de máquina y la
             % exponencial integral). sym('eps') crea el símbolo igual y nunca
             % colisiona.
-            nom = {'P','A','sig','eps','E','L','delta','k'};
+            nom = {'P','A','sig','eps','E','L','delta','k','nu','epsp', 'dia', 'ddia'};
             S   = cell2struct(cellfun(@sym, nom, 'UniformOutput', false)', ...
                               nom', 1);
             P = S.P; A = S.A; sig = S.sig; eps = S.eps;
             E = S.E; L = S.L; delta = S.delta; k = S.k;
+            nu = S.nu; epsp = S.epsp; dia = S.dia; ddia = S.ddia;
 
             % == (doble igual) en contexto simbólico construye una ECUACIÓN,
             % no una comparación lógica. Con = simple sería una asignación.
@@ -87,7 +107,29 @@ classdef MM
                     sig   == E*eps              % ley de Hooke
                     delta == P*L/(E*A)          % barra uniforme (redundante)
                     k     == P/delta            % rigidez de la barra
-                    k     == E*A/L ];           % rigidez axial (redundante)
+                    k     == E*A/L              % rigidez axial (redundante)
+                    epsp  == -nu*eps            % Poisson (ver abajo)
+                    epsp  == ddia/dia ];        % cambio de diámetro
+
+            % POISSON: epsp == -nu*eps
+            %   Lo que la barra se alarga a lo largo, se encoge a lo ancho.
+            %   El signo menos es la física, no una convención: con eps > 0
+            %   (tracción) sale epsp < 0, o sea la sección se achica. Por eso
+            %   nu se tabula POSITIVO y el menos va acá, en la ecuación.
+            %   Solo vale en el rango ELÁSTICO y para material ISÓTROPO.
+            %
+            % DIÁMETRO: epsp == ddia/dia
+            %   Es la definición de deformación unitaria otra vez, pero en la
+            %   dirección transversal: epsp = (cambio) / (medida original).
+            %   Va DIVIDIDA por dia, no multiplicada: epsp es adimensional y
+            %   ddia tiene unidades de longitud.
+            %   ddia sale NEGATIVO en tracción: es el diámetro que se pierde.
+            %   Ojo con dos cosas:
+            %   - Vale para sección CIRCULAR. Para una rectangular la misma
+            %     cuenta se hace a mano con cada lado: da = epsp*a, db = epsp*b.
+            %   - dia y A no están atados por ninguna ecuación (A puede ser
+            %     rectangular o dato directo). Si pasás los dos y no cierran,
+            %     el sistema no lo detecta. MM.seccion sí lo controla.
         end
 
         %% ===================================================================
@@ -213,16 +255,82 @@ classdef MM
         end
 
         %% ===================================================================
+        %  datos — Traduce los argumentos de entrada a un struct de datos.
+        %  Es la pieza que le permite a seccion, datosAxial y axial aceptar
+        %  las dos formas de llamada sin repetir el parseo en cada una.
+        %
+        %    args : cell array (el varargin de quien llama). Se acepta
+        %           {structDeDatos}  o  {'nombre',valor, 'nombre',valor, ...}
+        %
+        %  Escribir struct() a mano no agrega información: el nombre del
+        %  campo ya va entre comillas. Los pares nombre-valor son la
+        %  convención de MATLAB (plot('LineWidth',1.5) es exactamente esto).
+        %  El struct NO se elimina porque a veces el dato YA es un struct
+        %  —el tramo que escalonada le pasa a seccion, por ejemplo— y ahí
+        %  desarmarlo para volver a armarlo sería el ruido.
+        %% ===================================================================
+        function s = datos(args)
+            n = numel(args);
+
+            if n == 1 && isstruct(args{1})
+                s = args{1};
+                return
+            end
+            if n == 0 || mod(n,2) ~= 0
+                error('MM:parInvalido', ...
+                    ['Se esperaban pares nombre-valor (cantidad par de ' ...
+                     'argumentos) o un struct. Llegaron %d.'], n);
+            end
+
+            % Impares = nombres, pares = valores. 'end' dentro de un índice
+            % significa "el último", así que 1:2:end recorre 1,3,5...
+            % Se indexa con () y no con {}: el resultado sigue siendo cell.
+            nombres = args(1:2:end);
+            valores = args(2:2:end);
+
+            % cellfun aplica la función a cada celda; con el @(c) de una
+            % línea evita escribir un for de tres renglones.
+            if ~all(cellfun(@(c) ischar(c) || isstring(c), nombres))
+                error('MM:parInvalido', ...
+                    ['Los argumentos impares tienen que ser nombres. ' ...
+                     'Ej: MM.datosAxial(''L'',2, ''E'',200e9, ''delta'')']);
+            end
+
+            % cell2struct(valores, nombres, 1): el 1 dice que los campos se
+            % arman recorriendo las FILAS del cell de nombres — por eso los
+            % (:) que los ponen en columna. cellstr(string(...)) normaliza
+            % "dia" (comillas dobles) y 'dia' (simples) al mismo tipo.
+            s = cell2struct(valores(:), cellstr(string(nombres(:))), 1);
+        end
+
+        %% ===================================================================
         %  datosAxial — Atajo sobre el modelo de la barra uniforme.
-        %    d   : struct con lo conocido, en cualquier orden. Ej:
-        %          struct('P',20e3,'L',2,'E',200e9,'A',300e-6)
+        %  El ÚLTIMO argumento es siempre la incógnita; todo lo anterior son
+        %  los datos, en pares nombre-valor o en un struct:
+        %
+        %    MM.datosAxial('P',20e3, 'L',2, 'E',200e9, 'A',300e-6, 'delta')
+        %    MM.datosAxial(d, 'delta')            % d = struct(...)
+        %
         %    inc : incógnita, texto ('delta') o símbolo (S.delta)
-        %  Ej: double(MM.datosAxial(d, 'delta'))
+        %  Para número: double(MM.datosAxial(...)).
         %
         %  Funciona en cualquier dirección: dado delta despeja P, dado sig
         %  despeja A, dada la rigidez despeja L. No hay "entrada" fija.
+        %  Con los pares, la cuenta de argumentos queda IMPAR (n pares más
+        %  la incógnita). Si te olvidás la incógnita, el conteo da par y
+        %  salta MM:parInvalido en vez de despejar cualquier cosa.
         %% ===================================================================
-        function [val, res] = datosAxial(d, inc)
+        function [val, res] = datosAxial(varargin)
+            if nargin < 2
+                error('MM:parInvalido', ...
+                    ['Faltan argumentos: los datos y, al final, la ' ...
+                     'incógnita. Ej: MM.datosAxial(''sig'',s, ''E'',E, ''eps'')']);
+            end
+            % varargin{end} con LLAVES: saca el contenido de la última celda.
+            % varargin(1:end-1) con paréntesis: deja un cell con el resto.
+            inc = varargin{end};
+            d   = MM.datos(varargin(1:end-1));
+
             [eqs, S] = MM.ecuacionesAxial();
             [val, res] = MM.despejar(eqs, S, d, inc);
         end
@@ -231,15 +339,17 @@ classdef MM
         %  axial — Resuelve TODO lo que se pueda de la barra uniforme y lo
         %  devuelve numérico, sin tener que pedir variable por variable.
         %
-        %    d : struct con lo conocido. Ej:
-        %        MM.axial(struct('P',20e3,'L',2,'E',200e9,'A',300e-6))
+        %  Acá NO hay incógnita que pasar: son todos datos.
+        %    MM.axial('P',20e3, 'L',2, 'E',200e9, 'A',300e-6)
+        %    MM.axial(d)                          % d = struct(...)
         %
         %  Salida r (struct) con los campos que quedaron determinados, en
-        %  orden fijo: P, A, sig, eps, E, L, delta, k.
+        %  orden fijo: P, A, sig, eps, E, L, delta, k, nu, epsp, dia, ddia.
         %  Lo que no se pudo determinar simplemente NO aparece: mirá los
         %  campos que faltan para saber qué dato te está faltando.
         %% ===================================================================
-        function r = axial(d)
+        function r = axial(varargin)
+            d = MM.datos(varargin);
             [eqs, S] = MM.ecuacionesAxial();
 
             % La incógnita es de mentira: acá interesa 'res', no 'val'. Si
@@ -252,7 +362,7 @@ classdef MM
 
             % Lo que entró como dato también va a la salida: res solo trae lo
             % que se DESPEJÓ, no lo que se dio.
-            orden = {'P','A','sig','eps','E','L','delta','k'};
+            orden = {'P','A','sig','eps','E','L','delta','k','nu','epsp','dia','ddia'};
             r = struct();
             for i = 1:numel(orden)
                 ni = orden{i};
@@ -273,19 +383,38 @@ classdef MM
         %  Es la pieza que usan escalonada y ahusada para no repetir el
         %  cálculo del área en cada tramo.
         %
-        %  s : struct de sección. Se acepta UNA de estas tres formas:
+        %  DOS FORMAS DE LLAMARLA, la misma cuenta (ver MM.datos):
+        %    MM.seccion('dia', 0.225)              <- pares nombre-valor
+        %    MM.seccion(struct('dia', 0.225))      <- struct
+        %  La segunda es la que usa escalonada, que le pasa el tramo entero
+        %  —un struct que ya trae N, L y E adentro—. Los campos de más se
+        %  ignoran.
+        %
+        %  Se acepta UNA de estas tres geometrías:
         %      A      área directa                        [m^2]
         %      dia    diámetro (sección circular maciza)  [m] -> A = pi*dia^2/4
         %      a, b   lados (sección rectangular)         [m] -> A = a*b
-        %  Campo opcional:
+        %  Nombre opcional:
         %      hueco  diámetro INTERIOR, solo con 'dia'   [m]
         %             -> A = pi*(dia^2 - hueco^2)/4  (tubo)
         %
         %  Si das A junto con la geometría, se controla que coincidan y se
         %  aborta si no. Es el chequeo que atrapa el error de unidades:
         %  A = 300 (mm^2) con dia = 0.02 (m) no cierra y salta acá.
+        %
+        %  EJEMPLOS
+        %    MM.seccion('dia', 0.02)                 barra circular maciza
+        %    MM.seccion('dia', 0.02, 'hueco', 0.016) tubo
+        %    MM.seccion('a', 0.02, 'b', 0.015)       rectangular
+        %    MM.seccion('A', 300e-6)                 área ya calculada
         %% ===================================================================
-        function A = seccion(s)
+        function A = seccion(varargin)
+
+            % varargin — cell array con TODO lo que se pasó, sin nombres
+            % fijos. Es lo que permite aceptar 1, 2, 4 o 6 argumentos con la
+            % misma firma. MM.datos se encarga de interpretarlo.
+            s = MM.datos(varargin);
+
             tieneDia = isfield(s,'dia') && ~isempty(s.dia);
             tieneAB  = isfield(s,'a') && isfield(s,'b') && ...
                        ~isempty(s.a) && ~isempty(s.b);

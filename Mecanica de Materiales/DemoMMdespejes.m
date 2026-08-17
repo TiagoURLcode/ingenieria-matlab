@@ -25,13 +25,13 @@ assert(abs(r.sig) < sigY, 'La barra fluye: delta = P*L/(E*A) ya no vale.')
 % Mismo problema al revés — el enunciado típico de diseño: la barra no
 % puede estirarse más de 0.5 mm. No hay que reordenar nada a mano, se
 % pide la otra variable y listo.
-Areq = double(MM.datosAxial(struct('P',20e3,'L',2,'E',E,'delta',0.5e-3), 'A'));
+Areq = double(MM.datosAxial('P',20e3, 'L',2, 'E',E, 'delta',0.5e-3, 'A'));
 fprintf('\n--- 2. Diseño por rigidez ---\n');
 fprintf('  A minima para delta <= 0.5 mm : %.2f mm^2\n', Areq*1e6);
 fprintf('  diametro equivalente          : %.2f mm\n', sqrt(4*Areq/pi)*1e3);
 
 % Y el otro criterio, el de resistencia, con esfuerzo permisible F.S. = 2:
-Ares = double(MM.datosAxial(struct('P',20e3,'sig',sigY/2), 'A'));
+Ares = double(MM.datosAxial('P',20e3, 'sig',sigY/2, 'A'));
 fprintf('  A minima por resistencia      : %.2f mm^2\n', Ares*1e6);
 % Gana el criterio más exigente, es decir el que pide MÁS área.
 criterios = ["rigidez", "resistencia"];
