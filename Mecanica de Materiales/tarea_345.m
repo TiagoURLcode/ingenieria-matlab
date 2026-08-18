@@ -390,6 +390,26 @@ c10 = 36;        % segmento C-D [in]
 P1_10 = 1700;    % carga aplicada en B, hacia la derecha [lb]
 P2_10 = 1200;    % carga aplicada en C, hacia la derecha [lb]
 P3_10 = 1300;    % carga aplicada en D, hacia la izquierda [lb]
+N10cd = -P3_10;
+N10bc = N10cd+P2_10;
+N10ac = N10bc+P1_10;
 
 % -- c) ----------------------------------------------------------------
-% P3 se mantiene en 1300 lb y la incógnita es el área revisada de AB.
+
+t1 = struct('N',N10ac, 'L',a10, 'E',E10, 'A',A10);   % N [lb]  L [in]  E [psi]  A [in^2]
+t2 = struct('N',N10bc, 'L',b10, 'E',E10, 'A',A10); %segunda seccion analizada
+t3 = struct('L',c10, 'E',E10, 'A',A10, 'N',N10cd); %seccion 3, aca empece
+
+
+r = MM.escalonada({t1, t2, t3});
+
+
+fprintf('\n--- Problema 10 ---\n');
+fprintf('N por tramo:  AB = %+6.0f lb   BC = %+6.0f lb   CD = %+6.0f lb\n', ...
+        N10ac, N10bc, N10cd);
+fprintf('deformacion:  AB = %+.5f in   BC = %+.5f in   CD = %+.5f in\n', r.dt);
+if r.delta > 0
+    fprintf('a) la barra SE ALARGA  %.5f in\n', r.delta);
+else
+    fprintf('a) la barra SE ACORTA  %.5f in\n', -r.delta);
+end
