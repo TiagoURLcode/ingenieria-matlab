@@ -280,25 +280,31 @@ classdef IE
         %    eqs : sistema simbólico (de IE.ecuacionesB, IE.ecuacionesSeg, ...)
         %    S   : diccionario de símbolos del MISMO sistema
         %    d   : struct con SOLO lo que conocés, en cualquier orden
-        %    inc : incógnita. Acepta texto ('I') o el símbolo de S (S.I)
         %
-        %  Salidas:
-        %    val : expresión simbólica. Para número: double(val) o vpa(val,6).
-        %    res : struct con TODAS las variables que quedaron determinadas
-        %          de paso. Sale gratis y sirve para verificar el resultado.
+        %  Salida:
+        %    res : struct con TODAS las variables que quedaron determinadas.
+        %          Para número: double(res.Fi) o vpa(res.Fi, 6).
         %
-        %  POR QUÉ NO ES UN solve(eqs, inc) PELADO:
-        %    solve(eqs, inc) exige que TODAS las ecuaciones se satisfagan
-        %    eligiendo únicamente inc. Como el sistema tiene varias incógnitas
+        %  NO SE PIDE UNA INCÓGNITA, A PROPÓSITO.
+        %    La sustitución hacia adelante determina TODO lo que los datos
+        %    permitan, en la misma pasada. Pedir una variable no ahorraba
+        %    trabajo: solo elegía cuál de las ya calculadas devolver y
+        %    escondía el resto. Elegís vos, del struct.
+        %    Si un campo NO está en res, es que los datos no alcanzaron para
+        %    determinarlo. Ese es el diagnóstico: mirá qué falta.
+        %
+        %  POR QUÉ NO ES UN solve() PELADO:
+        %    solve(eqs, x) exige que TODAS las ecuaciones se satisfagan
+        %    eligiendo únicamente x. Como el sistema tiene varias incógnitas
         %    intermedias (H, B, Rn, ...), cualquier ecuación que no contenga
-        %    inc lo vuelve insatisfacible y solve devuelve VACÍO aunque los
+        %    x lo vuelve insatisfacible y solve devuelve VACÍO aunque los
         %    datos alcancen de sobra. Verificado en R2026a.
         %    Acá se hace SUSTITUCIÓN HACIA ADELANTE, que es exactamente el
         %    método a mano: se busca una ecuación con una sola incógnita, se
         %    despeja, se propaga el valor, y se repite hasta que no queda nada
         %    por despejar.
         %% ===================================================================
-        function [val, res] = despejar(eqs, S, d, inc)
+        function res = despejar(eqs, S, d)
 
             % fieldnames — devuelve los nombres de los campos del struct como
             % CELL ARRAY de texto: {'mu'; 'len'; 'N'; ...}. Permite que la
@@ -321,22 +327,6 @@ classdef IE
                 % de una vez. El loop es necesario: subs no recorre structs.
                 eqs = subs(eqs, S.(campos{k}), d.(campos{k}));
             end
-
-            % ischar   -> texto con comillas simples: 'I'
-            % isstring -> texto con comillas dobles:  "I"  (otro tipo en MATLAB)
-            % char()   -> normaliza a comillas simples; el acceso dinámico
-            %             de campos SOLO acepta char, no string.
-            % Traducir por S y no por str2sym es crítico: str2sym('I') crearía
-            % una I nueva, ajena a eqs, y solve devolvería vacío sin avisar.
-            if ischar(inc) || isstring(inc)
-                if ~isfield(S, char(inc))
-                    error('IE:campoDesconocido', ...
-                        ['"%s" no es una variable del modelo. ' ...
-                         'Válidas: %s'], char(inc), strjoin(fieldnames(S)', ', '));
-                end
-                inc = S.(char(inc));
-            end
-            nombreInc = char(inc);
 
             % --- sustitución hacia adelante -------------------------------
             res    = struct();
@@ -372,45 +362,30 @@ classdef IE
                     cambio = true;
                 end
             end
-
-            if isfield(res, nombreInc)
-                val = res.(nombreInc);   % sin double(): se mantiene simbólico
-                return
-            end
-
-            % Si no se determinó, todavía puede quedar una relación útil
-            % (ej. v en función de dFi). Se devuelve eso.
-            val = solve(eqs, inc);
-            if isempty(val)
-                warning('IE:sinSolucion', ...
-                    ['No se puede despejar %s con esos datos. ' ...
-                     'Determinadas hasta ahora: %s'], nombreInc, ...
-                    strjoin([{'(ninguna)'}, fieldnames(res)'], ', '));
-            end
         end
 
         %% ===================================================================
         %  datosB — Atajo sobre el modelo del circuito magnético.
         %    d   : struct con lo conocido. Ej:
         %          struct('mu',5000,'len',0.3,'N',200,'I',2,'A',1e-3)
-        %    inc : incógnita, texto ('Fi') o símbolo (S.Fi)
-        %  Ej: double(IE.datosB(d, 'Fi'))
+        %  Devuelve un struct con TODO lo que los datos permitan despejar.
+        %  Ej: double(IE.datosB(d).Fi)
         %% ===================================================================
-        function [val, res] = datosB(d, inc)
+        function res = datosB(d)
             [eqs, S] = IE.ecuacionesB();
-            [val, res] = IE.despejar(eqs, S, d, inc);
+            res = IE.despejar(eqs, S, d);
         end
 
         %% ===================================================================
         %  datosSeg — Atajo sobre el modelo de UN tramo con entrehierro.
         %    d   : struct con len, A, mu, g, dA, Fi... lo que tengas
-        %    inc : incógnita ('Rs', 'Bg', ...)
+        %  Devuelve un struct con TODO lo que los datos permitan despejar.
         %  Ej: double(IE.datosSeg(struct('len',.3,'A',1e-3,'mu',5e3, ...
-        %                                'g',1e-3,'dA',.1), 'Rs'))
+        %                                'g',1e-3,'dA',.1)).Rs)
         %% ===================================================================
-        function [val, res] = datosSeg(d, inc)
+        function res = datosSeg(d)
             [eqs, S] = IE.ecuacionesSeg();
-            [val, res] = IE.despejar(eqs, S, d, inc);
+            res = IE.despejar(eqs, S, d);
         end
 
         %% ===================================================================
@@ -532,12 +507,12 @@ classdef IE
         %  datosTrafo — Atajo sobre el modelo del transformador ideal.
         %    d   : struct con lo conocido, en cualquier orden. Ej:
         %          struct('a',5,'Vp',220,'Zs',10)
-        %    inc : incógnita, texto ('Is') o símbolo (S.Is)
-        %  Ej: double(IE.datosTrafo(struct('Np',500,'Ns',100,'Vp',220), 'Vs'))
+        %  Devuelve un struct con TODO lo que los datos permitan despejar.
+        %  Ej: double(IE.datosTrafo(struct('Np',500,'Ns',100,'Vp',220)).Vs)
         %% ===================================================================
-        function [val, res] = datosTrafo(d, inc)
+        function res = datosTrafo(d)
             [eqs, S] = IE.ecuacionesTrafo();
-            [val, res] = IE.despejar(eqs, S, d, inc);
+            res = IE.despejar(eqs, S, d);
         end
 
         %% ===================================================================
@@ -558,13 +533,9 @@ classdef IE
         function r = trafo(d)
             [eqs, S] = IE.ecuacionesTrafo();
 
-            % La incógnita es de mentira: acá interesa 'res', no 'val'. Si 'a'
-            % no se puede determinar, despejar avisa — se calla ese aviso
-            % concreto porque no es un error: los campos que falten en la
-            % salida ya cuentan la misma historia.
-            w = warning('off', 'IE:sinSolucion');
-            limpiar = onCleanup(@() warning(w));   %#ok<NASGU> restaura al salir
-            [~, res] = IE.despejar(eqs, S, d, 'a');
+            % despejar determina todo lo que los datos permitan. Los campos
+            % que falten en la salida cuentan solos qué no se pudo sacar.
+            res = IE.despejar(eqs, S, d);
 
             % Lo que entró como dato también va a la salida: res solo trae lo
             % que se DESPEJÓ, no lo que se dio.

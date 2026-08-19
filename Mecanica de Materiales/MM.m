@@ -139,18 +139,24 @@ classdef MM
         %    eqs : sistema simbólico (de MM.ecuacionesAxial, ...)
         %    S   : diccionario de símbolos del MISMO sistema
         %    d   : struct con SOLO lo que conocés, en cualquier orden
-        %    inc : incógnita. Acepta texto ('P') o el símbolo de S (S.P)
         %
-        %  Salidas:
-        %    val : expresión simbólica. Para número: double(val) o vpa(val,6).
-        %    res : struct con TODAS las variables que quedaron determinadas
-        %          de paso. Sale gratis y sirve para verificar el resultado.
+        %  Salida:
+        %    res : struct con TODAS las variables que quedaron determinadas.
+        %          Para número: double(res.delta) o vpa(res.delta, 6).
         %
-        %  POR QUÉ NO ES UN solve(eqs, inc) PELADO:
-        %    solve(eqs, inc) exige que TODAS las ecuaciones se satisfagan
-        %    eligiendo únicamente inc. Como el sistema tiene varias incógnitas
+        %  NO SE PIDE UNA INCÓGNITA, A PROPÓSITO.
+        %    La sustitución hacia adelante determina TODO lo que los datos
+        %    permitan, en la misma pasada. Pedir una variable no ahorraba
+        %    trabajo: solo elegía cuál de las ya calculadas devolver y
+        %    escondía el resto. Elegís vos, del struct.
+        %    Si un campo NO está en res, es que los datos no alcanzaron para
+        %    determinarlo. Ese es el diagnóstico: mirá qué falta.
+        %
+        %  POR QUÉ NO ES UN solve() PELADO:
+        %    solve(eqs, x) exige que TODAS las ecuaciones se satisfagan
+        %    eligiendo únicamente x. Como el sistema tiene varias incógnitas
         %    intermedias (sig, eps, k...), cualquier ecuación que no contenga
-        %    inc lo vuelve insatisfacible y solve devuelve VACÍO aunque los
+        %    x lo vuelve insatisfacible y solve devuelve VACÍO aunque los
         %    datos alcancen de sobra.
         %    Acá se hace SUSTITUCIÓN HACIA ADELANTE, que es exactamente el
         %    método a mano: se busca una ecuación con una sola incógnita, se
@@ -163,7 +169,7 @@ classdef MM
         %    Precio de eso: si acá aparece un bug, hay que arreglarlo en los
         %    dos archivos. No hay una sola fuente de verdad y conviene saberlo.
         %% ===================================================================
-        function [val, res] = despejar(eqs, S, d, inc)
+        function res = despejar(eqs, S, d)
 
             % fieldnames — devuelve los nombres de los campos del struct como
             % CELL ARRAY de texto: {'P'; 'L'; 'E'; ...}. Permite que la
@@ -186,22 +192,6 @@ classdef MM
                 % de una vez. El loop es necesario: subs no recorre structs.
                 eqs = subs(eqs, S.(campos{k}), d.(campos{k}));
             end
-
-            % ischar   -> texto con comillas simples: 'P'
-            % isstring -> texto con comillas dobles:  "P"  (otro tipo)
-            % char()   -> normaliza a comillas simples; el acceso dinámico
-            %             de campos SOLO acepta char, no string.
-            % Traducir por S y no por str2sym es crítico: str2sym('P') crearía
-            % una P nueva, ajena a eqs, y solve devolvería vacío sin avisar.
-            if ischar(inc) || isstring(inc)
-                if ~isfield(S, char(inc))
-                    error('MM:campoDesconocido', ...
-                        ['"%s" no es una variable del modelo. ' ...
-                         'Válidas: %s'], char(inc), strjoin(fieldnames(S)', ', '));
-                end
-                inc = S.(char(inc));
-            end
-            nombreInc = char(inc);
 
             % --- sustitución hacia adelante -------------------------------
             res    = struct();
@@ -236,21 +226,6 @@ classdef MM
                     eqs    = subs(eqs, libres, s(1));   % propaga a todas
                     cambio = true;
                 end
-            end
-
-            if isfield(res, nombreInc)
-                val = res.(nombreInc);   % sin double(): se mantiene simbólico
-                return
-            end
-
-            % Si no se determinó, todavía puede quedar una relación útil
-            % (ej. delta en función de P). Se devuelve eso.
-            val = solve(eqs, inc);
-            if isempty(val)
-                warning('MM:sinSolucion', ...
-                    ['No se puede despejar %s con esos datos. ' ...
-                     'Determinadas hasta ahora: %s'], nombreInc, ...
-                    strjoin([{'(ninguna)'}, fieldnames(res)'], ', '));
             end
         end
 
@@ -305,34 +280,32 @@ classdef MM
 
         %% ===================================================================
         %  datosAxial — Atajo sobre el modelo de la barra uniforme.
-        %  El ÚLTIMO argumento es siempre la incógnita; todo lo anterior son
-        %  los datos, en pares nombre-valor o en un struct:
+        %  Los argumentos son los datos, en pares nombre-valor o en un struct:
         %
-        %    MM.datosAxial('P',20e3, 'L',2, 'E',200e9, 'A',300e-6, 'delta')
-        %    MM.datosAxial(d, 'delta')            % d = struct(...)
+        %    r = MM.datosAxial('P',20e3, 'L',2, 'E',200e9, 'A',300e-6);
+        %    r = MM.datosAxial(d)                 % d = struct(...)
+        %    double(r.delta)                      % para número
         %
-        %    inc : incógnita, texto ('delta') o símbolo (S.delta)
-        %  Para número: double(MM.datosAxial(...)).
+        %  NO se pide una incógnita: despeja TODO lo que los datos permitan
+        %  y elegís del struct. Si el campo que buscás no está, es que los
+        %  datos no alcanzaban.
         %
         %  Funciona en cualquier dirección: dado delta despeja P, dado sig
-        %  despeja A, dada la rigidez despeja L. No hay "entrada" fija.
-        %  Con los pares, la cuenta de argumentos queda IMPAR (n pares más
-        %  la incógnita). Si te olvidás la incógnita, el conteo da par y
-        %  salta MM:parInvalido en vez de despejar cualquier cosa.
+        %  despeja A, dada la rigidez despeja L. No hay "entrada" fija. Eso
+        %  es lo que justifica el motor, y es la diferencia con sp.resolver:
+        %  el modelo axial es una MALLA de relaciones chicas y redundantes,
+        %  donde se entra por cualquier lado.
         %% ===================================================================
-        function [val, res] = datosAxial(varargin)
-            if nargin < 2
+        function res = datosAxial(varargin)
+            if nargin < 1
                 error('MM:parInvalido', ...
-                    ['Faltan argumentos: los datos y, al final, la ' ...
-                     'incógnita. Ej: MM.datosAxial(''sig'',s, ''E'',E, ''eps'')']);
+                    ['Faltan los datos. Ej: ' ...
+                     'MM.datosAxial(''sig'',s, ''E'',E)']);
             end
-            % varargin{end} con LLAVES: saca el contenido de la última celda.
-            % varargin(1:end-1) con paréntesis: deja un cell con el resto.
-            inc = varargin{end};
-            d   = MM.datos(varargin(1:end-1));
+            d = MM.datos(varargin);
 
             [eqs, S] = MM.ecuacionesAxial();
-            [val, res] = MM.despejar(eqs, S, d, inc);
+            res = MM.despejar(eqs, S, d);
         end
 
         %% ===================================================================
@@ -352,13 +325,9 @@ classdef MM
             d = MM.datos(varargin);
             [eqs, S] = MM.ecuacionesAxial();
 
-            % La incógnita es de mentira: acá interesa 'res', no 'val'. Si
-            % 'delta' no se puede determinar, despejar avisa — se calla ese
-            % aviso concreto porque no es un error: los campos que falten en
-            % la salida ya cuentan la misma historia.
-            w = warning('off', 'MM:sinSolucion');
-            limpiar = onCleanup(@() warning(w));   %#ok<NASGU> restaura al salir
-            [~, res] = MM.despejar(eqs, S, d, 'delta');
+            % despejar determina todo lo que los datos permitan. Los campos
+            % que falten en la salida cuentan solos qué no se pudo sacar.
+            res = MM.despejar(eqs, S, d);
 
             % Lo que entró como dato también va a la salida: res solo trae lo
             % que se DESPEJÓ, no lo que se dio.

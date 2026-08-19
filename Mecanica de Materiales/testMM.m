@@ -17,39 +17,39 @@ ok('S trae simbolos, no valores', isa(S.P,'sym') && isa(S.eps,'sym'));
 
 %% 2 datosAxial: el camino directo
 d = struct('P',P0,'L',L0,'E',E0,'A',A0);
-ok('delta = P*L/(E*A)', tol(double(MM.datosAxial(d,'delta')), d0));
-ok('sig = P/A',         tol(double(MM.datosAxial(d,'sig')),   s0));
-ok('eps = sig/E',       tol(double(MM.datosAxial(d,'eps')),   s0/E0));
-ok('eps = delta/L',     tol(double(MM.datosAxial(d,'eps')),   d0/L0));
-ok('k = E*A/L',         tol(double(MM.datosAxial(d,'k')),     E0*A0/L0));
-ok('k = P/delta',       tol(double(MM.datosAxial(d,'k')),     P0/d0));
+ok('delta = P*L/(E*A)', tol(double(MM.datosAxial(d).delta), d0));
+ok('sig = P/A',         tol(double(MM.datosAxial(d).sig),   s0));
+ok('eps = sig/E',       tol(double(MM.datosAxial(d).eps),   s0/E0));
+ok('eps = delta/L',     tol(double(MM.datosAxial(d).eps),   d0/L0));
+ok('k = E*A/L',         tol(double(MM.datosAxial(d).k),     E0*A0/L0));
+ok('k = P/delta',       tol(double(MM.datosAxial(d).k),     P0/d0));
 
 %% 3 despeje INVERSO: entra por donde venga el enunciado
 %  Escrito en pares nombre-valor: los datos y, al final, la incognita.
 ok('despeja P desde delta', ...
-    tol(double(MM.datosAxial('delta',d0,'L',L0,'E',E0,'A',A0,'P')), P0));
+    tol(double(MM.datosAxial('delta',d0,'L',L0,'E',E0,'A',A0).P), P0));
 ok('despeja A desde sig', ...
-    tol(double(MM.datosAxial('P',P0,'sig',s0,'A')), A0));
+    tol(double(MM.datosAxial('P',P0,'sig',s0).A), A0));
 ok('despeja E desde delta', ...
-    tol(double(MM.datosAxial('P',P0,'L',L0,'delta',d0,'A',A0,'E')), E0));
+    tol(double(MM.datosAxial('P',P0,'L',L0,'delta',d0,'A',A0).E), E0));
 ok('despeja L desde eps', ...
-    tol(double(MM.datosAxial('delta',d0,'eps',d0/L0,'L')), L0));
+    tol(double(MM.datosAxial('delta',d0,'eps',d0/L0).L), L0));
 ok('despeja A desde k', ...
-    tol(double(MM.datosAxial('k',E0*A0/L0,'E',E0,'L',L0,'A')), A0));
+    tol(double(MM.datosAxial('k',E0*A0/L0,'E',E0,'L',L0).A), A0));
 ok('entra por sig y eps (Hooke solo)', ...
-    tol(double(MM.datosAxial('sig',s0,'eps',s0/E0,'E')), E0));
+    tol(double(MM.datosAxial('sig',s0,'eps',s0/E0).E), E0));
 
 %% 3b las dos formas de llamada dan lo mismo
 ok('pares == struct (datosAxial)', ...
-    tol(double(MM.datosAxial('P',P0,'L',L0,'E',E0,'A',A0,'delta')), ...
-        double(MM.datosAxial(d,'delta'))));
+    tol(double(MM.datosAxial('P',P0,'L',L0,'E',E0,'A',A0).delta), ...
+        double(MM.datosAxial(d).delta)));
 ok('pares == struct (axial)', ...
     tol(MM.axial('P',P0,'L',L0,'E',E0,'A',A0).delta, MM.axial(d).delta));
-ok('incognita como simbolo', tol(double(MM.datosAxial(d, S.delta)), d0));
 try
-    MM.datosAxial('P',P0,'L',L0); ok('falta la incognita', false);
+    MM.datosAxial('P',P0,'L'); ok('datosAxial con par colgando', false);
 catch ME
-    ok('detecta incognita faltante', strcmp(ME.identifier,'MM:parInvalido'));
+    ok('datosAxial rechaza par incompleto', ...
+        strcmp(ME.identifier,'MM:parInvalido'));
 end
 try
     MM.axial('P',P0,'L'); ok('axial con par colgando', false);
@@ -58,36 +58,36 @@ catch ME
 end
 
 %% 4 despejar devuelve las intermedias gratis
-[~, res] = MM.datosAxial(d, 'delta');
+res = MM.datosAxial(d);
 ok('res trae intermedias', isfield(res,'sig') && isfield(res,'eps') ...
     && isfield(res,'k'));
 ok('res.sig coherente', tol(double(res.sig), s0));
 
 %% 5 compresion: el signo se propaga entero
 dc = struct('P',-P0,'L',L0,'E',E0,'A',A0);
-ok('compresion: delta < 0', double(MM.datosAxial(dc,'delta')) < 0);
-ok('compresion: |delta| igual', tol(abs(double(MM.datosAxial(dc,'delta'))), d0));
-ok('compresion: sig < 0', double(MM.datosAxial(dc,'sig')) < 0);
+ok('compresion: delta < 0', double(MM.datosAxial(dc).delta) < 0);
+ok('compresion: |delta| igual', tol(abs(double(MM.datosAxial(dc).delta)), d0));
+ok('compresion: sig < 0', double(MM.datosAxial(dc).sig) < 0);
 
 %% 5b Poisson: la lateral sale de la axial, y al reves tambien
 nu0 = 0.30;
 ok('epsp = -nu*eps', tol(double(MM.datosAxial( ...
-    struct('P',P0,'L',L0,'E',E0,'A',A0,'nu',nu0), 'epsp')), -nu0*d0/L0));
+    struct('P',P0,'L',L0,'E',E0,'A',A0,'nu',nu0)).epsp), -nu0*d0/L0));
 ok('despeja nu desde epsp', tol(double(MM.datosAxial( ...
-    struct('eps',d0/L0,'epsp',-nu0*d0/L0), 'nu')), nu0));
+    struct('eps',d0/L0,'epsp',-nu0*d0/L0)).nu), nu0));
 ok('traccion: la seccion se achica', double(MM.datosAxial( ...
-    struct('eps',d0/L0,'nu',nu0), 'epsp')) < 0);
+    struct('eps',d0/L0,'nu',nu0)).epsp) < 0);
 ok('sin nu no hay epsp', ~isfield(MM.axial(d), 'epsp'));
 
 % ddia = epsp*dia, negativo en traccion
 dia0 = 0.02;
 ok('ddia = epsp*dia', tol(double(MM.datosAxial( ...
-    'P',P0,'L',L0,'E',E0,'A',A0,'nu',nu0,'dia',dia0,'ddia')), ...
+    'P',P0,'L',L0,'E',E0,'A',A0,'nu',nu0,'dia',dia0).ddia), ...
     -nu0*(d0/L0)*dia0));
 ok('traccion: el diametro se achica', double(MM.datosAxial( ...
-    'eps',d0/L0,'nu',nu0,'dia',dia0,'ddia')) < 0);
+    'eps',d0/L0,'nu',nu0,'dia',dia0).ddia) < 0);
 ok('despeja nu desde ddia medido', tol(double(MM.datosAxial( ...
-    'eps',d0/L0,'dia',dia0,'ddia',-nu0*(d0/L0)*dia0,'nu')), nu0));
+    'eps',d0/L0,'dia',dia0,'ddia',-nu0*(d0/L0)*dia0).nu), nu0));
 ok('sin dia no hay ddia', ~isfield(MM.axial( ...
     'P',P0,'L',L0,'E',E0,'A',A0,'nu',nu0), 'ddia'));
 
@@ -103,26 +103,21 @@ ok('axial parcial: NO inventa delta', ~isfield(r2,'delta'));
 
 %% 7 errores y contradicciones
 try
-    MM.datosAxial(struct('pepe',1), 'delta'); ok('campo invalido', false);
+    MM.datosAxial(struct('pepe',1)).delta; ok('campo invalido', false);
 catch ME
     ok('rechaza campo invalido', strcmp(ME.identifier,'MM:campoDesconocido'));
 end
 try
-    MM.datosAxial(d, 'pepe'); ok('incognita invalida', false);
-catch ME
-    ok('rechaza incognita invalida', strcmp(ME.identifier,'MM:campoDesconocido'));
-end
-try
-    MM.datosAxial(struct('P',P0,'A',A0,'sig',999e6), 'E');
+    MM.datosAxial(struct('P',P0,'A',A0,'sig',999e6)).E;
     ok('contradiccion', false);
 catch ME
     ok('detecta datos contradictorios', ...
         strcmp(ME.identifier,'MM:datosContradictorios'));
 end
-lastwarn('',''); w = warning('off','MM:sinSolucion');
-MM.datosAxial(struct('P',P0), 'delta');
-[~, id] = lastwarn; warning(w);
-ok('avisa si faltan datos', strcmp(id,'MM:sinSolucion'));
+% Sin datos suficientes no hay aviso: el campo simplemente NO aparece en
+% el struct. Esa ausencia ES el diagnostico.
+rFalta = MM.datosAxial(struct('P',P0));
+ok('si faltan datos, el campo no esta', ~isfield(rFalta,'delta'));
 
 %% 8 seccion: las tres geometrias, en pares nombre-valor
 ok('seccion A directa',   tol(MM.seccion('A',A0), A0));
@@ -241,7 +236,7 @@ catch ME
 end
 
 %% 11 unidades: N-mm-MPa tiene que dar el mismo numero en mm
-dmm = double(MM.datosAxial(struct('P',20e3,'L',2000,'E',200e3,'A',300),'delta'));
+dmm = double(MM.datosAxial(struct('P',20e3,'L',2000,'E',200e3,'A',300)).delta);
 ok('coherencia N-mm-MPa', tol(dmm, d0*1000));
 
 disp('=== FIN ===');

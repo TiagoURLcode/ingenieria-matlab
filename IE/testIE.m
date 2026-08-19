@@ -52,20 +52,20 @@ ok('potencias FP 30deg', tol(Te.FP, cosd(30)) && Te.tipo=="atrasado");
 
 %% 7 ecuacionesB / datosB
 d = struct('mu',5000,'len',0.3,'N',200,'A',1e-3,'I',2);
-Fi = double(IE.datosB(d, 'Fi'));
+Fi = double(IE.datosB(d).Fi);
 Rref = 0.3/(5000*mu0*1e-3);
 ok('datosB Fi vs reluctancia', tol(Fi, 200*2/Rref));
-H = double(IE.datosB(d, 'H'));
+H = double(IE.datosB(d).H);
 ok('datosB H = NI/len', tol(H, 200*2/0.3));
-B = double(IE.datosB(d, 'B'));
+B = double(IE.datosB(d).B);
 ok('datosB B = mu*mu0*H', tol(B, 5000*mu0*H));
 ok('datosB B = Fi/A', tol(B, Fi/1e-3));
-Iv = double(IE.datosB(struct('mu',5000,'len',0.3,'N',200,'A',1e-3,'Fi',Fi), 'I'));
+Iv = double(IE.datosB(struct('mu',5000,'len',0.3,'N',200,'A',1e-3,'Fi',Fi)).I);
 ok('datosB despeja I (inverso)', tol(Iv, 2));
-vv = double(IE.datosB(struct('N',200,'dFi',0.5), 'v'));
+vv = double(IE.datosB(struct('N',200,'dFi',0.5)).v);
 ok('datosB Faraday v = N*dFi', tol(vv, 100));
 try
-    IE.datosB(struct('pepe',1), 'I'); ok('datosB campo invalido', false);
+    IE.datosB(struct('pepe',1)).I; ok('datosB campo invalido', false);
 catch ME
     ok('datosB campo invalido', strcmp(ME.identifier,'IE:campoDesconocido'));
 end
@@ -96,22 +96,17 @@ end
 
 %% 10 ecuacionesSeg coherente con reluctSeg
 ds = struct('len',0.3,'A',1e-3,'mu',5000,'g',1e-3,'dA',0.10);
-[Rsv, resS] = IE.datosSeg(ds, 'Rs');
+resS = IE.datosSeg(ds); Rsv = resS.Rs;
 ok('datosSeg Rs == reluctSeg', tol(double(Rsv), IE.reluctSeg(s)));
 ok('datosSeg Rn+Rg == Rs', tol(double(resS.Rn+resS.Rg), double(Rsv)));
-Bg = double(IE.datosSeg(setfield(ds,'Fi',1e-3), 'Bg'));
+Bg = double(IE.datosSeg(setfield(ds,'Fi',1e-3)).Bg);
 ok('datosSeg Bg = Fi/(A(1+dA))', tol(Bg, 1e-3/(1e-3*1.10)));
-Bh = double(IE.datosSeg(setfield(ds,'Fi',1e-3), 'B'));
+Bh = double(IE.datosSeg(setfield(ds,'Fi',1e-3)).B);
 ok('datosSeg B > Bg (fringing)', Bh > Bg);
-try
-    IE.datosB(struct('N',200), 'pepe'); ok('despejar inc invalida', false);
-catch ME
-    ok('despejar inc invalida', strcmp(ME.identifier,'IE:campoDesconocido'));
-end
-[~, resB] = IE.datosB(struct('mu',5000,'len',0.3,'N',200,'A',1e-3,'I',2), 'Fi');
+resB = IE.datosB(struct('mu',5000,'len',0.3,'N',200,'A',1e-3,'I',2));
 ok('despejar devuelve intermedias', isfield(resB,'H') && isfield(resB,'B'));
 try
-    IE.datosB(struct('N',200,'dFi',0.5,'v',999), 'B'); ok('contradiccion', false);
+    IE.datosB(struct('N',200,'dFi',0.5,'v',999)).B; ok('contradiccion', false);
 catch ME
     ok('contradiccion detectada', strcmp(ME.identifier,'IE:datosContradictorios'));
 end
