@@ -14,7 +14,7 @@ sol = solve(eqs_num, [S.H, S.B, S.Fi]);
 
 assert(~isempty(sol.B), 'solve devolvió vacío: revisa datos e incógnitas')
 
-H_I  = simplify(sol.H);
+H_I  = simplify(sol.H)
 B_I  = simplify(sol.B);
 Fi_I = simplify(sol.Fi);
 
