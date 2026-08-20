@@ -50,7 +50,7 @@ ok('potencias Stot', tol(T.Stot, sum(V.*conj(I))));
 Te = IE.potencias(100, IE.pol2rec(5,-30));
 ok('potencias FP 30deg', tol(Te.FP, cosd(30)) && Te.tipo=="atrasado");
 
-%% 7 ecuacionesB / datosB
+%% 7 ecB / datosB
 d = struct('mu',5000,'len',0.3,'N',200,'A',1e-3,'I',2);
 Fi = double(IE.datosB(d).Fi);
 Rref = 0.3/(5000*mu0*1e-3);
@@ -94,7 +94,7 @@ catch ME
     ok('reluctSeg gap>len', strcmp(ME.identifier,'IE:gapMayorQueTramo'));
 end
 
-%% 10 ecuacionesSeg coherente con reluctSeg
+%% 10 ecSeg coherente con reluctSeg
 ds = struct('len',0.3,'A',1e-3,'mu',5000,'g',1e-3,'dA',0.10);
 resS = IE.datosSeg(ds); Rsv = resS.Rs;
 ok('datosSeg Rs == reluctSeg', tol(double(Rsv), IE.reluctSeg(s)));

@@ -8,9 +8,9 @@ P0 = 20e3; L0 = 2; E0 = 200e9; A0 = 300e-6;
 d0 = P0*L0/(E0*A0);              % 6.6667e-4 m
 s0 = P0/A0;                      % 66.667 MPa
 
-%% 1 ecuacionesAxial: estructura del modelo
-[eqs, S] = MM.ecuacionesAxial();
-ok('ecuacionesAxial da 8 ecuaciones', numel(eqs) == 8);
+%% 1 ecAxial: estructura del modelo
+[eqs, S] = MM.ecAxial();
+ok('ecAxial da 8 ecuaciones', numel(eqs) == 8);
 ok('diccionario completo', all(isfield(S, ...
     {'P','A','sig','eps','E','L','delta','k','nu','epsp','dia','ddia'})));
 ok('S trae simbolos, no valores', isa(S.P,'sym') && isa(S.eps,'sym'));

@@ -20,14 +20,14 @@ classdef MM
     % LO QUE NO ESTÁ (todavía)
     %   Efectos térmicos, sistemas indeterminados y factor de seguridad
     %   (secciones 4 y 5 del formulario). El motor MM.despejar ya sirve para
-    %   eso: alcanza con escribir otra función ecuacionesXXX y pasársela.
+    %   eso: alcanza con escribir otra función ecXXX y pasársela.
     %
     % A REVISAR — POISSON FUERA DE LA SECCIÓN CIRCULAR
     %   La deformación lateral entra hoy por una sola ecuación del modelo,
     %   epsp == ddia/dia, y eso amarra el cálculo a una sección CIRCULAR.
     %   Con una cuadrada o rectangular no hay 'dia' que pasar y la cuenta
     %   queda a mano: da = epsp*a, db = epsp*b (ver la nota al final de
-    %   ecuacionesAxial).
+    %   ecAxial).
     %   Falta una función aparte que tome epsp —o nu y eps— y devuelva el
     %   cambio de CADA dimensión según la geometría, del mismo modo que
     %   MM.seccion resuelve el área para dia, para (a,b) o para A directa.
@@ -59,7 +59,7 @@ classdef MM
         %% ===================================================================
 
         %% ===================================================================
-        %  ecuacionesAxial — Declara el modelo de la barra uniforme.
+        %  ecAxial — Declara el modelo de la barra uniforme.
         %  No resuelve nada; solo entrega el sistema y el diccionario de
         %  símbolos para que otras funciones lo usen.
         %
@@ -82,11 +82,11 @@ classdef MM
         %       mentiroso.
         %
         %  EJEMPLO DE USO
-        %    [eqs, S] = MM.ecuacionesAxial();
+        %    [eqs, S] = MM.ecAxial();
         %    eqs = subs(eqs, [S.P S.L S.E S.A], [20e3 2 200e9 300e-6]);
         %    double(solve(eqs, S.delta))
         %% ===================================================================
-        function [eqs, S] = ecuacionesAxial()
+        function [eqs, S] = ecAxial()
 
             % sym() y NO syms: dentro de un método, syms falla si el nombre
             % choca con una función existente del path. Acá el caso es grave:
@@ -136,7 +136,7 @@ classdef MM
         %  despejar — MOTOR de despeje. Lo usa datosAxial.
         %
         %  Entradas:
-        %    eqs : sistema simbólico (de MM.ecuacionesAxial, ...)
+        %    eqs : sistema simbólico (de MM.ecAxial, ...)
         %    S   : diccionario de símbolos del MISMO sistema
         %    d   : struct con SOLO lo que conocés, en cualquier orden
         %
@@ -304,7 +304,7 @@ classdef MM
             end
             d = MM.datos(varargin);
 
-            [eqs, S] = MM.ecuacionesAxial();
+            [eqs, S] = MM.ecAxial();
             res = MM.despejar(eqs, S, d);
         end
 
@@ -323,7 +323,7 @@ classdef MM
         %% ===================================================================
         function r = axial(varargin)
             d = MM.datos(varargin);
-            [eqs, S] = MM.ecuacionesAxial();
+            [eqs, S] = MM.ecAxial();
 
             % despejar determina todo lo que los datos permitan. Los campos
             % que falten en la salida cuentan solos qué no se pudo sacar.

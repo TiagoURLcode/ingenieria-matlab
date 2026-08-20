@@ -199,7 +199,7 @@ A5     = simplify(2*r5^2*(alpha5 - sin(alpha5)*cos(alpha5)));   % [in^2]
 
 %% -- a) Fórmula de la carga permisible --------------------------------
 
-[eqs5, S5] = MM.ecuacionesAxial();
+[eqs5, S5] = MM.ecAxial();
 P_d5 = simplify(solve(subs(eqs5(1), S5.A, A5), S5.P));   % [lb]
 
 
@@ -355,7 +355,7 @@ R9a = d9cu + d9ac
 
 syms P9b     % carga de tensión, incógnita [N]
 
-[eqs9, S9] = MM.ecuacionesAxial();
+[eqs9, S9] = MM.ecAxial();
 
 % eqs9(4) es delta == P*L/(E*A): liga delta con P sin pasar por sig ni eps,
 % que son símbolos compartidos entre los dos elementos. Los dos postes van

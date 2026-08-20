@@ -95,7 +95,7 @@ A6 = .150^2-.08^2; %metros cuadrados
 l6 = 12; %metros
 m6 = 2000; %kg, masa del tanque de agua
 P6 = m6*9.8; %fuerza de masa (peso)
-omega6 = VM.datosOmega(VM.datosKR(E6,A6,l6), m6);
+omega6 = double(VM.omega('k',VM.datosKR(E6,A6,l6), 'm',m6).wn);
 syms def6
 cambio6 = double(solve(E6 == VM.datosE(P6,l6,A6,def6), def6));
 f6 = omega6/(2*pi);
@@ -140,7 +140,7 @@ k73 = VM.datosKR(E7, A73, l73);
 k7= [k71, k72, k73];
 keq7 = VM.datosSerieR(k7);
 
-omega7 = VM.datosOmega(keq7, m7);
+omega7 = double(VM.omega('k',keq7, 'm',m7).wn);
 f7     = omega7/(2*pi);
 T7     = 1/f7;
 

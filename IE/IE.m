@@ -216,7 +216,7 @@ classdef IE
         %% ===================================================================
 
         %% ===================================================================
-        %  ecuacionesB — Declara el modelo del circuito magnético.
+        %  ecB — Declara el modelo del circuito magnético.
         %  No resuelve nada; solo entrega el sistema y el diccionario de
         %  símbolos para que otras funciones lo usen.
         %
@@ -236,12 +236,12 @@ classdef IE
         %    está IE.faradayB, que sí deriva.
         %
         %  EJEMPLO DE USO
-        %    [eqs, S] = IE.ecuacionesB();
+        %    [eqs, S] = IE.ecB();
         %    eqs = subs(eqs, [S.N S.A S.len S.mu], [200 1e-3 0.3 5000]);
         %    eqs = subs(eqs, S.I, 2);
         %    double(solve(eqs, S.Fi))
         %% ===================================================================
-        function [eqs, S] = ecuacionesB()
+        function [eqs, S] = ecB()
 
             % sym() y NO syms: dentro de un método, syms falla si el nombre
             % choca con una función existente del path ('Fi' colisiona en
@@ -277,7 +277,7 @@ classdef IE
         %  despejar — MOTOR de despeje. Lo usan datosB y datosSeg.
         %
         %  Entradas:
-        %    eqs : sistema simbólico (de IE.ecuacionesB, IE.ecuacionesSeg, ...)
+        %    eqs : sistema simbólico (de IE.ecB, IE.ecSeg, ...)
         %    S   : diccionario de símbolos del MISMO sistema
         %    d   : struct con SOLO lo que conocés, en cualquier orden
         %
@@ -372,7 +372,7 @@ classdef IE
         %  Ej: double(IE.datosB(d).Fi)
         %% ===================================================================
         function res = datosB(d)
-            [eqs, S] = IE.ecuacionesB();
+            [eqs, S] = IE.ecB();
             res = IE.despejar(eqs, S, d);
         end
 
@@ -384,12 +384,12 @@ classdef IE
         %                                'g',1e-3,'dA',.1)).Rs)
         %% ===================================================================
         function res = datosSeg(d)
-            [eqs, S] = IE.ecuacionesSeg();
+            [eqs, S] = IE.ecSeg();
             res = IE.despejar(eqs, S, d);
         end
 
         %% ===================================================================
-        %  faradayB — Análisis TEMPORAL. Esto es lo que ecuacionesB no puede
+        %  faradayB — Análisis TEMPORAL. Esto es lo que ecB no puede
         %  hacer: derivar de verdad.
         %
         %  Entradas:
@@ -420,8 +420,8 @@ classdef IE
         end
 
         %% ===================================================================
-        %  ecuacionesTrafo — Modelo simbólico del TRANSFORMADOR IDEAL.
-        %  Mismo esquema que IE.ecuacionesB: declara el sistema y devuelve
+        %  ecTrafo — Modelo simbólico del TRANSFORMADOR IDEAL.
+        %  Mismo esquema que IE.ecB: declara el sistema y devuelve
         %  el diccionario. No resuelve nada. Se despeja con IE.despejar
         %  (o el atajo IE.datosTrafo / IE.trafo).
         %
@@ -464,13 +464,13 @@ classdef IE
         %  no alcanza, hay que agregar Req y Xeq a mano.
         %
         %  EJEMPLO
-        %    [eqs, S] = IE.ecuacionesTrafo();
+        %    [eqs, S] = IE.ecTrafo();
         %    eqs = subs(eqs, [S.Np S.Ns S.Vp], [500 100 220]);
         %    double(IE.despejar(eqs, S, struct(), 'Vs'))
         %% ===================================================================
-        function [eqs, S] = ecuacionesTrafo()
+        function [eqs, S] = ecTrafo()
 
-            % sym() y no syms: ver la nota en IE.ecuacionesB.
+            % sym() y no syms: ver la nota en IE.ecB.
             nom = {'a','b','Np','Ns','Vp','Vs','Ip','Is','Zp','Zs','dFi'};
             S   = cell2struct(cellfun(@sym, nom, 'UniformOutput', false)', ...
                               nom', 1);
@@ -511,7 +511,7 @@ classdef IE
         %  Ej: double(IE.datosTrafo(struct('Np',500,'Ns',100,'Vp',220)).Vs)
         %% ===================================================================
         function res = datosTrafo(d)
-            [eqs, S] = IE.ecuacionesTrafo();
+            [eqs, S] = IE.ecTrafo();
             res = IE.despejar(eqs, S, d);
         end
 
@@ -531,7 +531,7 @@ classdef IE
         %  así que referir no rota fases).
         %% ===================================================================
         function r = trafo(d)
-            [eqs, S] = IE.ecuacionesTrafo();
+            [eqs, S] = IE.ecTrafo();
 
             % despejar determina todo lo que los datos permitan. Los campos
             % que falten en la salida cuentan solos qué no se pudo sacar.
@@ -556,13 +556,13 @@ classdef IE
         end
 
         %% ===================================================================
-        %  ecuacionesSeg — Modelo simbólico de UN tramo con entrehierro.
+        %  ecSeg — Modelo simbólico de UN tramo con entrehierro.
         %  Mismo modelo que IE.reluctSeg, en versión simbólica.
         %    A_gap = A*(1 + dA)  -> crecimiento PROPORCIONAL por fringing.
         %% ===================================================================
-        function [eqs, S] = ecuacionesSeg()
+        function [eqs, S] = ecSeg()
 
-            % sym() y no syms: ver la nota en IE.ecuacionesB.
+            % sym() y no syms: ver la nota en IE.ecB.
             nom = {'len','A','mu','g','dA','Rn','Rg','Rs','Fi','B','Bg'};
             S   = cell2struct(cellfun(@sym, nom, 'UniformOutput', false)', ...
                               nom', 1);

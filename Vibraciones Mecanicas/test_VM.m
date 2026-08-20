@@ -28,9 +28,12 @@ fallas = fallas + ~verificar('datosV',       gam,                     0.0025,   
 fallas = fallas + ~verificar('datosG',       VM.datosG(tau, gam),     2e9,      tol);
 
 fprintf('=== FRECUENCIAS NATURALES ===\n');
-fallas = fallas + ~verificar('datosOmega',   VM.datosOmega(100,4),    5,        tol);
-fallas = fallas + ~verificar('datosOmegaPS', VM.datosOmegaPS(9.81,1), sqrt(9.81), tol);
-fallas = fallas + ~verificar('datosOmegaPF', VM.datosOmegaPF(2,9.81,0.5,1), sqrt(9.81), tol);
+fallas = fallas + ~verificar('omega wn',     double(VM.omega('k',100,'m',4).wn),        5, tol);
+fallas = fallas + ~verificar('omega inverso k', double(VM.omega('wn',5,'m',4).k),     100, tol);
+fallas = fallas + ~verificar('omegaPS wn',   double(VM.omegaPS('g',9.81,'l',1).wn), sqrt(9.81), tol);
+fallas = fallas + ~verificar('omegaPF wn',   double(VM.omegaPF('m',2,'g',9.81,'l',0.5,'Io',1).wn), sqrt(9.81), tol);
+fallas = fallas + ~verificar('omegaPF Steiner Io', double(VM.omegaPF('m',2,'g',9.81,'l',0.5,'Icm',0.5).Io), 1, tol);
+fallas = fallas + ~verificar('omegaPF leq',  double(VM.omegaPF('m',2,'g',9.81,'l',0.5,'Io',1).leq),      1, tol);
 fallas = fallas + ~verificar('datosKP',      VM.datosKP(1e-6,80e9,2), 40000,    tol);
 
 fprintf('=== RIGIDECES ESPECIALES ===\n');

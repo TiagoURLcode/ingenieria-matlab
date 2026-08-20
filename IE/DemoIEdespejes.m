@@ -1,7 +1,7 @@
 %% demoB_param.m — B, H y Fi en función de la corriente
 clear; clc
 
-[eqs, S] = IE.ecuacionesB();
+[eqs, S] = IE.ecB();
 
 % Datos fijos: se SUSTITUYEN dentro de las ecuaciones, no se apilan.
 % Apilarlas como (N == 500) le pide a solve que las cumpla por sí solas,

@@ -61,7 +61,7 @@ fprintf('  el punto C se movio       = %.4f mm\n', re.acum(2)*1e3);
 % Igual que en el demo de IE: se sustituyen los datos FIJOS dentro de las
 % ecuaciones y se deja libre la variable de interés. Apilar (E == 200e9)
 % como una ecuación más le pediría a solve que la cumpla por sí sola.
-[eqs, S] = MM.ecuacionesAxial();
+[eqs, S] = MM.ecAxial();
 eqs_num  = subs(eqs, [S.L, S.E, S.A], [2, E, 300e-6]);
 
 % Solo las ecuaciones de deformación: k mete P/delta y no aporta acá.
