@@ -1,9 +1,9 @@
 %% Practica3.m — datos de la practica y comprobacion del problema 1
 %  Problema 1: metodo grafico (se resuelve a mano, en papel).
 %  Problema 2: metodo algebraico / lazo vectorial.
-%  Acá se cargan los datos de los DOS problemas, y se resuelve por lazo
-%  vectorial la PRIMERA fila del problema 1, para tener contra qué
-%  comparar el trazado a mano.
+%  Acá se cargan los datos de los DOS problemas, y se resuelven por lazo
+%  vectorial todas las filas de los dos, para tener contra qué comparar
+%  el trazado a mano del problema 1.
 clear; clc
 
 % UNIDADES: las longitudes van en CENTIMETROS, como el enunciado.
@@ -28,11 +28,11 @@ P2 = [  30   4   9    14  18
         45   4   7    14  18
        250   4   8    12  16 ];
 
-%% == Problema 1, fila 1: resuelto por lazo vectorial ==================
-% Solo la primera fila. Es la que sirve para verificar el grafico.
-[fila, cols] = size(P1);
-for i = 1:fila
-    fila = P2(i, :);
+%% == Problema 1: resuelto por lazo vectorial ==========================
+% Las tres filas. Son las que sirven para verificar el grafico.
+nfilas = size(P1, 1);
+for i = 1:nfilas
+    fila = P1(i, :);
     t2 = deg2rad(fila(1));   % angulo de entrada           [rad]
     a  = fila(2);            % manivela,  eslabon 2        [cm]
     b  = fila(3);            % acoplador, eslabon 3        [cm]
@@ -70,8 +70,8 @@ for i = 1:fila
 end
 
 %problema 2
-[fila, cols] = size(P2);
-for i = 1:fila
+nfilas = size(P2, 1);
+for i = 1:nfilas
     fila = P2(i, :);
     t2 = deg2rad(fila(1));   % angulo de entrada           [rad]
     a  = fila(2);            % manivela,  eslabon 2        [cm]
