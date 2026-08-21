@@ -2,7 +2,13 @@ classdef IO
     % IO — Caja de herramientas de Investigación de Operaciones.
     %      Todos los métodos son estáticos: se llaman IO.nombre(...).
     %
-    % CONVENCIONES DE LA CLASE
+    % CONTENIDO
+    %   Programación Lineal   pl2var, graficarPL
+    %   Teoría de Colas       mms (M/M/s, y M/M/1 con s=1), mg1 (M/G/1),
+    %                         mmsPn (probabilidad de n clientes),
+    %                         mmsEspera (probabilidad de esperar mas de t)
+    %
+    % CONVENCIONES DE PROGRAMACIÓN LINEAL
     %   - Problemas de Programación Lineal con 2 variables (x1, x2).
     %   - Se asume SIEMPRE x1>=0, x2>=0 (no negatividad), además de las
     %     restricciones que el usuario entregue.
@@ -18,6 +24,24 @@ classdef IO
     %       7. Vértices
     %       8. Evaluación de la función objetivo en los vértices
     %       9. Solución
+    %
+    % CONVENCIONES DE TEORÍA DE COLAS
+    %   - SISTEMA COHERENTE DE TIEMPO. No hay conversión de unidades adentro
+    %     de las funciones. lambda, mu y todos los tiempos t van en LA MISMA
+    %     unidad; la salida (W, Wq) sale en esa unidad.
+    %     Los dos laboratorios mezclan tasas por hora con tiempos de servicio
+    %     en minutos, y ahí es donde se pierde el examen. La conversión se
+    %     hace UNA vez, en la asignación, dejando el dato del enunciado al
+    %     lado:
+    %         lambda = 20;        % llegadas [clientes/h]  (20 por hora)
+    %         mu     = 1/(1/3);   % servicio [clientes/h]  (1/mu = 20 min = 1/3 h)
+    %         t      = 5/60;      % umbral de espera [h]   (5 min)
+    %     Trabajar todo en minutos es igual de válido — lo que no se negocia
+    %     es que lambda, mu y t compartan unidad.
+    %   - ESTADO ESTABLE. Todas las fórmulas son de régimen permanente y
+    %     exigen rho < 1. Con rho >= 1 las funciones abortan con el error
+    %     IO:sistemaInestable en vez de devolver un número sin sentido.
+    %   - DISCIPLINA FIFO, población y cola INFINITAS, llegadas de Poisson.
 
     methods(Static)
 
@@ -217,6 +241,295 @@ classdef IO
             xlabel(nombres{1}); ylabel(nombres{2});
             title(titulo_);
             legend('Location','bestoutside');
+        end
+
+        %% ===================================================================
+        %  mms — Modelo M/M/s: llegadas de Poisson, tiempos de servicio
+        %  EXPONENCIALES, s servidores en paralelo que atienden UNA sola cola.
+        %  Con s = 1 es el modelo M/M/1: las fórmulas se reducen solas, no hay
+        %  que llamar a otra función.
+        %
+        %    sol = IO.mms(lambda, mu, s)
+        %    sol = IO.mms(lambda, mu, s, 'Verbose', false)
+        %
+        %  ENTRADAS
+        %    lambda : tasa media de LLEGADAS       [clientes/unidad de tiempo]
+        %    mu     : tasa media de SERVICIO DE UN SERVIDOR, mu = 1/(tiempo
+        %             medio de servicio)           [clientes/unidad de tiempo]
+        %    s      : cantidad de servidores en paralelo [-]
+        %             lambda y mu van en la MISMA unidad de tiempo: si el
+        %             enunciado da "2 llegadas por hora" y "20 minutos de
+        %             servicio", mu = 3 por hora, no 1/20.
+        %
+        %  OPCIONES (par nombre/valor)
+        %    'Verbose' : true/false, imprime el reporte. Default true
+        %
+        %  SALIDA (struct sol)
+        %    sol.rho : factor de utilización, rho = lambda/(s*mu) [-]
+        %              fracción del tiempo que un servidor está ocupado
+        %    sol.r   : intensidad de tráfico, r = lambda/mu [-]
+        %              cantidad media de servidores ocupados. OJO: r y rho
+        %              solo coinciden si s = 1
+        %    sol.P0  : probabilidad de que el sistema esté VACÍO [-]
+        %    sol.L   : número medio de clientes EN EL SISTEMA [clientes]
+        %    sol.Lq  : número medio de clientes EN LA COLA [clientes]
+        %    sol.W   : tiempo medio EN EL SISTEMA (cola + servicio) [tiempo]
+        %    sol.Wq  : tiempo medio EN LA COLA [tiempo]
+        %
+        %  DE DÓNDE SALEN
+        %    P0 sale de exigir que todas las probabilidades sumen 1. La suma
+        %    de n=0 a s-1 recorre los estados en los que TODAVÍA hay algún
+        %    servidor libre; el término suelto de la derecha junta de una vez
+        %    todos los estados n >= s, que forman una serie geométrica de
+        %    razón rho (por eso hace falta rho < 1: si no, no converge).
+        %    Lq sale de la cadena de Markov del modelo. Las otras tres son
+        %    la LEY DE LITTLE, que vale para cualquier cola en estado estable:
+        %      L = lambda*W       Lq = lambda*Wq       W = Wq + 1/mu
+        %    Acá se usan como L = Lq + r y W = L/lambda, que es lo mismo.
+        %
+        %  EJEMPLO — banco con 2 cajeras, 40 clientes/h, 2 min por cliente:
+        %    sol = IO.mms(40, 30, 2);     % mu = 60/2 = 30 clientes/h
+        %% ===================================================================
+        function sol = mms(lambda, mu, s, varargin)
+
+            p = inputParser;
+            addParameter(p, 'Verbose', true);
+            parse(p, varargin{:});
+
+            assert(isscalar(lambda) && lambda > 0, 'lambda debe ser un escalar positivo');
+            assert(isscalar(mu)     && mu > 0,     'mu debe ser un escalar positivo');
+            assert(isscalar(s) && s >= 1 && s == fix(s), 's debe ser un entero >= 1');
+
+            r   = lambda/mu;        % servidores ocupados en promedio
+            rho = lambda/(s*mu);    % utilización de CADA servidor
+
+            if rho >= 1
+                error('IO:sistemaInestable', ...
+                    ['rho = %.4g >= 1: llega más trabajo del que los %d ' ...
+                     'servidores pueden despachar, la cola crece sin límite ' ...
+                     'y no hay estado estable que calcular. Revisá las ' ...
+                     'unidades de lambda y mu antes que el enunciado.'], rho, s);
+            end
+
+            % n es un VECTOR 0,1,...,s-1: factorial y .^ trabajan elemento a
+            % elemento, así que la sumatoria entra en una línea.
+            n  = 0:s-1;
+            P0 = 1/( sum(r.^n./factorial(n)) + r^s/(factorial(s)*(1-rho)) );
+
+            % Misma Lq de la plantilla de Excel. La forma equivalente
+            % Lq = P0*r^s*rho/(factorial(s)*(1-rho)^2) sale de reemplazar
+            % (s*mu-lambda)^2 = s^2*mu^2*(1-rho)^2; se deja la de la
+            % plantilla para poder comparar celda contra celda.
+            Lq = lambda*mu*r^s*P0/(factorial(s-1)*(s*mu - lambda)^2);
+            L  = Lq + r;
+            Wq = Lq/lambda;
+            W  = L/lambda;
+
+            sol.lambda = lambda; sol.mu = mu; sol.s = s;
+            sol.rho = rho; sol.r = r; sol.P0 = P0;
+            sol.L = L; sol.Lq = Lq; sol.W = W; sol.Wq = Wq;
+
+            if p.Results.Verbose
+                fprintf('--- Modelo M/M/%d ---\n', s);
+                fprintf('  lambda = %-10.4g mu = %-10.4g s = %d\n', lambda, mu, s);
+                fprintf('  rho    = %-10.4g (utilización de cada servidor)\n', rho);
+                fprintf('  P0     = %-10.4g (sistema vacío)\n', P0);
+                fprintf('  L      = %-10.4g clientes en el sistema\n', L);
+                fprintf('  Lq     = %-10.4g clientes en la cola\n', Lq);
+                fprintf('  W      = %-10.4g unidades de tiempo en el sistema\n', W);
+                fprintf('  Wq     = %-10.4g unidades de tiempo en la cola\n', Wq);
+            end
+        end
+
+        %% ===================================================================
+        %  mg1 — Modelo M/G/1: llegadas de Poisson, UN servidor, y tiempos de
+        %  servicio de distribución GENERAL — cualquiera, con tal de conocer
+        %  su media y su desviación estándar. Fórmula de Pollaczek-Khintchine.
+        %
+        %    sol = IO.mg1(lambda, mu, sigma)
+        %    sol = IO.mg1(lambda, mu, sigma, 'Verbose', false)
+        %
+        %  ENTRADAS
+        %    lambda : tasa media de LLEGADAS [clientes/unidad de tiempo]
+        %    mu     : tasa media de SERVICIO, mu = 1/(tiempo medio de
+        %             servicio) [clientes/unidad de tiempo]
+        %    sigma  : DESVIACIÓN ESTÁNDAR del tiempo de servicio, en la misma
+        %             unidad de TIEMPO que 1/mu (no una tasa)
+        %
+        %  SALIDA (struct sol): los mismos campos que IO.mms, con rho = lambda/mu.
+        %
+        %  LO QUE DICE LA FÓRMULA
+        %    Lq = (lambda^2*sigma^2 + rho^2)/(2*(1-rho))
+        %    La variabilidad del servicio entra SOLA, en el término
+        %    lambda^2*sigma^2: dos sistemas con el mismo tiempo medio de
+        %    servicio pero distinta sigma tienen colas distintas. Bajar sigma
+        %    baja Lq sin tocar la velocidad promedio del servidor.
+        %
+        %  DOS CASOS PARTICULARES, útiles de control
+        %    sigma = 1/mu -> servicio exponencial: da exactamente M/M/1
+        %    sigma = 0    -> servicio DETERMINÍSTICO (M/D/1): Lq se reduce a
+        %                    rho^2/(2*(1-rho)), la MITAD de la de M/M/1
+        %
+        %  EJEMPLO — soporte con 3 solicitudes/h y servicio de media 15 min
+        %  con desviación de 5 min (todo en horas):
+        %    sol = IO.mg1(3, 4, 5/60);
+        %% ===================================================================
+        function sol = mg1(lambda, mu, sigma, varargin)
+
+            p = inputParser;
+            addParameter(p, 'Verbose', true);
+            parse(p, varargin{:});
+
+            assert(isscalar(lambda) && lambda > 0, 'lambda debe ser un escalar positivo');
+            assert(isscalar(mu)     && mu > 0,     'mu debe ser un escalar positivo');
+            assert(isscalar(sigma)  && sigma >= 0, 'sigma debe ser un escalar >= 0');
+
+            rho = lambda/mu;
+
+            if rho >= 1
+                error('IO:sistemaInestable', ...
+                    ['rho = %.4g >= 1: el único servidor no da abasto, la ' ...
+                     'cola crece sin límite y no hay estado estable que ' ...
+                     'calcular. Revisá las unidades de lambda y mu antes ' ...
+                     'que el enunciado.'], rho);
+            end
+
+            Lq = (lambda^2*sigma^2 + rho^2)/(2*(1 - rho));
+            L  = Lq + rho;          % rho = r cuando s = 1
+            Wq = Lq/lambda;         % Little
+            W  = Wq + 1/mu;         % esperar + ser atendido
+            P0 = 1 - rho;           % el servidor está libre
+
+            sol.lambda = lambda; sol.mu = mu; sol.sigma = sigma; sol.s = 1;
+            sol.rho = rho; sol.r = rho; sol.P0 = P0;
+            sol.L = L; sol.Lq = Lq; sol.W = W; sol.Wq = Wq;
+
+            if p.Results.Verbose
+                fprintf('--- Modelo M/G/1 ---\n');
+                fprintf('  lambda = %-10.4g mu = %-10.4g sigma = %.4g\n', lambda, mu, sigma);
+                fprintf('  rho    = %-10.4g (utilización del servidor)\n', rho);
+                fprintf('  P0     = %-10.4g (sistema vacío)\n', P0);
+                fprintf('  L      = %-10.4g clientes en el sistema\n', L);
+                fprintf('  Lq     = %-10.4g clientes en la cola\n', Lq);
+                fprintf('  W      = %-10.4g unidades de tiempo en el sistema\n', W);
+                fprintf('  Wq     = %-10.4g unidades de tiempo en la cola\n', Wq);
+            end
+        end
+
+        %% ===================================================================
+        %  mmsPn — Probabilidad de que haya EXACTAMENTE n clientes en el
+        %  sistema (Pn) y de que haya MÁS de n (PmayorN), en un M/M/s.
+        %
+        %    [Pn, PmayorN] = IO.mmsPn(lambda, mu, s, n)
+        %
+        %  n puede ser un escalar o un VECTOR: la salida tiene la misma forma.
+        %  "En el sistema" incluye a los que están siendo atendidos, no solo
+        %  a los que hacen cola.
+        %
+        %  LOS DOS TRAMOS DE LA FÓRMULA
+        %    n <= s : Pn = r^n*P0/n!            todavía hay servidores libres
+        %    n >  s : Pn = r^n*P0/(s!*s^(n-s))  todos ocupados, los demás
+        %                                       hacen cola y el sistema
+        %                                       despacha a ritmo constante
+        %    En n = s las dos coinciden, así que no hay salto.
+        %
+        %  PARA QUÉ SIRVE PmayorN: los enunciados piden cosas como "el
+        %  porcentaje de tiempo en que hay más de 2 clientes" o "95% del
+        %  tiempo no debe haber más de 4 en espera". Eso es P(N > n), que se
+        %  calcula como 1 menos la suma de P0 hasta Pn.
+        %
+        %  EJEMPLO
+        %    [Pn, Pmas] = IO.mmsPn(20, 30, 1, 0:2);
+        %    Pmas(3)     % P(mas de 2 clientes en la caja)
+        %% ===================================================================
+        function [Pn, PmayorN] = mmsPn(lambda, mu, s, n)
+
+            % Verbose false: acá interesan r y P0, no el reporte. La
+            % validación y el corte por rho >= 1 los hace mms.
+            base = IO.mms(lambda, mu, s, 'Verbose', false);
+            r = base.r; P0 = base.P0;
+
+            Pn      = zeros(size(n));
+            PmayorN = zeros(size(n));
+
+            for i = 1:numel(n)
+                ni = n(i);
+                assert(ni >= 0 && ni == fix(ni), 'n debe tener enteros >= 0');
+
+                Pn(i) = IO.pnEstado(r, P0, s, ni);
+
+                % P(N > n) = 1 - (P0 + P1 + ... + Pn). Se suma explícito y no
+                % con la forma cerrada de la geométrica para que valga igual
+                % en los dos tramos de la fórmula.
+                acum = 0;
+                for j = 0:ni
+                    acum = acum + IO.pnEstado(r, P0, s, j);
+                end
+                PmayorN(i) = 1 - acum;
+            end
+        end
+
+        %% ===================================================================
+        %  mmsEspera — Probabilidad de que un cliente que llega espere MÁS de
+        %  t, en un M/M/s. Dos versiones, que responden preguntas distintas:
+        %
+        %    [PW, PWq] = IO.mmsEspera(lambda, mu, s, t)
+        %
+        %    PW  = P(W  > t) : tiempo total en el sistema, cola MÁS servicio
+        %                      ("...antes de TERMINAR su servicio")
+        %    PWq = P(Wq > t) : tiempo en la cola solamente
+        %                      ("...antes de INICIAR su servicio")
+        %
+        %  t va en la misma unidad de tiempo que 1/lambda y 1/mu, y puede ser
+        %  un vector.
+        %
+        %  C DE ERLANG: el factor P0*r^s/(s!*(1-rho)) que aparece en las dos
+        %  es la probabilidad de que un cliente que llega encuentre TODOS los
+        %  servidores ocupados, o sea de que tenga que hacer cola. Es lo mismo
+        %  que 1 - (P0+P1+...+P_{s-1}), que es como lo escribe la plantilla de
+        %  Excel; acá se usa la forma cerrada, que da idéntico.
+        %
+        %  EL CASO s-1-r = 0 es una división 0/0 en la fórmula general: ahí se
+        %  usa su límite, que cambia el cociente por mu*t. No es un caso raro,
+        %  cae justo cuando r es entero (por ejemplo s = 2 con r = 1).
+        %
+        %  EJEMPLO — probabilidad de esperar más de 5 min (en horas):
+        %    [PW, PWq] = IO.mmsEspera(20, 30, 1, 5/60);
+        %% ===================================================================
+        function [PW, PWq] = mmsEspera(lambda, mu, s, t)
+
+            base = IO.mms(lambda, mu, s, 'Verbose', false);
+            r = base.r; rho = base.rho; P0 = base.P0;
+
+            C = P0*r^s/(factorial(s)*(1 - rho));    % C de Erlang
+
+            PWq = C*exp(-s*mu*(1 - rho)*t);
+
+            d = s - 1 - r;
+            if abs(d) < 1e-12
+                PW = exp(-mu*t).*(1 + C*mu*t);                      % límite
+            else
+                PW = exp(-mu*t).*(1 + C*(1 - exp(-mu*t*d))/d);
+            end
+
+            % CONTROL con s = 1: la expresión de arriba se reduce a
+            % exp(-mu*(1-rho)*t), la fórmula conocida del M/M/1.
+        end
+
+        %% ===================================================================
+        %  pnEstado — Pn de UN solo estado n. Uso interno de mmsPn y de
+        %  cualquier suma acumulada. Se separa para no repetir el corte entre
+        %  los dos tramos de la fórmula en dos lugares distintos.
+        %
+        %  Recibe r y P0 ya calculados (no lambda y mu) para no recalcular P0
+        %  en cada término de una sumatoria.
+        %% ===================================================================
+        function P = pnEstado(r, P0, s, n)
+            if n <= s
+                P = r^n*P0/factorial(n);
+            else
+                P = r^n*P0/(factorial(s)*s^(n - s));
+            end
         end
 
     end
