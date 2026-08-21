@@ -14,11 +14,11 @@ d = 0.100;    % bancada,   eslabón 1   [m]  (100 mm)
 %% == 1. POSICIÓN: las dos ramas en vectores ===========================
 t2 = pi/4;    % ángulo de entrada [rad]
 
-% datosSis('L4B', datos...) devuelve un struct con TODAS las variables del
+% datosSis('L4V', datos...) devuelve un struct con TODAS las variables del
 % sistema resueltas: los ángulos de salida y también las intermedias
 % (K1...K5, A...F). No se pide una incógnita — la cadena las resuelve
 % todas en una pasada, así que pedir una sería tirar el resto.
-r = sp.datosSis('L4B', 'a',a, 'b',b, 'c',c, 'd',d, 't2',t2);
+r = sp.datosSis('L4V', 'a',a, 'b',b, 'c',c, 'd',d, 't2',t2);
 
 % double() baja el simbólico a número. Cada ángulo viene duplicado porque
 % el mecanismo tiene dos ensambles posibles; apilarlos deja un vector:
@@ -53,7 +53,7 @@ assert(all(abs([cx; cy]) < 1e-9), ...
 % con t2 = w*t, cada ecuación arrastra t y w además de su propia incógnita.
 syms w t
 
-rt = sp.datosSis('L4B', 'a',a, 'b',b, 'c',c, 'd',d, 't2',w*t);
+rt = sp.datosSis('L4V', 'a',a, 'b',b, 'c',c, 'd',d, 't2',w*t);
 
 % Rama abierta. Quedan como expresiones simbólicas en t y w.
 t3t = rt.t31;

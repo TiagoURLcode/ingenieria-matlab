@@ -16,6 +16,7 @@ p = [88.08, 0, 0];
 q = [31.13, 0, 1];
 [grashof, clase, tipo] = eslabones(s, l, p, q);
 [muMax, muMin] = AnguloTransmision(s, l, p, q);
+[muMaxE, muMinE] = ExtremosTransmision(s, l, p, q);
 function [grashof, clase, tipo] = eslabones(s, l, p, q)
     % grashof -> true si s+l <= p+q (clases I y II)
     % clase   -> 1: Grashof, 2: cambio de punto, 3: no Grashof (triple balancin)
@@ -118,3 +119,68 @@ function [maximo, minimo] = AnguloTransmision(s, l, p, q)
     
 end
     
+
+% Angulos de transmision extremos de un cuadrilatero articulado.
+%
+% mu es el angulo que forman el acoplador y el eslabon de salida. Sus valores
+% extremos aparecen cuando la manivela queda colineal con la bancada, en dos
+% posiciones:
+%   plegada   -> la manivela se superpone a la bancada, diagonal = d - a
+%   extendida -> la manivela apunta al otro lado,       diagonal = d + a
+% donde d es la bancada y a la manivela (aqui, el eslabon mas corto).
+%
+% Circuito abierto y cruzado dan el mismo mu: el acoplador y la salida forman
+% con la diagonal dos triangulos congruentes (uno es el reflejo del otro
+% respecto de la diagonal), asi que la ley de cosenos devuelve el mismo angulo.
+% Por eso basta un solo par de extremos para las dos configuraciones.
+function [muMax, muMin] = ExtremosTransmision(s, l, p, q)
+    L       = [s(1) l(1) p(1) q(1)];   % longitudes de los cuatro eslabones
+    bancada = [s(2) l(2) p(2) q(2)];   % 1 en el eslabon fijo
+    opuesto = [s(3) l(3) p(3) q(3)];   % 1 en el eslabon opuesto al mas corto
+
+    if sum(bancada) ~= 1
+        error('Debe haber exactamente un eslabon marcado como bancada.');
+    end
+    if s(2) == 1
+        error('Si el mas corto es la bancada hay dos manivelas: los datos no dicen cual es la entrada.');
+    end
+    if opuesto(bancada == 1) == 1
+        error('La bancada es opuesta al mas corto: el mas corto es el acoplador y no hay manivela que gire.');
+    end
+
+    d = L(bancada == 1);               % bancada
+    a = L(1);                          % manivela: el eslabon mas corto
+
+    % Los dos eslabones que quedan (acoplador y salida) cierran el triangulo
+    % con la diagonal. La ley de cosenos es simetrica en los dos, asi que no
+    % hace falta distinguir cual es cual.
+    triangulo = setdiff(1:4, [find(bancada) 1]);
+    b = L(triangulo(1));
+    c = L(triangulo(2));
+
+    muPlegada   = anguloAgudo(b, c, d - a);
+    muExtendida = anguloAgudo(b, c, d + a);
+
+    muMax = max(muPlegada, muExtendida);
+    muMin = min(muPlegada, muExtendida);
+
+    fprintf('Angulo de transmision: minimo %.2f, maximo %.2f grados.\n', muMin, muMax);
+    fprintf('  posicion plegada   (diagonal %.2f): %.2f grados\n', d - a, muPlegada);
+    fprintf('  posicion extendida (diagonal %.2f): %.2f grados\n', d + a, muExtendida);
+    if muMin < 40
+        fprintf('Advertencia: mu < 40 grados, mala transmision.\n');
+    end
+end
+
+% Angulo entre los lados b y c del triangulo que cierra la diagonal, por ley
+% de cosenos. mu se define agudo, asi que se toma el suplemento si pasa de 90.
+function mu = anguloAgudo(b, c, diagonal)
+    arg = (b^2 + c^2 - diagonal^2)/(2*b*c);
+    if abs(arg) > 1
+        error('Posicion colineal inalcanzable: con esa manivela el mecanismo no es Grashof.');
+    end
+    mu = rad2deg(acos(arg));
+    if mu > 90
+        mu = 180 - mu;
+    end
+end

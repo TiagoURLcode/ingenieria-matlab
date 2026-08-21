@@ -6,12 +6,17 @@ classdef sp
     %
     % LOS CINCO SISTEMAS
     %   sp.sisAC   análisis de COORDENADAS, cuatro barras
-    %   sp.sisL4B  LAZO VECTORIAL, cuatro barras
+    %   sp.sisL4V  LAZO VECTORIAL, cuatro barras
     %   sp.sisMC   MANIVELA-CORREDERA   (entra la manivela, sale la corredera)
     %   sp.sisCM   CORREDERA-MANIVELA   (entra la corredera, sale la manivela)
     %   sp.sisCI   manivela-corredera INVERTIDO (corredera sobre el eslabón 4)
     % Ninguno resuelve nada: cada uno devuelve [eqs, S], el sistema simbólico
     % y su diccionario de símbolos. El que resuelve es sp.resolver.
+    %
+    % Y DOS HERRAMIENTAS QUE NO ARMAN SISTEMAS
+    %   sp.eslabones   criterio de Grashof: clase e inversión
+    %   sp.muAT        ángulo de transmisión máximo y mínimo
+    % Estas dos sí devuelven números, y por eso piden longitudes numéricas.
     %
     % CONVENCIONES DE TODA LA CLASE
     %   - SISTEMA COHERENTE. No hay conversión de unidades adentro. Las cuatro
@@ -68,10 +73,11 @@ classdef sp
         %  radio c centrado en O4. Igualar los dos círculos deja una
         %  cuadrática en By, y de ahí salen los ángulos.
         %
-        %  Entra: a, b, c, d, t2.   Sale: By1/By2, Bx1/Bx2, t31/t32, t41/t42.
+        %  Entra: a, b, c, d, t2.   Sale: By1/By2, Bx1/Bx2, t31/t32, t41/t42
+        %  y mu1/mu2, el ángulo de transmisión de cada ensamble.
         %
         %  Las láminas NO dicen cuál raíz es la abierta y cuál la cruzada en
-        %  este método (sí lo dicen en sisL4B). Por eso acá se numeran 1 y 2
+        %  este método (sí lo dicen en sisL4V). Por eso acá se numeran 1 y 2
         %  y no se les pone nombre: para saber cuál es cuál hay que dibujar
         %  las dos y mirar si los eslabones 3 y 4 se cruzan.
         %
@@ -93,13 +99,15 @@ classdef sp
             % 'S' y 'T' no molestan, pero 'P' y 'Q' sí tienen usos en MATLAB.
             % sym('P') crea el símbolo igual y nunca colisiona.
             nom = {'a','b','c','d','t2','Ax','Ay','S','P','Q','R','disc', ...
-                   'By1','By2','Bx1','Bx2','t31','t32','t41','t42'};
+                'By1','By2','Bx1','Bx2','t31','t32','t41','t42', ...
+                'tt1','tt2','mu1','mu2'};
             S   = cell2struct(cellfun(@sym, nom, 'UniformOutput', false)', ...
-                              nom', 1);
+                nom', 1);
             a = S.a; b = S.b; c = S.c; d = S.d; t2 = deg2rad(S.t2);
             Ax = S.Ax; Ay = S.Ay; P = S.P; Q = S.Q; R = S.R; disc = S.disc;
             By1 = S.By1; By2 = S.By2; Bx1 = S.Bx1; Bx2 = S.Bx2;
             t31 = S.t31; t32 = S.t32; t41 = S.t41; t42 = S.t42;
+            tt1 = S.tt1; tt2 = S.tt2; mu1 = S.mu1; mu2 = S.mu2;
 
             % Sc y no S: el struct-diccionario ya se llama S, y las láminas
             % también llaman S a un coeficiente. Pisar el struct con el
@@ -109,21 +117,50 @@ classdef sp
             % == (doble igual) en contexto simbólico construye una ECUACIÓN,
             % no una comparación lógica. Con = simple sería una asignación.
             eqs = [ Ax   == a*cos(t2)                    % junta A: x
-                    Ay   == a*sin(t2)                    % junta A: y
-                    Sc   == (a^2 - b^2 + c^2 - d^2)/(2*(Ax - d))
-                    P    == Ay^2/(Ax - d)^2 + 1          % coef. cuadrático
-                    Q    == 2*Ay*(d - Sc)/(Ax - d)       % coef. lineal
-                    R    == (d - Sc)^2 - c^2             % término independiente
-                    disc == Q^2 - 4*P*R                  % discriminante
-                    By1  == (-Q - sqrt(disc))/(2*P)      % raíz con radical (-)
-                    By2  == (-Q + sqrt(disc))/(2*P)      % raíz con radical (+)
-                    Bx1  == Sc - Ay*By1/(Ax - d)
-                    Bx2  == Sc - Ay*By2/(Ax - d)
-                    t31  == atan2(By1 - Ay, Bx1 - Ax)
-                    t32  == atan2(By2 - Ay, Bx2 - Ax)
-                    t41  == atan2(By1, Bx1 - d)
-                    t42  == atan2(By2, Bx2 - d) ];
+                Ay   == a*sin(t2)                    % junta A: y
+                Sc   == (a^2 - b^2 + c^2 - d^2)/(2*(Ax - d))
+                P    == Ay^2/(Ax - d)^2 + 1          % coef. cuadrático
+                Q    == 2*Ay*(d - Sc)/(Ax - d)       % coef. lineal
+                R    == (d - Sc)^2 - c^2             % término independiente
+                disc == Q^2 - 4*P*R                  % discriminante
+                By1  == (-Q - sqrt(disc))/(2*P)      % raíz con radical (-)
+                By2  == (-Q + sqrt(disc))/(2*P)      % raíz con radical (+)
+                Bx1  == Sc - Ay*By1/(Ax - d)
+                Bx2  == Sc - Ay*By2/(Ax - d)
+                t31  == atan2(By1 - Ay, Bx1 - Ax)
+                t32  == atan2(By2 - Ay, Bx2 - Ax)
+                t41  == atan2(By1, Bx1 - d)
+                t42  == atan2(By2, Bx2 - d)
 
+                % Ángulo de transmisión, uno por raíz
+                tt1  == abs(t31 - t41)
+                tt2  == abs(t32 - t42)
+                mu1  == piecewise(tt1 > pi/2, pi - tt1, tt1)
+                mu2  == piecewise(tt2 > pi/2, pi - tt2, tt2) ];
+
+            % EL ÁNGULO DE TRANSMISIÓN
+            %   theta_trans = |t3 - t4| es el ángulo entre el acoplador y el
+            %   balancín en la junta B. mu es su versión AGUDA: si pasa de
+            %   pi/2 se toma el suplemento, porque un ángulo y su suplemento
+            %   transmiten igual y la convención reporta el agudo. Cerca de 90
+            %   grados la fuerza del acoplador entra casi entera como par en
+            %   el balancín; cerca de 0 el mecanismo agarrota.
+            %
+            %   piecewise(condición, valorSí, valorNo) es el if simbólico: se
+            %   queda sin resolver hasta que la condición tiene números, y ahí
+            %   colapsa sola a una de las dos ramas.
+            %
+            %   OJO CON EL RANGO: atan2 devuelve de -pi a pi, así que
+            %   |t3 - t4| puede pasar de pi. Con t3 = -170 y t4 = 170 grados
+            %   da 340, y el ángulo real entre los eslabones es 20. Esta es la
+            %   fórmula de la lámina tal cual; si una posición cae en ese caso
+            %   hay que restarla de 2*pi a mano.
+            %
+            %   NO CONFUNDIR CON LOS mu DE sp.muAT: allá son los valores
+            %   EXTREMOS del mecanismo, con la manivela colineal con la
+            %   bancada, y el índice dice plegada o extendida. Acá es el
+            %   ángulo en ESTA posición, y el índice dice qué ensamble.
+            %
             % POR QUÉ atan2 Y NO atan
             %   atan(y/x) devuelve solo entre -pi/2 y +pi/2: colapsa los
             %   cuatro cuadrantes en dos. atan2(y, x) recibe el numerador y
@@ -147,17 +184,18 @@ classdef sp
             %   queda justo encima de O4 (a*cos(t2) == d). Ahí este método
             %   revienta con Inf o NaN aunque el mecanismo esté perfectamente
             %   armado: es una limitación del planteo en coordenadas, no del
-            %   mecanismo. sp.sisL4B no tiene ese problema.
+            %   mecanismo. sp.sisL4V no tiene ese problema.
         end
 
         %% ===================================================================
-        %  sisL4B — LAZO VECTORIAL, eslabonamiento de cuatro barras.
+        %  sisL4V — LAZO VECTORIAL, eslabonamiento de cuatro barras.
         %  Los cuatro eslabones se escriben como vectores de posición que
         %  cierran el lazo: R2 + R3 - R4 - R1 = 0. Separar esa suma en
         %  componentes x e y y eliminar un ángulo por vez deja dos
         %  cuadráticas independientes, una en tan(t4/2) y otra en tan(t3/2).
         %
-        %  Entra: a, b, c, d, t2.   Sale: t41/t42 y t31/t32.
+        %  Entra: a, b, c, d, t2.   Sale: t41/t42, t31/t32 y mu1/mu2, el
+        %  ángulo de transmisión de cada configuración.
         %
         %  Según las láminas: el radical NEGATIVO da la configuración ABIERTA
         %  y el POSITIVO la CRUZADA, en los dos ángulos.
@@ -166,37 +204,52 @@ classdef sp
         %
         %  Salidas: [eqs, S], igual que sisAC.
         %% ===================================================================
-        function [eqs, S] = sisL4B()
+        function [eqs, S] = sisL4V()
 
             nom = {'a','b','c','d','t2','K1','K2','K3','K4','K5', ...
-                   'A','B','C','D','E','F','t31','t32','t41','t42'};
+                'A','B','C','D','E','F','t31','t32','t41','t42', ...
+                'tt1','tt2','mu1','mu2'};
             S   = cell2struct(cellfun(@sym, nom, 'UniformOutput', false)', ...
-                              nom', 1);
+                nom', 1);
             a = S.a; b = S.b; c = S.c; d = S.d; t2 = S.t2;
             K1 = S.K1; K2 = S.K2; K3 = S.K3; K4 = S.K4; K5 = S.K5;
             A = S.A; B = S.B; C = S.C; D = S.D; E = S.E; F = S.F;
             t31 = S.t31; t32 = S.t32; t41 = S.t41; t42 = S.t42;
+            tt1 = S.tt1; tt2 = S.tt2; mu1 = S.mu1; mu2 = S.mu2;
 
             eqs = [ K1  == d/a
-                    K2  == d/c
-                    K3  == (a^2 - b^2 + c^2 + d^2)/(2*a*c)
-                    K4  == d/b
-                    K5  == (c^2 - d^2 - a^2 - b^2)/(2*a*b)
+                K2  == d/c
+                K3  == (a^2 - b^2 + c^2 + d^2)/(2*a*c)
+                K4  == d/b
+                K5  == (c^2 - d^2 - a^2 - b^2)/(2*a*b)
 
-                    % Cuadrática en tan(t4/2): A*x^2 + B*x + C = 0
-                    A   == cos(t2) - K1 - K2*cos(t2) + K3
-                    B   == -2*sin(t2)
-                    C   == K1 - (K2 + 1)*cos(t2) + K3
+                % Cuadrática en tan(t4/2): A*x^2 + B*x + C = 0
+                A   == cos(t2) - K1 - K2*cos(t2) + K3
+                B   == -2*sin(t2)
+                C   == K1 - (K2 + 1)*cos(t2) + K3
 
-                    % Cuadrática en tan(t3/2): D*x^2 + E*x + F = 0
-                    D   == cos(t2) - K1 + K4*cos(t2) + K5
-                    E   == -2*sin(t2)
-                    F   == K1 + (K4 - 1)*cos(t2) + K5
+                % Cuadrática en tan(t3/2): D*x^2 + E*x + F = 0
+                D   == cos(t2) - K1 + K4*cos(t2) + K5
+                E   == -2*sin(t2)
+                F   == K1 + (K4 - 1)*cos(t2) + K5
 
-                    t41 == 2*atan((-B - sqrt(B^2 - 4*A*C))/(2*A))   % abierta
-                    t42 == 2*atan((-B + sqrt(B^2 - 4*A*C))/(2*A))   % cruzada
-                    t31 == 2*atan((-E - sqrt(E^2 - 4*D*F))/(2*D))   % abierta
-                    t32 == 2*atan((-E + sqrt(E^2 - 4*D*F))/(2*D)) ];% cruzada
+                t41 == 2*atan((-B - sqrt(B^2 - 4*A*C))/(2*A))   % abierta
+                t42 == 2*atan((-B + sqrt(B^2 - 4*A*C))/(2*A))   % cruzada
+                t31 == 2*atan((-E - sqrt(E^2 - 4*D*F))/(2*D))   % abierta
+                t32 == 2*atan((-E + sqrt(E^2 - 4*D*F))/(2*D))   % cruzada
+
+                % Ángulo de transmisión, uno por configuración
+                tt1 == abs(t31 - t41)   % abierta
+                tt2 == abs(t32 - t42)   % cruzada
+                mu1 == piecewise(tt1 > pi/2, pi - tt1, tt1)
+                mu2 == piecewise(tt2 > pi/2, pi - tt2, tt2) ];
+
+            % EL ÁNGULO DE TRANSMISIÓN
+            %   theta_trans = |t3 - t4|, y mu es su versión aguda: si pasa de
+            %   pi/2 se toma el suplemento. Acá los índices sí tienen nombre,
+            %   porque este método distingue las configuraciones: mu1 es el de
+            %   la ABIERTA y mu2 el de la CRUZADA. Está explicado en detalle
+            %   en sp.sisAC, junto con el aviso de rango de |t3 - t4|.
 
             % LAS CONSTANTES K
             %   K1, K2 y K3 juntan todo lo que NO depende de t2 en la cuenta
@@ -243,14 +296,14 @@ classdef sp
 
             nom = {'a','b','c','t2','t31','t32','d1','d2'};
             S   = cell2struct(cellfun(@sym, nom, 'UniformOutput', false)', ...
-                              nom', 1);
+                nom', 1);
             a = S.a; b = S.b; c = S.c; t2 = S.t2;
             t31 = S.t31; t32 = S.t32; d1 = S.d1; d2 = S.d2;
 
             eqs = [ t31 ==  asin((a*sin(t2) - c)/b)          % abierta
-                    t32 == -asin((a*sin(t2) - c)/b) + pi     % cruzada
-                    d1  == a*cos(t2) - b*cos(t31)            % corredera, abierta
-                    d2  == a*cos(t2) - b*cos(t32) ];         % corredera, cruzada
+                t32 == -asin((a*sin(t2) - c)/b) + pi     % cruzada
+                d1  == a*cos(t2) - b*cos(t31)            % corredera, abierta
+                d2  == a*cos(t2) - b*cos(t32) ];         % corredera, cruzada
 
             % DE DÓNDE SALE EL ARCOSENO
             %   La componente y del lazo es a*sin(t2) - b*sin(t3) - c = 0.
@@ -284,7 +337,7 @@ classdef sp
         %  Las dos raíces son las dos RAMAS DEL MISMO CIRCUITO. El circuito
         %  (abierto o cruzado) queda fijado por el SIGNO DE d que entra; las
         %  ramas se separan en los puntos muertos. Es la diferencia con
-        %  sisL4B y hay que tenerla clara.
+        %  sisL4V y hay que tenerla clara.
         %
         %  PUNTOS MUERTOS: las ecuaciones fallan en el punto muerto superior
         %  y en el inferior. Por eso un motor de pistones necesita arranque y
@@ -296,31 +349,31 @@ classdef sp
         function [eqs, S] = sisCM()
 
             nom = {'a','b','c','d','K1','K2','K3','A','B','C', ...
-                   't21','t22','t31','t32'};
+                't21','t22','t31','t32'};
             S   = cell2struct(cellfun(@sym, nom, 'UniformOutput', false)', ...
-                              nom', 1);
+                nom', 1);
             a = S.a; b = S.b; c = S.c; d = S.d;
             K1 = S.K1; K2 = S.K2; K3 = S.K3;
             A = S.A; B = S.B; C = S.C;
             t21 = S.t21; t22 = S.t22; t31 = S.t31; t32 = S.t32;
 
             eqs = [ K1  == a^2 - b^2 + c^2 + d^2
-                    K2  == -2*a*c
-                    K3  == -2*a*d
+                K2  == -2*a*c
+                K3  == -2*a*d
 
-                    % Cuadrática en tan(t2/2): A*x^2 + B*x + C = 0
-                    A   == K1 - K3
-                    B   == 2*K2
-                    C   == K1 + K3
+                % Cuadrática en tan(t2/2): A*x^2 + B*x + C = 0
+                A   == K1 - K3
+                B   == 2*K2
+                C   == K1 + K3
 
-                    t21 == 2*atan((-B + sqrt(B^2 - 4*A*C))/(2*A))   % rama 1
-                    t22 == 2*atan((-B - sqrt(B^2 - 4*A*C))/(2*A))   % rama 2
+                t21 == 2*atan((-B + sqrt(B^2 - 4*A*C))/(2*A))   % rama 1
+                t22 == 2*atan((-B - sqrt(B^2 - 4*A*C))/(2*A))   % rama 2
 
-                    t31 == asin(-(a*sin(t21) - c)/b) + pi
-                    t32 == asin(-(a*sin(t22) - c)/b) + pi ];
+                t31 == asin(-(a*sin(t21) - c)/b) + pi
+                t32 == asin(-(a*sin(t22) - c)/b) + pi ];
 
-            % LAS K DE ACÁ NO SON LAS DE sisL4B
-            %   Mismo nombre, otra cosa. En sisL4B las K son razones
+            % LAS K DE ACÁ NO SON LAS DE sisL4V
+            %   Mismo nombre, otra cosa. En sisL4V las K son razones
             %   adimensionales (d/a, d/c); acá son sumas de longitudes al
             %   cuadrado y tienen unidades. Comparten letra porque las dos
             %   láminas las llaman K, nada más.
@@ -361,9 +414,9 @@ classdef sp
         function [eqs, S] = sisCI()
 
             nom = {'a','c','d','t2','g','P','Q','R','S','T','U', ...
-                   't41','t42','t31','t32','b1','b2'};
+                't41','t42','t31','t32','b1','b2'};
             S   = cell2struct(cellfun(@sym, nom, 'UniformOutput', false)', ...
-                              nom', 1);
+                nom', 1);
             a = S.a; c = S.c; d = S.d; t2 = S.t2; g = S.g;
             P = S.P; Q = S.Q; R = S.R; T = S.T; U = S.U;
             t41 = S.t41; t42 = S.t42; t31 = S.t31; t32 = S.t32;
@@ -373,25 +426,25 @@ classdef sp
             Sc = S.S;
 
             eqs = [ P   == a*sin(t2)*sin(g) + (a*cos(t2) - d)*cos(g)
-                    Q   == -a*sin(t2)*cos(g) + (a*cos(t2) - d)*sin(g)
-                    R   == -c*sin(g)
+                Q   == -a*sin(t2)*cos(g) + (a*cos(t2) - d)*sin(g)
+                R   == -c*sin(g)
 
-                    % Cuadrática en tan(t4/2): Sc*x^2 + T*x + U = 0
-                    Sc  == R - Q
-                    T   == 2*P
-                    U   == Q + R
+                % Cuadrática en tan(t4/2): Sc*x^2 + T*x + U = 0
+                Sc  == R - Q
+                T   == 2*P
+                U   == Q + R
 
-                    t41 == 2*atan((-T - sqrt(T^2 - 4*Sc*U))/(2*Sc))  % abierta
-                    t42 == 2*atan((-T + sqrt(T^2 - 4*Sc*U))/(2*Sc))  % cruzada
+                t41 == 2*atan((-T - sqrt(T^2 - 4*Sc*U))/(2*Sc))  % abierta
+                t42 == 2*atan((-T + sqrt(T^2 - 4*Sc*U))/(2*Sc))  % cruzada
 
-                    t31 == t41 + g                                   % abierta
-                    t32 == t42 + g - pi                              % cruzada
+                t31 == t41 + g                                   % abierta
+                t32 == t42 + g - pi                              % cruzada
 
-                    b1  == (a*sin(t2) - c*sin(t41))/sin(t31)
-                    b2  == (a*sin(t2) - c*sin(t42))/sin(t32) ];
+                b1  == (a*sin(t2) - c*sin(t41))/sin(t31)
+                b2  == (a*sin(t2) - c*sin(t42))/sin(t32) ];
 
             % POR QUÉ P, Q Y R Y NO LAS K
-            %   Son el mismo truco que las K de sisL4B —juntar los bloques que
+            %   Son el mismo truco que las K de sisL4V —juntar los bloques que
             %   se repiten— pero acá NO se pueden calcular una sola vez por
             %   mecanismo: dependen de t2, así que se recalculan en cada
             %   posición. Por eso llevan otra letra.
@@ -414,7 +467,7 @@ classdef sp
         %  Es la pieza que le permite a sp.datosSis servir a los cinco
         %  mecanismos sin escribir una función de despeje para cada uno.
         %
-        %    metodo : texto. 'AC', 'L4B', 'MC', 'CM' o 'CI'. Se acepta en
+        %    metodo : texto. 'AC', 'L4V', 'MC', 'CM' o 'CI'. Se acepta en
         %             minúscula y también el nombre largo.
         %
         %  Agregar un mecanismo nuevo es tocar un solo lugar: escribir su
@@ -423,21 +476,21 @@ classdef sp
         function [eqs, S] = sistema(metodo)
             if ~(ischar(metodo) || isstring(metodo))
                 error('sp:metodoInvalido', ...
-                    'El método se pasa como texto. Ej: sp.sistema(''L4B'')');
+                    'El método se pasa como texto. Ej: sp.sistema(''L4V'')');
             end
 
-            % lower() para que 'l4b' y 'L4B' entren igual; char() porque
+            % lower() para que 'l4v' y 'L4V' entren igual; char() porque
             % switch compara distinto contra string de comillas dobles.
             switch lower(char(metodo))
                 case {'ac','coordenadas'},      [eqs, S] = sp.sisAC();
-                case {'l4b','lazo'},            [eqs, S] = sp.sisL4B();
+                case {'l4v','lazo'},            [eqs, S] = sp.sisL4V();
                 case {'mc','manivelacorredera'},[eqs, S] = sp.sisMC();
                 case {'cm','correderamanivela'},[eqs, S] = sp.sisCM();
                 case {'ci','invertido'},        [eqs, S] = sp.sisCI();
                 otherwise
                     error('sp:metodoInvalido', ...
                         ['"%s" no es un método de esta clase. ' ...
-                         'Válidos: AC, L4B, MC, CM, CI.'], char(metodo));
+                        'Válidos: AC, L4V, MC, CM, CI.'], char(metodo));
             end
         end
 
@@ -464,7 +517,7 @@ classdef sp
             if n == 0 || mod(n,2) ~= 0
                 error('sp:parInvalido', ...
                     ['Se esperaban pares nombre-valor (cantidad par de ' ...
-                     'argumentos) o un struct. Llegaron %d.'], n);
+                    'argumentos) o un struct. Llegaron %d.'], n);
             end
 
             % Impares = nombres, pares = valores. 'end' dentro de un índice
@@ -478,7 +531,7 @@ classdef sp
             if ~all(cellfun(@(c) ischar(c) || isstring(c), nombres))
                 error('sp:parInvalido', ...
                     ['Los argumentos impares tienen que ser nombres. ' ...
-                     'Ej: sp.datosSis(''L4B'', ''a'',40, ''t2'',pi/4)']);
+                    'Ej: sp.datosSis(''L4V'', ''a'',40, ''t2'',pi/4)']);
             end
 
             % cell2struct(valores, nombres, 1): el 1 dice que los campos se
@@ -486,6 +539,49 @@ classdef sp
             % (:) que los ponen en columna. cellstr(string(...)) normaliza
             % "t2" (comillas dobles) y 't2' (simples) al mismo tipo.
             s = cell2struct(valores(:), cellstr(string(nombres(:))), 1);
+        end
+
+        %% ===================================================================
+        %  longitudes — Lee y valida las CUATRO longitudes de un cuatro barras.
+        %  Helper de las funciones que clasifican y comparan (sp.eslabones,
+        %  sp.muAT); los sisXXX no lo usan porque ellos no miran valores,
+        %  solo arman ecuaciones.
+        %
+        %    args : el varargin de quien llama, en cualquiera de las dos formas
+        %           que acepta sp.datos (pares nombre-valor o struct).
+        %
+        %  Devuelve a, b, c, d por separado y no un struct: quien llama los va
+        %  a usar sueltos en fórmulas, y dat.a dentro de una cuenta larga se
+        %  lee peor que a.
+        %% ===================================================================
+        function [a, b, c, d] = longitudes(args)
+
+            dat = sp.datos(args);
+
+            % fieldnames devuelve columna; el ' la pasa a fila para que
+            % setdiff compare dos cell de texto de la misma forma.
+            falta = setdiff({'a','b','c','d'}, fieldnames(dat)');
+            if ~isempty(falta)
+                error('sp:datoFaltante', ...
+                    ['Faltan longitudes: %s. Hacen falta las cuatro: ' ...
+                    'a (manivela), b (acoplador), c (balancín) y ' ...
+                    'd (bancada).'], strjoin(falta, ', '));
+            end
+
+            L = [dat.a dat.b dat.c dat.d];
+            % || corta en cuanto una condición se cumple: si L es simbólico
+            % nunca se llega a evaluar L <= 0, que ahí no daría un booleano.
+            if ~isnumeric(L) || numel(L) ~= 4 || ~isreal(L) || any(L <= 0)
+                error('sp:datoInvalido', ...
+                    ['a, b, c y d tienen que ser cuatro números reales ' ...
+                    'positivos. Estas funciones COMPARAN valores, y un ' ...
+                    'símbolo sin valor no se puede comparar.']);
+            end
+
+            a = dat.a; b = dat.b; c = dat.c; d = dat.d;
+
+
+
         end
 
         %% ===================================================================
@@ -537,7 +633,7 @@ classdef sp
                 if ~isfield(S, campos{k})
                     error('sp:campoDesconocido', ...
                         ['"%s" no es una variable de este sistema. ' ...
-                         'Válidas: %s'], campos{k}, strjoin(fieldnames(S)', ', '));
+                        'Válidas: %s'], campos{k}, strjoin(fieldnames(S)', ', '));
                 end
                 % campos{k}  -> LLAVES porque es cell array; da el texto 'a'.
                 % S.(...)    -> acceso DINÁMICO a campo. S.a exige saber el
@@ -568,8 +664,8 @@ classdef sp
         %  El PRIMER argumento es el método; el resto son los datos, en pares
         %  nombre-valor o en un struct:
         %
-        %    r = sp.datosSis('L4B', 'a',40,'b',120,'c',80,'d',100,'t2',pi/4)
-        %    r = sp.datosSis('L4B', dat)            % dat = struct(...)
+        %    r = sp.datosSis('L4V', 'a',40,'b',120,'c',80,'d',100,'t2',pi/4)
+        %    r = sp.datosSis('L4V', dat)            % dat = struct(...)
         %    r = sp.datosSis('CI',  'a',40,'c',30,'d',100,'t2',pi/4,'g',pi/3)
         %
         %  NO se pide una incógnita. La cadena resuelve TODAS las variables de
@@ -585,7 +681,7 @@ classdef sp
             if nargin < 2
                 error('sp:parInvalido', ...
                     ['Faltan argumentos: el método y los datos. Ej: ' ...
-                     'sp.datosSis(''MC'', ''a'',40, ''b'',120, ''c'',0, ''t2'',pi/4)']);
+                    'sp.datosSis(''MC'', ''a'',40, ''b'',120, ''c'',0, ''t2'',pi/4)']);
             end
             d = sp.datos(varargin);
 
@@ -593,5 +689,167 @@ classdef sp
             sol = sp.resolver(eqs, S, d);
         end
 
+        %% ===================================================================
+        %  eslabones — CRITERIO DE GRASHOF: clase e inversión del cuatro barras.
+        %  Contesta si algún eslabón puede dar la vuelta COMPLETA y, si puede,
+        %  cuál. Es lo primero que se mira de un mecanismo: sin rotación
+        %  completa no se le puede poner un motor en ese pivote.
+        %
+        %  Entra: a, b, c, d, en pares nombre-valor o en un struct, igual que
+        %  sp.datosSis. Sin ángulo: la clase no depende de la posición.
+        %
+        %    [g, clase, tipo] = sp.eslabones('a',40,'b',120,'c',80,'d',100)
+        %
+        %  Salidas:
+        %    g     : true si s + l <= p + q (clases I y II).
+        %    clase : 1 Grashof, 2 cambio de punto, 3 no Grashof.
+        %    tipo  : la inversión, como string.
+        %
+        %  EL CRITERIO
+        %    Con s = más corto, l = más largo y p, q los otros dos:
+        %      s + l <  p + q  -> clase I,  Grashof. Hay rotación completa.
+        %      s + l == p + q  -> clase II, de cambio de punto. Hay rotación
+        %                         completa, pero el mecanismo pasa por
+        %                         posiciones donde los cuatro eslabones quedan
+        %                         alineados, y ahí la salida queda
+        %                         indeterminada: puede seguir por cualquiera
+        %                         de las dos configuraciones.
+        %      s + l >  p + q  -> clase III, no Grashof. Ningún eslabón da la
+        %                         vuelta: los tres móviles oscilan.
+        %
+        %  CUÁL GIRA: SE PREGUNTA ESLABÓN POR ESLABÓN
+        %    El libro resuelve la inversión mirando qué papel le toca al más
+        %    corto (bancada -> doble manivela, entrada -> manivela-balancín, y
+        %    así). Acá se hace la pregunta directa, que da lo mismo en el caso
+        %    normal y no se equivoca cuando hay dos eslabones igual de cortos.
+        %
+        %    La manivela a completa la vuelta si la díada b-c puede seguirla
+        %    en TODA la vuelta. Con e = distancia de la punta A al pivote O4:
+        %      la manivela hace que e recorra de |d - a| hasta d + a
+        %      la díada solo cierra con e entre |b - c| y b + c
+        %    Entonces a gira completo si  |d-a| >= |b-c|  y  d+a <= b+c.
+        %    La salida c es el mismo planteo entrando por el otro pivote, así
+        %    que basta intercambiar los papeles de a y c.
+        %    Es el mismo argumento de la diagonal que usa sp.muAT.
+        %
+        %      giran las dos     -> doble-manivela
+        %      gira solo a       -> manivela-balancín
+        %      gira solo c       -> balancín-manivela
+        %      ninguna, Grashof  -> doble-balancín (el que da la vuelta
+        %                           completa es el acoplador, no un pivote)
+        %      ninguna, no Grash -> triple-balancín
+        %
+        %    POR QUÉ NO ALCANZA EL ÍNDICE DEL MÁS CORTO: en un paralelogramo
+        %    (a = c = 2, b = d = 5) hay empate, min() devolvería la primera
+        %    posición y el mecanismo saldría manivela-balancín cuando en
+        %    realidad las dos manivelas dan la vuelta.
+        %
+        %  CLASE II CON DECIMALES: el == es exacto, y dos sumas de decimales
+        %  que en el papel dan lo mismo pueden diferir en el último bit. Si el
+        %  mecanismo es de cambio de punto por diseño, conviene comprobarlo a
+        %  mano y no confiar en que la igualdad salte sola.
+        %% ===================================================================
+        function [grashof, clase, tipo] = eslabones(varargin)
+
+            [a, b, c, d] = sp.longitudes(varargin);
+            L = [a b c d];
+
+            s = min(L);
+            l = max(L);
+            % p + q sin buscarlos: al total le saco el más corto y el más
+            % largo. Con setdiff los empates se perderían (borra repetidos).
+            pq = sum(L) - s - l;
+
+            if s + l < pq
+                grashof = true;   clase = 1;
+            elseif s + l == pq
+                grashof = true;   clase = 2;
+            else
+                grashof = false;  clase = 3;
+            end
+
+            % && y no &: corta apenas la primera condición falla, y evita
+            % evaluar la segunda al pedo. Con escalares es lo que corresponde.
+            giraA = abs(d - a) >= abs(b - c) && d + a <= b + c;   % entrada
+            giraC = abs(d - c) >= abs(a - b) && d + c <= a + b;   % salida
+
+            if giraA && giraC
+                tipo = "doble-manivela";
+            elseif giraA
+                tipo = "manivela-balancín";
+            elseif giraC
+                tipo = "balancín-manivela";
+            elseif grashof
+                tipo = "doble-balancín";
+            else
+                tipo = "triple-balancín";
+            end
+        end
+
+        %% ===================================================================
+        %  muAT — VALORES EXTREMOS DEL ÁNGULO DE TRANSMISIÓN, cuatro barras.
+        %  En el Grashof de manivela-balancín los extremos ocurren con la
+        %  manivela colineal con la bancada. Ahí la diagonal AO4 vale d - a
+        %  (manivela plegada) y d + a (manivela extendida), y la ley de
+        %  cosenos sobre el triángulo acoplador-balancín-diagonal da:
+        %
+        %    mu1 =      acos[ (b^2 + c^2 - (d - a)^2) / (2bc) ]
+        %    mu2 = pi - acos[ (b^2 + c^2 - (d + a)^2) / (2bc) ]
+        %
+        %  Entra: a, b, c, d, en pares nombre-valor o en un struct, igual que
+        %  sp.datosSis. Sale: mu1 y mu2 en RADIANES.
+        %
+        %    [mu1, mu2] = sp.muAT('a',40,'b',120,'c',80,'d',100);
+        %    rad2deg([mu1 mu2])
+        %
+        %  Si la manivela no da la vuelta entera por el lado extendido, esa
+        %  posición no existe y la función corta con error('sp:agarrota').
+        %  El corte es d + a >= b + c: con igualdad los cuatro eslabones
+        %  quedan colineales y el mecanismo agarrota, y por encima la
+        %  posición ni se ensambla.
+        %
+        %  La plegada no lleva ese corte: si abs(d - a) < abs(b - c), el
+        %  arcocoseno recibe un argumento fuera de [-1, 1] y mu1 sale
+        %  COMPLEJO. Como en los sisXXX: la parte imaginaria significa que
+        %  esa posición no se ensambla, no que haya que redondear.
+        %
+        %  El circuito no entra en la cuenta: abierta y cruzada dan el mismo
+        %  mu, porque son la junta B reflejada respecto de la diagonal AO4.
+        %% ===================================================================
+        function [mu1, mu2] = muAT(varargin)
+
+            [a, b, c, d] = sp.longitudes(varargin);
+
+            % La extendida existe solo si la manivela pasa por la posición
+            % colineal con la bancada, y para eso d + a tiene que quedar
+            % ESTRICTAMENTE por debajo de b + c. Los dos casos que no:
+            %   d + a == b + c  los cuatro eslabones se alinean, mu2 = 0 y
+            %                   el mecanismo agarrota en el punto de cambio.
+            %   d + a >  b + c  la diagonal AO4 pasa el estirón máximo del
+            %                   acoplador con el balancín, no se ensambla,
+            %                   acos recibe menos de -1 y mu2 sale complejo.
+            % Los dos imprimen 0.00 con un fprintf('%.2f') --- el complejo
+            % porque MATLAB tira la parte imaginaria sin avisar --- y ese 0
+            % se lee como un ángulo válido. Por eso cortan acá.
+            if d + a >= b + c
+                error('sp:agarrota', ...
+                    ['Agarrotamiento en la extendida: d + a = %g y ' ...
+                    'b + c = %g. La manivela no pasa por la posición ' ...
+                    'colineal con la bancada, así que mu2 no existe.'], ...
+                    d + a, b + c);
+            end
+
+            mu1 =      acos((b^2 + c^2 - (d - a)^2)/(2*b*c));   % plegada
+            mu2 = pi - acos((b^2 + c^2 - (d + a)^2)/(2*b*c));   % extendida
+
+            % warning y no fprintf: sale por el canal de avisos y se apaga
+            % con warning('off','sp:muBajo') si molesta dentro de un loop.
+            if min(mu1, mu2) < deg2rad(45)
+                warning('sp:muBajo', ...
+                    ['mu mínimo = %.2f grados: por debajo de los 45 ' ...
+                    'recomendados, la transmisión es mala.'], ...
+                    rad2deg(min(mu1, mu2)));
+            end
+        end
     end
 end
