@@ -38,13 +38,26 @@ VM.graficarA('m',M1, 'c',c1, 'k',K1, 'x0',xo1, 'v0',vo1);
 Whammer = 1000;     % peso del martillo                        [N]
 hcaida  = 2.00;     % altura de caida del martillo             [m]
 Kyunque = 5e6;      % rigidez del yunque                       [N/m]
-                    %   el enunciado dice "N-m/s"; para una rigidez la
-                    %   unidad correcta es N/m, se interpreta asi.
+%   el enunciado dice "N-m/s"; para una rigidez la
+%   unidad correcta es N/m, se interpreta asi.
 cyunque = 10e3;     % coeficiente de amortiguamiento del yunque [N*s/m]
 Wyunque = 5000;     % peso del yunque                          [N]
 g       = 9.81;     % aceleracion de la gravedad                [m/s^2]
 
-%% == Ejemplo - canon (retroceso, amortiguamiento critico) ==============
+m1=Whammer/g;
+m2=Wyunque/g;
+
+%K1=K2
+syms v1 v2
+V1=solve(m1*g*hcaida==0.5*m1*v1^2,v1);
+V1=double(V1);
+V1=V1(V1>0);   % dos raices (+-); se descarta la negativa, V1 es una rapidez
+
+%Po = Pf
+
+V2=double(solve(m1*V1 == (m1+m2)*v2,v2))
+
+%% == Ejemplo#3 - canon (retroceso, amortiguamiento critico) ============
 % El canon se dispara desde el reposo; el mecanismo de disparo esta
 % disenado para volver a la posicion de equilibrio sin oscilar (critico).
 xretroceso = 0.40;  % retroceso maximo del canon tras el disparo [m]
@@ -52,10 +65,15 @@ mcanon     = 500;   % masa del canon                            [kg]
 kcanon     = 10000; % rigidez del sistema de retroceso          [N/m]
 xobjetivo  = 0.1;   % posicion pedida en el inciso (c)          [m]
 
+ccr3= sqrt(4*mcanon*kcanon)
+omega3=sqrt(kcanon/mcanon)
+syms C1 C2 T3 V3
+T3calc = double(solve(diff((C2*T3)*exp(1)^(-omega3*T3)== V3,T3)))
+
 %% == Ejemplo#2 - motocicleta (decremento logaritmico) ==================
 mmoto  = 200;       % masa de la motocicleta                    [kg]
 reduccPorCiclo = 0.25;  % reduccion de amplitud por oscilacion completa
-                        %   [adim, 25%]
+%   [adim, 25%]
 x0moto = 250e-3;    % amplitud inicial                          [m] (250 mm)
 Tdmoto = 2.00;      % periodo amortiguado                       [s]
 
@@ -68,6 +86,6 @@ mbarra = 3.00;      % masa de la barra delgada                  [kg]
 mdisco = 5.00;      % masa del disco uniforme                   [kg]
 cbarra = 9.00;      % coeficiente de amortiguamiento            [N*s/m]
 rA     = 100e-3;    % radio del disco hasta la junta A          [m] (100 mm)
-                    %   se asume que el amortiguador actua con el mismo
-                    %   brazo (radio del disco), por ser tangente al borde.
+%   se asume que el amortiguador actua con el mismo
+%   brazo (radio del disco), por ser tangente al borde.
 LAB    = 400e-3;    % longitud de la barra, de A a B            [m] (400 mm)

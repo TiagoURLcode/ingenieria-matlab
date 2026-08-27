@@ -1,24 +1,24 @@
 classdef VM
-% =========================================================================
-% VM.m - Funciones de apoyo para Vibraciones Mecanicas
-%
-% USO: se llaman con el prefijo de la clase, desde cualquier script:
-%   k  = VM.datosKR(200e9, 0.01, 2);
-%   wn = double(VM.omega('k',k, 'm',5).wn);
-% Escribiendo "VM." + Tab se autocompleta la lista de funciones.
-%
-% Convencion de unidades usada en todo el archivo (SI):
-%   k   [N/m]      constante de rigidez (resorte lineal)
-%   kt  [N*m/rad]  constante de rigidez torsional
-%   m   [kg]       masa
-%   E   [Pa=N/m^2] modulo de elasticidad (Young)
-%   G   [Pa]       modulo de rigidez al cortante
-%   A   [m^2]      area de la seccion transversal
-%   l,L [m]        longitud
-%   I,Jo[kg*m^2]   momento de inercia de masa / [m^4] momento polar de area
-%   g   [m/s^2]    aceleracion de la gravedad (9.81)
-%   omega [rad/s]  frecuencia natural circular
-% =========================================================================
+    % =========================================================================
+    % VM.m - Funciones de apoyo para Vibraciones Mecanicas
+    %
+    % USO: se llaman con el prefijo de la clase, desde cualquier script:
+    %   k  = VM.datosKR(200e9, 0.01, 2);
+    %   wn = double(VM.omega('k',k, 'm',5).wn);
+    % Escribiendo "VM." + Tab se autocompleta la lista de funciones.
+    %
+    % Convencion de unidades usada en todo el archivo (SI):
+    %   k   [N/m]      constante de rigidez (resorte lineal)
+    %   kt  [N*m/rad]  constante de rigidez torsional
+    %   m   [kg]       masa
+    %   E   [Pa=N/m^2] modulo de elasticidad (Young)
+    %   G   [Pa]       modulo de rigidez al cortante
+    %   A   [m^2]      area de la seccion transversal
+    %   l,L [m]        longitud
+    %   I,Jo[kg*m^2]   momento de inercia de masa / [m^4] momento polar de area
+    %   g   [m/s^2]    aceleracion de la gravedad (9.81)
+    %   omega [rad/s]  frecuencia natural circular
+    % =========================================================================
 
     methods(Static)
 
@@ -91,15 +91,15 @@ classdef VM
             %   m  masa que oscila                   [kg]
             nom = {'k','m','wn','tau','f'};
             S   = cell2struct(cellfun(@sym, nom, 'UniformOutput', false)', ...
-                              nom', 1);
+                nom', 1);
             k = S.k; m = S.m; wn = S.wn; tau = S.tau; f = S.f;
 
             % sym(pi) y NO pi pelado: ver la nota larga en VM.ecSubA.
             dpi = sym(pi);
 
             eqs = [ wn  == sqrt(k/m)
-                    tau == 2*dpi/wn
-                    f   == 1/tau ];
+                tau == 2*dpi/wn
+                f   == 1/tau ];
 
             % k es la rigidez EQUIVALENTE, no la de un resorte suelto. Si hay
             % varios, se combinan antes con VM.datosSerieR o
@@ -114,14 +114,14 @@ classdef VM
             %   l  longitud del hilo                 [m]
             nom = {'g','l','wn','tau','f'};
             S   = cell2struct(cellfun(@sym, nom, 'UniformOutput', false)', ...
-                              nom', 1);
+                nom', 1);
             g = S.g; l = S.l; wn = S.wn; tau = S.tau; f = S.f;
 
             dpi = sym(pi);
 
             eqs = [ wn  == sqrt(g/l)
-                    tau == 2*dpi/wn
-                    f   == 1/tau ];
+                tau == 2*dpi/wn
+                f   == 1/tau ];
 
             % NO APARECE LA MASA, y no es un olvido: al plantear la ecuacion
             % de momentos, la m del peso y la m de la inercia son la misma y
@@ -141,18 +141,18 @@ classdef VM
             %   leq  largo del pendulo simple equivalente    [m]
             nom = {'m','g','l','Icm','Io','leq','wn','tau','f'};
             S   = cell2struct(cellfun(@sym, nom, 'UniformOutput', false)', ...
-                              nom', 1);
+                nom', 1);
             m = S.m; g = S.g; l = S.l; Icm = S.Icm; Io = S.Io;
             leq = S.leq; wn = S.wn; tau = S.tau; f = S.f;
 
             dpi = sym(pi);
 
             eqs = [ Io  == Icm + m*l^2        % teorema de Steiner
-                    wn  == sqrt(m*g*l/Io)
-                    leq == Io/(m*l)
-                    wn  == sqrt(g/leq)        % redundante, ver abajo
-                    tau == 2*dpi/wn
-                    f   == 1/tau ];
+                wn  == sqrt(m*g*l/Io)
+                leq == Io/(m*l)
+                wn  == sqrt(g/leq)        % redundante, ver abajo
+                tau == 2*dpi/wn
+                f   == 1/tau ];
 
             % STEINER (ejes paralelos): Io == Icm + m*l^2.
             %   Las tablas dan Icm, la inercia respecto al centro de masa,
@@ -308,7 +308,7 @@ classdef VM
             %
             % v_max y a_max son iguales en los dos casos: dependen solo de X y w.
             %
-             %
+            %
             %   x(t) = A*cos(w*t) + B*sin(w*t)          posicion
             %   v(t) = -A*w*sin(w*t) + B*w*cos(w*t)     velocidad  (1a derivada)
             %   a(t) = -A*w^2*cos(w*t) - B*w^2*sin(w*t) aceleracion (2a derivada)
@@ -462,16 +462,16 @@ classdef VM
 
             nom = {'m','c','k','ccr','z','wn','s1','s2'};
             S   = cell2struct(cellfun(@sym, nom, 'UniformOutput', false)', ...
-                              nom', 1);
+                nom', 1);
             m = S.m; c = S.c; k = S.k; ccr = S.ccr; z = S.z; wn = S.wn;
             s1 = S.s1; s2 = S.s2;
 
             eqs = [ wn  == sqrt(k/m)
-                    ccr == sqrt(4*k*m)
-                    ccr == 2*m*wn                % redundante, ver ecSubA
-                    z   == c/ccr
-                    s1  == -c/(2*m) + sqrt((c/(2*m))^2 - k/m)
-                    s2  == -c/(2*m) - sqrt((c/(2*m))^2 - k/m) ];
+                ccr == sqrt(4*k*m)
+                ccr == 2*m*wn                % redundante, ver ecSubA
+                z   == c/ccr
+                s1  == -c/(2*m) + sqrt((c/(2*m))^2 - k/m)
+                s2  == -c/(2*m) - sqrt((c/(2*m))^2 - k/m) ];
 
             % SIGNO DEL RADICANDO: (c/(2*m))^2 - k/m es lo que decide todo.
             %   positivo -> dos raices reales distintas  -> SOBRE-amortiguado
@@ -499,9 +499,9 @@ classdef VM
             % sym() y NO syms: dentro de un metodo, syms falla si el nombre
             % choca con una funcion del path.
             nom = {'m','c','k','ccr','z','wn','wd','taud','delta', ...
-                   'x1','x2','n','x0','v0','C1','C2','X','t','x','env'};
+                'x1','x2','n','x0','v0','C1','C2','X','t','x','env'};
             S   = cell2struct(cellfun(@sym, nom, 'UniformOutput', false)', ...
-                              nom', 1);
+                nom', 1);
             m = S.m; c = S.c; k = S.k; ccr = S.ccr; z = S.z;
             wn = S.wn; wd = S.wd; taud = S.taud; delta = S.delta;
             x1 = S.x1; x2 = S.x2; n = S.n; x0 = S.x0; v0 = S.v0;
@@ -520,19 +520,19 @@ classdef VM
 
             % == (doble igual) construye una ECUACION, no una comparacion.
             eqs = [ wn    == sqrt(k/m)
-                    ccr   == sqrt(4*k*m)
-                    ccr   == 2*m*wn              % redundante, ver abajo
-                    z     == c/ccr
-                    wd    == sqrt(1 - z^2)*wn
-                    taud  == 2*dpi/wd
-                    delta == z*wn*taud
-                    z     == delta/sqrt((2*dpi)^2 + delta^2)
-                    delta == (1/n)*log(x1/x2)    % n ciclos entre x1 y x2
-                    C1    == x0
-                    C2    == (v0 + z*wn*x0)/wd
-                    X     == sqrt(C1^2 + C2^2)
-                    x     == exp(-z*wn*t)*(C1*cos(wd*t) + C2*sin(wd*t))
-                    env   == X*exp(-z*wn*t) ];
+                ccr   == sqrt(4*k*m)
+                ccr   == 2*m*wn              % redundante, ver abajo
+                z     == c/ccr
+                wd    == sqrt(1 - z^2)*wn
+                taud  == 2*dpi/wd
+                delta == z*wn*taud
+                z     == delta/sqrt((2*dpi)^2 + delta^2)
+                delta == (1/n)*log(x1/x2)    % n ciclos entre x1 y x2
+                C1    == x0
+                C2    == (v0 + z*wn*x0)/wd
+                X     == sqrt(C1^2 + C2^2)
+                x     == exp(-z*wn*t)*(C1*cos(wd*t) + C2*sin(wd*t))
+                env   == X*exp(-z*wn*t) ];
 
             % ccr == 2*m*wn es REDUNDANTE con las dos primeras, y esta a
             % proposito: permite entrar por wn cuando no te dieron k, y de
@@ -593,17 +593,17 @@ classdef VM
 
             nom = {'m','c','k','ccr','wn','x0','v0','C1','C2','t','x'};
             S   = cell2struct(cellfun(@sym, nom, 'UniformOutput', false)', ...
-                              nom', 1);
+                nom', 1);
             m = S.m; c = S.c; k = S.k; ccr = S.ccr; wn = S.wn;
             x0 = S.x0; v0 = S.v0; C1 = S.C1; C2 = S.C2; t = S.t; x = S.x;
 
             eqs = [ wn  == sqrt(k/m)
-                    ccr == sqrt(4*k*m)
-                    ccr == 2*m*wn                % redundante, ver ecSubA
-                    c   == ccr                   % DEFINICION del caso
-                    C1  == x0
-                    C2  == v0 + wn*x0
-                    x   == (C1 + C2*t)*exp(-wn*t) ];
+                ccr == sqrt(4*k*m)
+                ccr == 2*m*wn                % redundante, ver ecSubA
+                c   == ccr                   % DEFINICION del caso
+                C1  == x0
+                C2  == v0 + wn*x0
+                x   == (C1 + C2*t)*exp(-wn*t) ];
 
             % c == ccr ESTA A PROPOSITO y hace dos trabajos:
             %   - Si das m y k pero NO c, el despeje te devuelve el c critico
@@ -633,22 +633,22 @@ classdef VM
             % SALIDAS: iguales que ecSubA.
 
             nom = {'m','c','k','ccr','z','wn','s1','s2','x0','v0', ...
-                   'C1','C2','t','x'};
+                'C1','C2','t','x'};
             S   = cell2struct(cellfun(@sym, nom, 'UniformOutput', false)', ...
-                              nom', 1);
+                nom', 1);
             m = S.m; c = S.c; k = S.k; ccr = S.ccr; z = S.z; wn = S.wn;
             s1 = S.s1; s2 = S.s2; x0 = S.x0; v0 = S.v0;
             C1 = S.C1; C2 = S.C2; t = S.t; x = S.x;
 
             eqs = [ wn == sqrt(k/m)
-                    ccr == sqrt(4*k*m)
-                    ccr == 2*m*wn                % redundante, igual que en sub
-                    z   == c/ccr
-                    s1  == (-z + sqrt(z^2 - 1))*wn
-                    s2  == (-z - sqrt(z^2 - 1))*wn
-                    C1  == ( x0*wn*(z + sqrt(z^2 - 1)) + v0)/(2*wn*sqrt(z^2 - 1))
-                    C2  == (-x0*wn*(z - sqrt(z^2 - 1)) - v0)/(2*wn*sqrt(z^2 - 1))
-                    x   == C1*exp(s1*t) + C2*exp(s2*t) ];
+                ccr == sqrt(4*k*m)
+                ccr == 2*m*wn                % redundante, igual que en sub
+                z   == c/ccr
+                s1  == (-z + sqrt(z^2 - 1))*wn
+                s2  == (-z - sqrt(z^2 - 1))*wn
+                C1  == ( x0*wn*(z + sqrt(z^2 - 1)) + v0)/(2*wn*sqrt(z^2 - 1))
+                C2  == (-x0*wn*(z - sqrt(z^2 - 1)) - v0)/(2*wn*sqrt(z^2 - 1))
+                x   == C1*exp(s1*t) + C2*exp(s2*t) ];
 
             % LAS DOS RAICES SON NEGATIVAS y distintas. s1 es la MENOS
             % negativa, asi que su exponencial es la que decae mas despacio:
@@ -689,15 +689,15 @@ classdef VM
 
             nom = {'Jo','ct','kt','ctc','z','wn','wd'};
             S   = cell2struct(cellfun(@sym, nom, 'UniformOutput', false)', ...
-                              nom', 1);
+                nom', 1);
             Jo = S.Jo; ct = S.ct; kt = S.kt; ctc = S.ctc;
             z = S.z; wn = S.wn; wd = S.wd;
 
             eqs = [ wn  == sqrt(kt/Jo)
-                    ctc == 2*sqrt(kt*Jo)
-                    ctc == 2*Jo*wn               % redundante, ver abajo
-                    z   == ct/ctc
-                    wd  == sqrt(1 - z^2)*wn ];
+                ctc == 2*sqrt(kt*Jo)
+                ctc == 2*Jo*wn               % redundante, ver abajo
+                z   == ct/ctc
+                wd  == sqrt(1 - z^2)*wn ];
 
             % LAS TRES FORMAS DE zeta DE LA LAMINA son una sola ecuacion mas
             % la definicion de ctc:
@@ -881,22 +881,24 @@ classdef VM
             %   VM.graficarA('m',10, 'c',40, 'k',4000, 'x0',0.05, 'v0',0);
             %   VM.graficarA('m',10, 'c',900,'k',4000, 'tf',1.5);
 
-            d = VM.datos(varargin);
-            if ~isfield(d,'x0') || isempty(d.x0), d.x0 = 1; end
-            if ~isfield(d,'v0') || isempty(d.v0), d.v0 = 0; end
+            d = VM.datos(varargin);   % struct de datos, venga como pares 'nombre',valor o ya armado
+            if ~isfield(d,'x0') || isempty(d.x0), d.x0 = 1; end   % x(0) [m]: 1 por defecto, si no no hay que dibujar
+            if ~isfield(d,'v0') || isempty(d.v0), d.v0 = 0; end   % xpunto(0) [m/s]: 0 por defecto, soltado en reposo
             if isfield(d,'t'), d = rmfield(d,'t'); end     % t queda libre
 
             % tf y npts son opciones del dibujo, no variables del modelo: se
             % sacan del struct antes de que despejar los vea y proteste.
-            tf = [];
-            if isfield(d,'tf'), tf = d.tf; d = rmfield(d,'tf'); end
-            npts = 500;
-            if isfield(d,'npts'), npts = d.npts; d = rmfield(d,'npts'); end
+            tf = [];      % vacio = sin decidir todavia; si sigue asi, mas abajo se calcula solo
+            if isfield(d,'tf'), tf = d.tf; d = rmfield(d,'tf'); end   % tiempo final [s] si vino como opcion
+            npts = 500;   % puntos de la curva [adim]
+            if isfield(d,'npts'), npts = d.npts; d = rmfield(d,'npts'); end   % lo pisa si pediste otro
 
-            regimen = VM.clasifA(d);
+            regimen = VM.clasifA(d);   % 'sub', 'critico' o 'sobre', mirando z (o c contra ccr)
             switch regimen
+                % eqs: las ecuaciones simbolicas del caso. S: los simbolos
+                % (S.x, S.t, S.m, ...) con que estan escritas.
                 case 'sub',     [eqs, S] = VM.ecSubA();
-                case 'critico', [eqs, S] = VM.ecCritA();  d = VM.sinC(d);
+                case 'critico', [eqs, S] = VM.ecCritA();  d = VM.sinC(d);   % sinC: saca c, en el critico no es dato
                 case 'sobre',   [eqs, S] = VM.ecSobreA();
             end
 
@@ -905,47 +907,51 @@ classdef VM
             % completa la ecuacion "x == ..." con t todavia libre, que es
             % justo la que hace falta para graficar (despejar nunca la
             % resuelve: con x y t libres son dos incognitas en una ecuacion).
-            eqsOrig = eqs;
-            res     = VM.despejar(eqs, S, d);
+            eqsOrig = eqs;                      % copia con x(t) todavia sin tocar
+            res     = VM.despejar(eqs, S, d);   % res: struct con lo que se pudo despejar (wn, z, X, ...)
 
-            idxX = arrayfun(@(e) isequal(lhs(e), S.x), eqsOrig);
-            xExpr = rhs(eqsOrig(idxX));
+            idxX = arrayfun(@(e) isequal(lhs(e), S.x), eqsOrig);   % mascara logica: marca la ecuacion cuyo lhs es x
+            xExpr = rhs(eqsOrig(idxX));         % se queda con el lado derecho: la formula de x(t)
 
             % Se sustituye TODO lo conocido: lo que despejo (res) mas lo que
             % entro directo como dato (d), para dejar a t como unica
             % incognita. Lo que entro como dato NO esta en res, porque
             % despejar lo sustituyo de una: por eso hay que recorrer los dos.
-            conocidos = res;
-            campos = fieldnames(d);
+            conocidos = res;                            % arranca con lo despejado
+            campos = fieldnames(d);                     % nombres de los datos de entrada
             for i = 1:numel(campos)
-                if ~isfield(conocidos, campos{i})
-                    conocidos.(campos{i}) = d.(campos{i});
+                if ~isfield(conocidos, campos{i})       % el dato no salio del despeje
+                    conocidos.(campos{i}) = d.(campos{i});   % se agrega desde d
                 end
             end
-            campos = fieldnames(conocidos);
+            campos = fieldnames(conocidos);             % ahora si, la lista completa
             for i = 1:numel(campos)
+                % subs(expresion, simbolo, valor): cambia el simbolo por su numero
                 xExpr = subs(xExpr, S.(campos{i}), conocidos.(campos{i}));
             end
 
+            % symvar lista los simbolos que quedaron sueltos; @char los pasa
+            % a texto y 'UniformOutput',false los deja en un cell (char devuelve
+            % cadenas de largo distinto y no entran en un vector).
             libres = arrayfun(@char, symvar(xExpr), 'UniformOutput', false);
-            faltan = setdiff(libres, {'t'});
+            faltan = setdiff(libres, {'t'});   % todo lo que no sea t es un dato que falta
             if ~isempty(faltan)
-                error('VM:faltaDato', ...
+                error('VM:faltaDato', ...      % 'VM:faltaDato': identificador, para atraparlo con try/catch
                     ['No se puede graficar: quedaron libres %s. Dale m, c y ' ...
-                     'k (o wn y z) y las condiciones iniciales.'], ...
+                    'k (o wn y z) y las condiciones iniciales.'], ...
                     strjoin(faltan, ', '));
             end
 
             % LOOKUP CON RESPALDO: si un dato entro directo (wn o z en vez de
             % m y k) no queda en res, queda en d. VM.buscarCampo mira los dos.
-            wn = VM.buscarCampo(res, d, 'wn', NaN);
+            wn = VM.buscarCampo(res, d, 'wn', NaN);   % frecuencia natural [rad/s]; NaN si no esta en ninguno
             if strcmp(regimen, 'critico')
                 z = 1;                      % es la definicion del caso
             else
-                z = VM.buscarCampo(res, d, 'z', NaN);
+                z = VM.buscarCampo(res, d, 'z', NaN);   % razon de amortiguamiento [adim]
             end
 
-            if isempty(tf)
+            if isempty(tf)   % no diste tf: se elige un rango donde se vea el transitorio
                 if strcmp(regimen, 'sub')
                     tf = 4*(2*pi)/(wn*sqrt(1 - z^2));   % 4 periodos amortiguados
                 else
@@ -956,29 +962,43 @@ classdef VM
             % matlabFunction baja la expresion simbolica a una funcion
             % numerica; 'Vars' fija que la unica entrada sea t. arrayfun la
             % evalua punto por punto, asi no importa si quedo vectorizada.
-            xfun = matlabFunction(xExpr, 'Vars', S.t);
-            tt   = linspace(0, tf, npts);
-            xx   = arrayfun(xfun, tt);
+            xfun = matlabFunction(xExpr, 'Vars', S.t);   % 'Vars': fija cual simbolo es la entrada de la funcion
+            tt   = linspace(0, tf, npts);   % linspace(a,b,n): n tiempos igual espaciados de 0 a tf [s]
+            xx   = arrayfun(xfun, tt);      % evalua xfun en cada tiempo: posiciones [m]
 
-            fig = figure;
-            plot(tt, xx, 'LineWidth', 1.5, 'DisplayName', 'x(t)');
-            hold on
+            fig = figure;         % figura nueva; el handle se devuelve para poder retocarla afuera
+            theme(fig,'light');   % la figura hereda el TEMA del escritorio: con MATLAB en modo oscuro el area de los ejes sale negra aunque la figura sea blanca. 'light' fuerza el tema claro, y recien ahi mandan los colores de abajo.
+            fig.Color = 'w';      % fondo de la figura, 'w' = white = [1 1 1] en RGB
+            plot(tt, xx, 'LineWidth', 1.5, 'DisplayName', 'x(t)');   % DisplayName: nombre con que entra a la leyenda
+            hold on   % lo que siga se dibuja encima, sin borrar la curva
 
-            X = VM.buscarCampo(res, d, 'X', NaN);
+            X = VM.buscarCampo(res, d, 'X', NaN);   % amplitud de la envolvente [m]; NaN si el caso no la define
             if strcmp(regimen, 'sub') && ~isnan(X)
                 % env(t) = X*exp(-z*wn*t), la envolvente de ecSubA. Es UNA
                 % sola curva dibujada dos veces, arriba y reflejada abajo:
                 % por eso la de abajo no entra a la leyenda.
-                envolvente = X*exp(-z*wn*tt);
-                plot(tt,  envolvente, 'k--', 'LineWidth', 1, 'DisplayName', 'Envolvente');
-                plot(tt, -envolvente, 'k--', 'LineWidth', 1, 'HandleVisibility', 'off');
+                envolvente = X*exp(-z*wn*tt);   % la envolvente evaluada en cada tiempo de tt [m]
+                plot(tt,  envolvente, 'r--', 'LineWidth', 1, 'DisplayName', 'Envolvente');   % 'r--': rojo, guiones
+                plot(tt, -envolvente, 'r--', 'LineWidth', 1, 'HandleVisibility', 'off');   % 'off': no entra a la leyenda
             end
-            legend('show', 'Location', 'best');
-            hold off
+            legend('show', 'Location', 'best');   % 'best': MATLAB busca la esquina que tape menos curva
+            hold off   % vuelve al modo normal: el proximo plot borra la figura
 
-            grid on
-            xlabel('t [s]');
-            ylabel('x(t) [m]');
+            grid on              % rejilla, para leer valores del grafico
+
+            % Colores base: 'w' blanco | 'k' negro | 'r' rojo | 'g' verde | 'b' azul | 'c' cian | 'm' magenta | 'y' amarillo. Tambien vale el RGB [R G B] con cada valor de 0 a 1.
+            ax = gca;                       % gca = get current axes: el handle de los ejes activos
+            ax.Color       = 'w';           % fondo del AREA de dibujo (distinto del fondo de la figura)
+            ax.GridColor   = [0.5 0.5 0.5]; % gris medio para las separaciones
+            ax.GridAlpha   = 1;             % opacidad de la rejilla, 0 a 1; el default 0.15 la deja lavada
+            ax.XColor      = 'k';           % linea, marcas y numeros del eje x en negro
+            ax.YColor      = 'k';           % idem en el eje y
+            ax.Title.Color = 'k';           % el titulo no hereda XColor, se pinta aparte
+
+            xlabel('t [s]');     % eje horizontal: tiempo
+            ylabel('x(t) [m]');  % eje vertical: posicion
+            % sprintf arma el texto: %s mete el regimen, %.3f el valor de z con
+            % 3 decimales, y \\zeta es TeX (sale la letra griega en el titulo).
             title(sprintf('Vibracion libre amortiguada - caso %s (\\zeta = %.3f)', ...
                 regimen, z));
         end
@@ -1034,7 +1054,7 @@ classdef VM
             if n == 0 || mod(n,2) ~= 0
                 error('VM:parInvalido', ...
                     ['Se esperaban pares nombre-valor (cantidad par de ' ...
-                     'argumentos) o un struct. Llegaron %d.'], n);
+                    'argumentos) o un struct. Llegaron %d.'], n);
             end
 
             % Impares = nombres, pares = valores. 1:2:end recorre 1,3,5...
@@ -1045,7 +1065,7 @@ classdef VM
             if ~all(cellfun(@(c) ischar(c) || isstring(c), nombres))
                 error('VM:parInvalido', ...
                     ['Los argumentos impares tienen que ser nombres. ' ...
-                     'Ej: VM.subA(''m'',1, ''k'',100, ''c'',2)']);
+                    'Ej: VM.subA(''m'',1, ''k'',100, ''c'',2)']);
             end
 
             s = cell2struct(valores(:), cellstr(string(nombres(:))), 1);
@@ -1084,7 +1104,7 @@ classdef VM
                 if ~isfield(S, campos{k})
                     error('VM:campoDesconocido', ...
                         ['"%s" no es una variable de este modelo. ' ...
-                         'Validas: %s'], campos{k}, strjoin(fieldnames(S)', ', '));
+                        'Validas: %s'], campos{k}, strjoin(fieldnames(S)', ', '));
                 end
                 % S.(campos{k}) = el SIMBOLO ; d.(campos{k}) = el VALOR.
                 % subs reemplaza en TODAS las ecuaciones de una vez; el loop
@@ -1107,7 +1127,7 @@ classdef VM
                         if ~isAlways(eqs(k), 'Unknown', 'false')
                             error('VM:datosContradictorios', ...
                                 ['Los datos violan la ecuacion %d del ' ...
-                                 'modelo: %s'], k, char(eqs(k)));
+                                'modelo: %s'], k, char(eqs(k)));
                         end
                         continue
                     end
