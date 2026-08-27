@@ -1,0 +1,335 @@
+\documentclass[10pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage[margin=1.1cm]{geometry}
+\usepackage{multicol}
+\usepackage{array}
+\usepackage{booktabs}
+
+\setlength{\parindent}{0pt}
+\setlength{\columnsep}{0.8cm}
+\pagestyle{empty}
+
+% Compactar el espaciado alrededor de las ecuaciones
+\setlength{\abovedisplayskip}{2.5pt}
+\setlength{\belowdisplayskip}{2.5pt}
+\setlength{\abovedisplayshortskip}{1.5pt}
+\setlength{\belowdisplayshortskip}{1.5pt}
+
+\newcommand{\seccion}[1]{%
+  \vspace{1.5mm}\hrule\vspace{1mm}%
+  \textbf{\footnotesize\MakeUppercase{#1}}\vspace{1mm}\hrule\vspace{1.5mm}}
+
+\begin{document}
+\small
+
+\begin{center}
+  \textbf{\large FORMULARIO — VIBRACIONES LIBRES AMORTIGUADAS} \\
+  \vspace{0.6mm}
+  \footnotesize Sistemas de 1 Grado de Libertad (1-GDL) $\cdot$ Clasificación de Regímenes $\cdot$ Torsión $\cdot$ Decremento Logarítmico
+\end{center}
+\vspace{-3mm}
+
+\begin{multicols}{2}
+
+\seccion{Fundamentos y Tipos de Amortiguamiento}
+
+\textbf{Amortiguamiento:} Disipación continua de energía mecánica (en forma térmica o sonora), reduciendo la amplitud de oscilación en el tiempo y alejando al sistema de la resonancia.
+
+\textbf{Mecanismos de disipación:}
+\begin{itemize}\setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}
+  \item \textbf{Fricción viscosa (fluido):} Fuerza resistente proporcional a la velocidad relativa: $F_d = c\,\dot{x}$. Modelo lineal clásico.
+  \item \textbf{Fricción seca (Coulomb):} Rozamiento entre sólidos secos: $F_d = \mu\,N\,\operatorname{sgn}(\dot{x})$. Decaimiento \textit{lineal} de la amplitud.
+  \item \textbf{Fricción interna (histéresis):} Fricción intercristalina durante ciclos de esfuerzo/deformación.
+\end{itemize}
+
+\textbf{Dispositivos:} Amortiguadores hidráulicos, de gas, de histéresis y amortiguadores de masa sintonizada (TMD).
+
+\seccion{Ecuación diferencial y parámetros base}
+
+Ecuación diferencial lineal (traslación):
+\begin{equation*}
+  m\,\ddot{x} + c\,\dot{x} + k\,x = 0
+  \quad\Longleftrightarrow\quad
+  \ddot{x} + 2\zeta\omega_n\dot{x} + \omega_n^{2}x = 0
+\end{equation*}
+
+Frecuencia natural no amortiguada:
+\begin{equation*}
+  \omega_n = \sqrt{\frac{k}{m}} \quad [\mathrm{rad/s}]
+\end{equation*}
+
+Coeficiente de amortiguamiento crítico ($c_{cr}$):
+\begin{equation*}
+  c_{cr} = 2\sqrt{k\,m} = 2\,m\,\omega_n = \frac{2k}{\omega_n} \quad [\mathrm{N\cdot s/m}]
+\end{equation*}
+
+Factor / Relación de amortiguamiento ($\zeta$):
+\begin{equation*}
+  \zeta = \frac{c}{c_{cr}} = \frac{c}{2\sqrt{k\,m}} = \frac{c}{2\,m\,\omega_n}
+\end{equation*}
+
+Ecuación característica y raíces:
+\begin{equation*}
+  s^{2} + \frac{c}{m}s + \frac{k}{m} = 0
+\end{equation*}
+\begin{equation*}
+  s_{1,2} = -\frac{c}{2m} \pm \sqrt{\left(\frac{c}{2m}\right)^{2} - \frac{k}{m}}
+          = \left(-\zeta \pm \sqrt{\zeta^{2}-1}\right)\omega_n
+\end{equation*}
+
+Solución general:
+\begin{equation*}
+  x(t) = C_1\,e^{s_1 t} + C_2\,e^{s_2 t}
+\end{equation*}
+
+\seccion{Tabla Comparativa de Regímenes}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.1}
+\footnotesize
+\begin{tabular*}{\linewidth}{@{\extracolsep{\fill}}lccc@{}}
+\toprule
+\textbf{Régimen} & \textbf{Condición} & \textbf{Raíces $s_{1,2}$} & \textbf{¿Oscila?} \\
+\midrule
+Sub-amortiguado  & $\zeta < 1$ ($c < c_{cr}$) & Complejas conj. & Sí \\
+Crítico          & $\zeta = 1$ ($c = c_{cr}$) & Reales iguales  & No \\
+Sobre-amortiguado& $\zeta > 1$ ($c > c_{cr}$) & Reales dist. $<0$ & No \\
+\bottomrule
+\end{tabular*}
+\end{center}
+
+\columnbreak
+
+\seccion{1. Régimen Sub-amortiguado ($\zeta < 1$ ó $c < c_{cr}$)}
+
+\textbf{Cuándo ocurre:}
+Amortiguamiento bajo ($\zeta^2-1 < 0$). Produce raíces complejas conjugadas. El sistema \textbf{oscila} periódicamente alrededor del equilibrio con amplitud decreciente exponencialmente. Es el caso estándar de maquinaria, puentes y vehículos.
+
+Raíces complejas conjugadas:
+\begin{equation*}
+  s_{1,2} = -\zeta\omega_n \pm i\,\omega_d
+\end{equation*}
+
+Frecuencia amortiguada ($\omega_d$) y periodo ($T_d$):
+\begin{equation*}
+  \omega_d = \omega_n\sqrt{1-\zeta^{2}} \quad [\mathrm{rad/s}]
+\end{equation*}
+\begin{equation*}
+  T_d = \tau_d = \frac{2\pi}{\omega_d} = \frac{2\pi}{\omega_n\sqrt{1-\zeta^{2}}} \quad [\mathrm{s}],
+  \qquad
+  f_d = \frac{\omega_d}{2\pi} \quad [\mathrm{Hz}]
+\end{equation*}
+
+Ecuación de respuesta en el tiempo:
+\begin{equation*}
+  x(t) = e^{-\zeta\omega_n t}\left[ C_1'\cos(\omega_d t) + C_2'\sin(\omega_d t) \right]
+\end{equation*}
+
+Constantes según C.I. ($x(0)=x_0$, $\dot{x}(0)=v_0$):
+\begin{equation*}
+  C_1' = x_0,
+  \qquad
+  C_2' = \frac{v_0 + \zeta\omega_n x_0}{\omega_d} = \frac{v_0 + \zeta\omega_n x_0}{\omega_n\sqrt{1-\zeta^2}}
+\end{equation*}
+
+Forma equivalente amplitud--fase:
+\begin{equation*}
+  x(t) = X\,e^{-\zeta\omega_n t}\sin(\omega_d t + \phi)
+\end{equation*}
+\begin{equation*}
+  X = \sqrt{(C_1')^{2} + (C_2')^{2}} = \frac{\sqrt{x_0^{2}\omega_n^{2} + v_0^{2} + 2\,x_0\,v_0\,\zeta\,\omega_n}}{\omega_d}
+\end{equation*}
+\begin{equation*}
+  \phi = \arctan\!\left(\frac{C_1'}{C_2'}\right) = \arctan\!\left(\frac{x_0\,\omega_d}{v_0 + \zeta\omega_n x_0}\right)
+\end{equation*}
+
+Curvas envolventes (asíntotas de amplitud):
+\begin{equation*}
+  x_{env}(t) = \pm X\,e^{-\zeta\omega_n t}
+\end{equation*}
+
+\seccion{2. Régimen Crítico ($\zeta = 1$ ó $c = c_{cr}$)}
+
+\textbf{Cuándo ocurre:}
+El amortiguamiento iguala al valor crítico ($\zeta^2-1 = 0$). Es la mínima disipación requerida para que el sistema retorne al equilibrio \textbf{en el menor tiempo posible sin oscilar ni sobrepasar el equilibrio}.
+
+\textbf{Aplicaciones:} Cañones (mecanismo de retroceso), puertas automáticas, suspensiones y galvanómetros.
+
+Raíces repetidas:
+\begin{equation*}
+  s_1 = s_2 = -\frac{c_{cr}}{2m} = -\omega_n
+\end{equation*}
+
+Ecuación de posición y velocidad:
+\begin{equation*}
+  x(t) = (C_1 + C_2\,t)\,e^{-\omega_n t}
+\end{equation*}
+\begin{equation*}
+  \dot{x}(t) = \left[ C_2 - \omega_n(C_1 + C_2\,t) \right] e^{-\omega_n t}
+\end{equation*}
+
+Constantes con C.I. ($x(0)=x_0$, $\dot{x}(0)=v_0$):
+\begin{equation*}
+  C_1 = x_0,
+  \qquad
+  C_2 = v_0 + \omega_n x_0
+\end{equation*}
+
+Desplazamiento máximo si parte del reposo ($x_0=0, v_0 > 0$):
+\begin{equation*}
+  t_{max} = \frac{1}{\omega_n},
+  \qquad
+  x_{max} = x(t_{max}) = \frac{v_0}{\omega_n\,e}
+\end{equation*}
+
+\newpage
+
+\seccion{3. Régimen Sobre-amortiguado ($\zeta > 1$ ó $c > c_{cr}$)}
+
+\textbf{Cuándo ocurre:}
+Amortiguamiento muy alto ($\zeta^2-1 > 0$). Las raíces son reales, distintas y negativas ($s_2 < s_1 < 0$). El movimiento es \textbf{aperiódico (no oscila)} y retorna lentamente al equilibrio por la gran resistencia disipativa.
+
+\textbf{Aplicaciones:} Cierrapuertas hidráulicos pesados, amortiguadores de sobrecarga y parachoques industriales.
+
+Raíces reales negativas ($s_1, s_2 < 0$):
+\begin{equation*}
+  s_{1,2} = \left(-\zeta \pm \sqrt{\zeta^{2}-1}\right)\omega_n
+\end{equation*}
+
+Ecuación de posición:
+\begin{equation*}
+  x(t) = C_1\,e^{s_1 t} + C_2\,e^{s_2 t}
+\end{equation*}
+
+Constantes con C.I. ($x(0)=x_0$, $\dot{x}(0)=v_0$):
+\begin{equation*}
+  C_1 = \frac{x_0\omega_n\left(\zeta + \sqrt{\zeta^2-1}\right) + v_0}{2\omega_n\sqrt{\zeta^2-1}} = \frac{v_0 - s_2\,x_0}{s_1 - s_2}
+\end{equation*}
+\begin{equation*}
+  C_2 = \frac{-x_0\omega_n\left(\zeta - \sqrt{\zeta^2-1}\right) - v_0}{2\omega_n\sqrt{\zeta^2-1}} = \frac{s_1\,x_0 - v_0}{s_1 - s_2}
+\end{equation*}
+
+\seccion{Decremento logarítmico ($\delta$)}
+
+\textbf{Definición:} Tasa adimensional de decaimiento que cuantifica la reducción relativa de amplitud entre ciclos en régimen sub-amortiguado.
+
+Entre dos picos sucesivos ($x_1, x_2$) o separados $n$ ciclos ($x_0, x_n$):
+\begin{equation*}
+  \delta = \ln\!\left(\frac{x_1}{x_2}\right) = \frac{1}{n}\ln\!\left(\frac{x_0}{x_n}\right)
+\end{equation*}
+
+Relaciones fundamentales de $\delta$:
+\begin{equation*}
+  \delta = \zeta\,\omega_n\,T_d = \zeta\,\omega_n\left(\frac{2\pi}{\omega_n\sqrt{1-\zeta^2}}\right) = \frac{2\pi\zeta}{\sqrt{1-\zeta^2}}
+\end{equation*}
+\begin{equation*}
+  \delta = \frac{2\pi}{\omega_d}\left(\frac{c}{2m}\right) = \frac{\pi c}{m\,\omega_d}
+\end{equation*}
+
+Despeje exacto de $\zeta$ a partir de $\delta$:
+\begin{equation*}
+  \zeta = \frac{\delta}{\sqrt{(2\pi)^{2} + \delta^{2}}}
+\end{equation*}
+
+Aproximación para bajo amortiguamiento ($\zeta < 0{,}2$):
+\begin{equation*}
+  \delta \approx 2\pi\zeta
+  \quad\Longleftrightarrow\quad
+  \zeta \approx \frac{\delta}{2\pi}
+\end{equation*}
+
+Relación con porcentaje de reducción de amplitud ($R_{\%}$):
+\begin{equation*}
+  R_{\%} = \frac{x_1 - x_2}{x_1}\times 100\%
+  \quad\Longrightarrow\quad
+  \frac{x_1}{x_2} = \frac{1}{1 - R_{\%}/100}
+\end{equation*}
+\begin{equation*}
+  \delta = \ln\!\left(\frac{1}{1 - R_{\%}/100}\right)
+\end{equation*}
+
+\columnbreak
+
+\seccion{Vibración libre amortiguada torsional}
+
+Ecuación diferencial torsional:
+\begin{equation*}
+  J_0\,\ddot{\theta} + c_t\,\dot{\theta} + k_t\,\theta = 0
+\end{equation*}
+
+Frecuencia natural y amortiguamiento crítico torsional:
+\begin{equation*}
+  \omega_n = \sqrt{\frac{k_t}{J_0}} \quad [\mathrm{rad/s}],
+  \qquad
+  c_{tc} = 2\sqrt{k_t\,J_0} = 2\,J_0\,\omega_n
+\end{equation*}
+
+Factor de amortiguamiento torsional ($\zeta$):
+\begin{equation*}
+  \zeta = \frac{c_t}{c_{tc}} = \frac{c_t}{2\,J_0\,\omega_n} = \frac{c_t}{2\sqrt{k_t\,J_0}}
+\end{equation*}
+
+Frecuencia amortiguada y respuesta ($\zeta < 1$):
+\begin{equation*}
+  \omega_d = \omega_n\sqrt{1-\zeta^{2}}
+\end{equation*}
+\begin{equation*}
+  \theta(t) = e^{-\zeta\omega_n t}\left[ C_1'\cos(\omega_d t) + C_2'\sin(\omega_d t) \right]
+\end{equation*}
+\begin{equation*}
+  C_1' = \theta_0,
+  \qquad
+  C_2' = \frac{\dot{\theta}_0 + \zeta\omega_n\theta_0}{\omega_d}
+\end{equation*}
+
+\seccion{Equivalencias y Modelado Dinámico}
+
+Amortiguador lineal conectado a cuerpo rotatorio:
+Si un amortiguador lineal de constante $c$ actúa a distancia $r$ del eje:
+\begin{equation*}
+  c_t = c_{eq} = c\,r^{2} \quad [\mathrm{N\cdot m\cdot s/rad}]
+\end{equation*}
+
+Conservación de momento lineal en impacto plástico previo:
+\begin{equation*}
+  v_1 = \sqrt{2gh},
+  \qquad
+  v_0 = \dot{x}(0) = \frac{m_1}{m_1 + m_2}\sqrt{2gh}
+\end{equation*}
+
+\seccion{Nomenclatura y Unidades SI}
+
+\begin{tabbing}
+\hspace{1.35cm}\=\kill
+$x,\,\theta$ \> posición traslacional [m] / angular [rad] \\
+$\dot{x},\,\dot{\theta}$ \> velocidad traslacional [m/s] / angular [rad/s] \\
+$\ddot{x},\,\ddot{\theta}$ \> aceleración traslacional [m/s$^2$] / angular [rad/s$^2$] \\
+$x_0,\,v_0$ \> condiciones iniciales traslacionales [m, m/s] \\
+$\theta_0,\,\dot{\theta}_0$ \> condiciones iniciales angulares [rad, rad/s] \\
+$m,\,M$ \> masa del sistema [kg] \\
+$k,\,k_t$ \> rigidez traslacional [N/m] / torsional [N$\cdot$m/rad] \\
+$c$ \> coef. de amortiguamiento viscoso [N$\cdot$s/m] \\
+$c_{cr}$ \> amortiguamiento crítico traslacional [N$\cdot$s/m] \\
+$c_t,\,c_{tc}$ \> amortiguamiento torsional y crítico [N$\cdot$m$\cdot$s/rad] \\
+$\zeta$ \> factor/relación de amortiguamiento [--] \\
+$\omega_n$ \> frecuencia natural no amortiguada [rad/s] \\
+$\omega_d$ \> frecuencia natural amortiguada [rad/s] \\
+$T_d,\,\tau_d$ \> periodo amortiguado [s] \\
+$f_d$ \> frecuencia cíclica amortiguada [Hz] \\
+$\delta$ \> decremento logarítmico [--] \\
+$X$ \> amplitud envolvente inicial [m] \\
+$\phi$ \> ángulo de fase inicial [rad] \\
+$s_1,\,s_2$ \> raíces características [1/s] \\
+$C_1,\,C_2$ \> constantes de integración exponencial [m] \\
+$C_1',\,C_2'$ \> constantes de integración trigonométrica [m] \\
+$J_0,\,I_0$ \> momento de inercia de masa respecto al eje [kg$\cdot$m$^2$] \\
+$R_{\%}$ \> reducción porcentual de amplitud por ciclo [\%] \\
+$n$ \> número de ciclos transcurridos [--] \\
+$g$ \> aceleración de la gravedad ($9{,}81\ \mathrm{m/s^2}$) \\
+\end{tabbing}
+
+\end{multicols}
+\end{document}
