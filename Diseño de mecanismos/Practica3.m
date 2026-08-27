@@ -19,7 +19,7 @@ clear; clc
 % Columnas:  t2[deg]   a     b     c    d        longitudes en cm
 
 % Problema 1 — metodo grafico
-P1 = [  45   2   4.5   7   9
+P1 = [  45   4   12.5   10   16
     60   2   3.5   7   9
     120   2   4.0   6   8 ];
 
