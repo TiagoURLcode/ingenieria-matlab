@@ -61,9 +61,14 @@ classdef IO
         %    tipo     : 'max' o 'min'
         %
         %  OPCIONES (par nombre/valor)
-        %    'Nombres'  : cell {nombre_x1, nombre_x2}. Default {'x_1','x_2'}
-        %    'Graficar' : true/false. Default true
-        %    'Titulo'   : título del gráfico. Default 'Método gráfico'
+        %    'Nombres'      : cell {nombre_x1, nombre_x2}. Default {'x_1','x_2'}
+        %    'Graficar'     : true/false. Default true
+        %    'Titulo'       : título del gráfico. Default 'Método gráfico'
+        %    'EtiquetasRest': cell m x 1 con el NOMBRE de cada restricción
+        %                     (p. ej. {'Aluminio','Vidrio',...}), para que la
+        %                     leyenda del gráfico muestre qué es cada recurso
+        %                     en vez de la inecuación. Default {} (usa la
+        %                     inecuación, como antes).
         %
         %  SALIDA (struct sol)
         %    sol.vertices  : [n x 2] vértices de la región factible
@@ -88,13 +93,19 @@ classdef IO
         function sol = pl2var(c, A, b, sentido, tipo, varargin)
 
             p = inputParser;
-            addParameter(p, 'Nombres',  {'x_1','x_2'});
-            addParameter(p, 'Graficar', true);
-            addParameter(p, 'Titulo',   'Método gráfico — Programación Lineal');
+            addParameter(p, 'Nombres',      {'x_1','x_2'});
+            addParameter(p, 'Graficar',     true);
+            addParameter(p, 'Titulo',       'Método gráfico — Programación Lineal');
+            addParameter(p, 'EtiquetasRest', {});
             parse(p, varargin{:});
-            nombres  = p.Results.Nombres;
-            graficar = p.Results.Graficar;
-            titulo_  = p.Results.Titulo;
+            nombres     = p.Results.Nombres;
+            graficar    = p.Results.Graficar;
+            titulo_     = p.Results.Titulo;
+            etiquetasRest = p.Results.EtiquetasRest;
+            if ~isempty(etiquetasRest)
+                assert(numel(etiquetasRest)==numel(b), ...
+                    'EtiquetasRest debe tener una entrada por restricción');
+            end
 
             c = c(:)'; b = b(:);
             tipo = validatestring(tipo, {'max','min'});
@@ -184,15 +195,21 @@ classdef IO
 
             %% 5: graficar (restricciones, región factible, vértices, óptimo)
             if graficar
-                IO.graficarPL(A, b, sentido, vert, xOpt, nombres, titulo_);
+                IO.graficarPL(A, b, sentido, vert, xOpt, nombres, titulo_, etiquetasRest);
             end
         end
 
         %% ===================================================================
         %  graficarPL — Dibuja restricciones, región factible y vértices.
         %  Uso interno de IO.pl2var, pero puede llamarse aparte.
+        %
+        %  etiquetasRest (opcional, último argumento): cell m x 1 con el
+        %  nombre de cada restricción para la leyenda (p. ej. 'Aluminio').
+        %  Si se omite o va vacía, la leyenda muestra la inecuación.
         %% ===================================================================
-        function graficarPL(A, b, sentido, vert, xOpt, nombres, titulo_)
+        function graficarPL(A, b, sentido, vert, xOpt, nombres, titulo_, etiquetasRest)
+
+            if nargin < 8, etiquetasRest = {}; end
 
             figure; hold on; grid on; box on
 
@@ -220,9 +237,14 @@ classdef IO
                     x1v = [b(i)/a1, b(i)/a1];
                     x2v = [0, lim2];
                 end
+                if ~isempty(etiquetasRest)
+                    etiqueta = etiquetasRest{i};
+                else
+                    etiqueta = sprintf('%.4g%s+%.4g%s%s%.4g', ...
+                        a1, nombres{1}, a2, nombres{2}, sentido{i}, b(i));
+                end
                 plot(x1v, x2v, 'LineWidth', 1.6, 'Color', colores(i,:), ...
-                     'DisplayName', sprintf('%.4g%s+%.4g%s%s%.4g', ...
-                     a1, nombres{1}, a2, nombres{2}, sentido{i}, b(i)));
+                     'DisplayName', etiqueta);
             end
 
             % Vértices

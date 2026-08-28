@@ -1,0 +1,78 @@
+Problema 5 — Producción metalúrgica (piezas A y B)
+====================================================
+
+DATOS DE LA IMAGEN (enunciado)
+-------------------------------------------------------------
+Proceso     | Pieza A | Pieza B | Capacidad
+-------------------------------------------------------------
+Corte       |   2 h   |   3 h   |  180 h
+Soldadura   |   4 h   |   2 h   |  240 h
+Pintura     |   1 h   |   2 h   |  120 h
+-------------------------------------------------------------
+Contribución marginal:  Pieza A = Q120     Pieza B = Q150
+
+Restricciones adicionales del enunciado:
+  - Producir al menos 20 unidades de A          (A >= 20)
+  - Producción total de al menos 50 unidades    (A + B >= 50)
+
+DATOS USADOS EN EL MODELO (c, A, b, sentido)
+-------------------------------------------------------------
+c = [120 150]                       % U = 120*A + 150*B
+A = [2 3;    b = 180   sentido <=   (Corte)
+     4 2;    b = 240   sentido <=   (Soldadura)
+     1 2;    b = 120   sentido <=   (Pintura)
+     1 0;    b =  20   sentido >=   (A >= 20)
+     1 1]    b =  50   sentido >=   (A + B >= 50)
+
+COMPARACIÓN CONTRA LA IMAGEN
+-------------------------------------------------------------
+Corte      2h A, 3h B, 180h cap.   -> coincide
+Soldadura  4h A, 2h B, 240h cap.   -> coincide
+Pintura    1h A, 2h B, 120h cap.   -> coincide
+Utilidad unitaria  Q120 A, Q150 B  -> coincide
+A >= 20                            -> coincide
+A + B >= 50                        -> coincide
+No negatividad A, B >= 0           -> implícita (no aparece en la imagen, pero
+                                       es estándar en PL y así se maneja en
+                                       IO.pl2var)
+
+RESULTADO (IO.pl2var, método gráfico)
+-------------------------------------------------------------
+Vértices de la región factible y valor de U en cada uno:
+
+   Pieza A   Pieza B      U
+     20        30        6900
+     20      46.67        9400
+     45        30        9900   <-- óptimo
+     50         0        6000
+     60         0        7200
+
+Verificación manual de los vértices:
+  (20,30)   : x=20 ∩ (A+B=50)                -> factible, U=6900
+  (20,46.67): x=20 ∩ Corte(2x+3y=180)        -> factible, U=9400
+  (45,30)   : Corte(2x+3y=180) ∩ Soldadura(4x+2y=240) -> factible, U=9900
+  (50,0)    : (A+B=50) ∩ y=0                 -> factible, U=6000
+  (60,0)    : Soldadura(4x+2y=240) ∩ y=0     -> factible, U=7200
+  Corte ∩ Pintura   -> x=0 (viola A>=20)      -> descartado
+  Soldadura ∩ Pintura -> (40,40), viola Corte (200>180) -> descartado
+
+SOLUCIÓN ÓPTIMA
+-------------------------------------------------------------
+Pieza A = 45, Pieza B = 30
+Recursos usados en el óptimo:
+  Corte:     2*45+3*30 = 180 h  (100% usado, restricción activa)
+  Soldadura: 4*45+2*30 = 240 h  (100% usado, restricción activa)
+  Pintura:   1*45+2*30 = 105 h  (de 120 h, 15 h de holgura)
+  A+B = 75 (de mínimo 50, holgura 25)
+  A = 45 (de mínimo 20, holgura 25)
+
+Utilidad máxima: U = 120*45 + 150*30 = 5400 + 4500 = Q9,900.00
+
+NOTA
+-------------------------------------------------------------
+El mensaje "Comprar 20 de materia A y 20 de materia B -> costo mínimo Q1000.00"
+que aparece en el prompt del usuario NO corresponde a este problema — es un
+fprintf residual de otro ejercicio (compra de materias primas, minimización).
+Para este problema el resultado correcto, verificado con IO.pl2var, es:
+
+  Producir 45 piezas A y 30 piezas B -> contribución máxima Q9900.00
