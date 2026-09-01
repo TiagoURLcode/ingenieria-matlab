@@ -4,6 +4,9 @@ classdef IO
     %
     % CONTENIDO
     %   Programación Lineal   pl2var, graficarPL
+    %                         (con 3 o más variables no hay método gráfico:
+    %                          usar solver, el simplex que está en la raíz de
+    %                          MATLAB y se llama desde cualquier carpeta)
     %   Teoría de Colas       mms (M/M/s, y M/M/1 con s=1), mg1 (M/G/1),
     %                         mmsPn (probabilidad de n clientes),
     %                         mmsEspera (probabilidad de esperar mas de t)
