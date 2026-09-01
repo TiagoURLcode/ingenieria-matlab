@@ -1,12 +1,13 @@
 ===============================================================================
  IE — MANUAL DE USO
- Caja de herramientas de Instalaciones Electricas / circuitos magneticos.
+ Caja de herramientas de Instalaciones Electricas.
  Todo es estatico: se llama IE.nombre(...). No hay que crear objetos.
+ En la misma carpeta vive TT, transformadores trifasicos, que se usa igual.
 ===============================================================================
 
  INSTALACION
-   Poner IE.m en el path de MATLAB, o trabajar parado en su carpeta.
-   Verificar que anda:   >> testIE          (89 lineas, todas deben dar true)
+   Poner IE.m y TT.m en el path de MATLAB, o trabajar parado en su carpeta.
+   Verificar que anda:   >> testIE          (117 controles, todos deben dar true)
 
  CONVENCIONES QUE VALEN PARA TODO
    - Angulos en GRADOS en la interfaz.
@@ -16,16 +17,24 @@
      mu0 = 4*pi*1e-7 lo pone el codigo, nunca lo pasas vos.
    - dA es crecimiento PROPORCIONAL del area del entrehierro:
        A_gap = A*(1 + dA).   dA = 0.10 significa 10% mas de area.
+   - Las funciones que empiezan con "ec" devuelven ECUACIONES SIMBOLICAS sin
+     resolver. Las que empiezan con "datos" son el atajo: le pasas un struct
+     con lo que sabes y te devuelven todo lo que se pueda despejar.
 
  INDICE
    1. FASORES Y CIRCUITOS
-      pol2rec  parZ  f2l  l2f  fasores  divV  divI  potencias
-   2. CIRCUITO MAGNETICO SIMBOLICO
-      ecuacionesB  datosB  ecuacionesSeg  datosSeg  despejar  faradayB
-   3. CIRCUITO MAGNETICO NUMERICO
-      reluctSeg  fluxO  fluxE
-   4. RECETAS
-   5. LIMITES CONOCIDOS
+      pol2rec  parZ  f2l  l2f  d2e  e2d  fasores  divV  divI  potencias
+   2. EL MOTOR DE DESPEJE
+      despejar
+   3. CIRCUITO MAGNETICO
+      ecB  datosB  ecSeg  datosSeg  faradayB  reluctSeg  fluxO  fluxE
+   4. TRANSFORMADOR MONOFASICO
+      ecTrafo  datosTrafo  trafo
+      ecPerdidas  datosPerdidas  perdidas  ecPerAprox
+   5. TRANSFORMADORES TRIFASICOS  (clase TT)
+      TT.YY  TT.DD  TT.YD  TT.DY  TT.mono
+   6. RECETAS
+   7. LIMITES CONOCIDOS
 
 
 ===============================================================================
@@ -64,13 +73,44 @@
  E_L = IE.f2l(E_F)        FASE  -> LINEA   (multiplica por sqrt(3))
  E_F = IE.l2f(E_L)        LINEA -> FASE    (divide  por sqrt(3))
 -------------------------------------------------------------------------------
- Solo MODULOS. El desfase de 30 grados no lo aplican: para eso esta fasores.
+ Solo MODULOS. El desfase de 30 grados no lo aplican: para eso esta fasores,
+ o directamente TT si es un transformador.
 
  >> IE.f2l(220)     % ans = 381.05
  >> IE.l2f(380)     % ans = 219.39
 
  Valido en sistemas equilibrados. Se lee "de fase a linea" y "de linea a
  fase": el primer caracter es lo que ENTRA.
+
+-------------------------------------------------------------------------------
+ Zy = IE.d2e(Zd)          DELTA -> ESTRELLA   (transformacion de Kennelly)
+ Zd = IE.e2d(Zy)          ESTRELLA -> DELTA
+-------------------------------------------------------------------------------
+ OJO: esto es para IMPEDANCIAS, no para tensiones. Para tensiones el par es
+ f2l / l2f. Confundirlos es el error clasico: el sqrt(3) es de tensiones,
+ el 3 es de impedancias.
+
+ EQUILIBRADO (entra un ESCALAR, sale un ESCALAR):
+     Z_Y = Z_D/3          Z_D = 3*Z_Y
+ Una carga en triangulo consume 3 veces la potencia que la MISMA impedancia
+ en estrella: por eso Z_Y = Z_D/3.
+
+ >> IE.d2e(30)      % ans = 10
+ >> IE.e2d(10)      % ans = 30
+
+ GENERAL (entra un VECTOR de 3, sale un VECTOR de 3). Orden FIJO:
+     D: [Zab; Zbc; Zca]        Y: [Za; Zb; Zc]
+   (Za es el brazo que cuelga del nodo A hacia el neutro.)
+
+     D->Y : cada brazo Y = producto de las DOS ramas D que tocan ese nodo,
+            sobre la suma de las tres.
+     Y->D : con P = Za*Zb + Zb*Zc + Zc*Za, cada rama D = P sobre el brazo Y
+            OPUESTO:  Zab = P/Zc,  Zbc = P/Za,  Zca = P/Zb
+
+ >> IE.d2e([30; 60; 90])          % desequilibrado, sale [15; 10; 30]
+ >> IE.d2e(IE.pol2rec([30;30;30],[60;60;60]))     % acepta complejos
+
+ Errores: IE:deltaDegenerado (Zab+Zbc+Zca = 0), IE:d2eTamano (ni 1 ni 3).
 
 -------------------------------------------------------------------------------
  M = IE.fasores(E_AN)
@@ -140,8 +180,53 @@
 
 
 ===============================================================================
- 2. CIRCUITO MAGNETICO SIMBOLICO
- Para despejar cualquier variable de las leyes basicas sin hacer cuentas.
+ 2. EL MOTOR DE DESPEJE
+ Todo lo simbolico de esta caja pasa por aca. Vale la pena leerlo una vez.
+===============================================================================
+
+-------------------------------------------------------------------------------
+ res = IE.despejar(eqs, S, d)
+-------------------------------------------------------------------------------
+   eqs : sistema simbolico (de IE.ecB, IE.ecTrafo, IE.ecPerdidas, ...)
+   S   : diccionario de simbolos del MISMO sistema
+   d   : struct con SOLO lo que sabes, en cualquier orden
+   res : struct con TODAS las variables que quedaron determinadas.
+         Para numero: double(res.Fi) o vpa(res.Fi, 6).
+
+ NO SE PIDE UNA INCOGNITA, A PROPOSITO.
+   La sustitucion hacia adelante determina TODO lo que los datos permitan,
+   en la misma pasada. Pedir una variable no ahorraba trabajo: solo elegia
+   cual de las ya calculadas devolver y escondia el resto. Elegis vos, del
+   struct.
+   SI UN CAMPO NO ESTA EN res, ES QUE LOS DATOS NO ALCANZARON para
+   determinarlo. Ese es el diagnostico: mira que falta.
+
+ POR QUE NO ES UN solve() PELADO
+   solve(eqs, x) exige que TODAS las ecuaciones se satisfagan moviendo
+   unicamente x. Como el sistema tiene incognitas intermedias (H, B, Rn...),
+   cualquier ecuacion que no contenga x lo vuelve insatisfacible y solve
+   devuelve VACIO aunque los datos alcancen de sobra. Verificado en R2026a.
+   Aca se hace SUSTITUCION HACIA ADELANTE, que es exactamente el metodo a
+   mano: se busca una ecuacion con una sola incognita, se despeja, se
+   propaga el valor a todas, y se repite hasta que no queda nada.
+
+ >> [eqs, S] = IE.ecSeg();
+ >> r = IE.despejar(eqs, S, struct('len',.3,'A',1e-3,'mu',5e3,'g',0));
+ >> double(r.Rn)
+    ans = 47746
+
+ S ES INDISPENSABLE: cada llamada a una "ec" crea simbolos NUEVOS, asi que
+ una N que declares vos por fuera NO es la misma N que esta adentro de eqs.
+ Usando S siempre pegan.
+
+ ERRORES Y AVISOS
+   IE:campoDesconocido     le pasaste un campo que no es del modelo
+   IE:datosContradictorios los datos violan una ecuacion
+   IE:variasSoluciones     la ecuacion era cuadratica; se toma la primera
+
+
+===============================================================================
+ 3. CIRCUITO MAGNETICO
 ===============================================================================
 
  NOMENCLATURA
@@ -158,14 +243,10 @@
    R    reluctancia                  [A-vuelta/Wb]
 
 -------------------------------------------------------------------------------
- [val, res] = IE.datosB(d, inc)
+ res = IE.datosB(d)
+ [eqs, S] = IE.ecB()
 -------------------------------------------------------------------------------
  LA QUE MAS VAS A USAR. Le pasas lo que sabes y te despeja lo que falta.
-
-   d   : struct con SOLO lo conocido, en cualquier orden
-   inc : incognita, texto ('Fi') o simbolo (S.Fi)
-   val : expresion simbolica -> pasala por double() o vpa(val,6)
-   res : struct con TODAS las variables que se determinaron de paso
 
  Modelo (4 ecuaciones):
    H = N*I/len          Ampere
@@ -174,24 +255,24 @@
    v = N*dFi            Faraday
 
  >> d = struct('mu',5000, 'len',0.3, 'N',200, 'A',1e-3, 'I',2);
- >> double(IE.datosB(d, 'Fi'))
+ >> double(IE.datosB(d).Fi)
     ans = 0.0083776
 
  Funciona en cualquier direccion:
  >> d2 = struct('mu',5000, 'len',0.3, 'N',200, 'A',1e-3, 'Fi',0.0083776);
- >> double(IE.datosB(d2, 'I'))
+ >> double(IE.datosB(d2).I)
     ans = 2.0000
 
- La 2da salida te da los pasos intermedios gratis (util para el desarrollo):
- >> [Fi, res] = IE.datosB(d, 'Fi');
- >> double(res.H)    % 1333.3 A/m
- >> double(res.B)    % 8.3776 T ... ojo, este nucleo esta saturadisimo
+ Los pasos intermedios vienen gratis en el mismo struct:
+ >> r = IE.datosB(d);
+ >> double(r.H)    % 1333.3 A/m
+ >> double(r.B)    % 8.3776 T ... ojo, este nucleo esta saturadisimo
 
- Si los datos no alcanzan te avisa y te dice que si pudo determinar.
- Si los datos se contradicen, tira error IE:datosContradictorios.
+ ecB devuelve el sistema sin resolver, por si queres manipularlo a mano.
 
 -------------------------------------------------------------------------------
- [val, res] = IE.datosSeg(d, inc)
+ res = IE.datosSeg(d)
+ [eqs, S] = IE.ecSeg()
 -------------------------------------------------------------------------------
  Igual pero sobre UN TRAMO con entrehierro. Variables disponibles:
    len  A  mu  g  dA  Rn  Rg  Rs  Fi  B  Bg
@@ -199,53 +280,15 @@
        B = densidad en el hierro, Bg = en el entrehierro.
 
  >> ds = struct('len',0.3, 'A',1e-3, 'mu',5000, 'g',1e-3, 'dA',0.10);
- >> double(IE.datosSeg(ds, 'Rs'))
+ >> double(IE.datosSeg(ds).Rs)
     ans = 7.7102e+05        % hierro 47587 + gap 723432
 
  >> ds.Fi = 1e-3;
- >> double(IE.datosSeg(ds, 'Bg'))    % 0.9091 T en el gap
- >> double(IE.datosSeg(ds, 'B'))     % 1.0000 T en el hierro (mayor: menos area)
+ >> double(IE.datosSeg(ds).Bg)    % 0.9091 T en el gap
+ >> double(IE.datosSeg(ds).B)     % 1.0000 T en el hierro (mayor: menos area)
 
--------------------------------------------------------------------------------
- [eqs, S] = IE.ecuacionesB()
- [eqs, S] = IE.ecuacionesSeg()
--------------------------------------------------------------------------------
- Devuelven el sistema simbolico SIN resolver, mas el diccionario de simbolos.
- Sirve si queres manipular las ecuaciones a mano.
-
-   eqs : vector simbolico con las leyes
-   S   : struct donde S.N es el SIMBOLO N (no un valor)
-
- S es indispensable: cada llamada crea simbolos nuevos, asi que una N que
- declares vos por fuera NO es la misma N que esta adentro de eqs. Usando S
- siempre pegan.
-
- >> [eqs, S] = IE.ecuacionesB();
- >> eqs = subs(eqs, [S.N S.A S.len S.mu], [200 1e-3 0.3 5000]);
- >> double(solve(eqs(1:3), [S.H S.B S.Fi]).Fi)      % ojo, ver abajo
-
- IMPORTANTE: solve(eqs, incognita) a secas suele devolver VACIO aunque los
- datos alcancen, porque exige satisfacer TODAS las ecuaciones moviendo una
- sola variable. Por eso existe IE.despejar. Si vas a mano, resolve para
- TODAS las incognitas juntas, no para una.
-
--------------------------------------------------------------------------------
- [val, res] = IE.despejar(eqs, S, d, inc)
--------------------------------------------------------------------------------
- El motor que usan datosB y datosSeg. Solo lo llamas directo si armaste vos
- un sistema simbolico propio.
-
- Metodo: sustitucion hacia adelante. Busca una ecuacion con UNA sola
- incognita, la despeja, propaga el valor a todas, y repite. Es literalmente
- el metodo a mano.
-
- >> [eqs, S] = IE.ecuacionesSeg();
- >> double(IE.despejar(eqs, S, ...
-        struct('len',.3, 'A',1e-3, 'mu',5e3, 'g',0), 'Rn'))
-    ans = 47746
-
- OJO con g: si no lo pasas queda como incognita y Rn no se puede despejar
- (te avisa con IE:sinSolucion). Sin entrehierro hay que escribir g = 0.
+ OJO con g: si no lo pasas queda como incognita y Rn no se puede despejar.
+ Sin entrehierro hay que escribir g = 0.
 
 -------------------------------------------------------------------------------
  [v_t, Fi_t, L] = IE.faradayB(d, I_t)
@@ -273,12 +316,6 @@
  Equivale a v = L*di/dt, pero se deja en forma de Faraday porque es la que
  hay que reconocer en el parcial.
 
-
-===============================================================================
- 3. CIRCUITO MAGNETICO NUMERICO
- Tres funciones. Con reluctSeg armas cualquier nucleo que no sea O ni E.
-===============================================================================
-
 -------------------------------------------------------------------------------
  EL STRUCT DE TRAMO  (lo comen reluctSeg, fluxO y fluxE)
 -------------------------------------------------------------------------------
@@ -296,8 +333,8 @@
    - Si das dA explicito, MANDA EL TUYO (el dato de la catedra gana).
    - Si no das ninguno, dA = 0 (sin fringing).
 
- El campo n es para tramos repetidos. Ejemplo: un U+I tiene dos contactos
- identicos, entonces gap.n = 2 y no hace falta escribir el tramo dos veces.
+ El campo n es para tramos repetidos: un U+I tiene dos contactos identicos,
+ entonces gap.n = 2 y no hace falta escribir el tramo dos veces.
 
  >> s  = struct('len',0.3, 'A',1e-3, 'mu',5000);                    % simple
  >> sg = struct('len',0.3, 'A',1e-3, 'mu',5000, 'g',1e-3, 'dA',0.1);% con gap
@@ -372,15 +409,11 @@
  >> r.L         % 0.052360 H
  >> r.B(1)      % 0.52360 T   comodo, no satura
 
- Subiendo la fmm hasta saturar:
- >> r = IE.fluxO({s, s, s, s}, 1000, 1);
-    Warning: Tramo(s) [1 2 3 4] con B = 5.24 T, por encima de Bsat = 1.50 T.
-    Este modelo es LINEAL ... el flujo es MENOR que el calculado.
- El warning NO es un error: el numero sale igual. Te esta diciendo que ese
- numero es optimista y que el caso real hay que hacerlo con la curva B-H.
+ El warning de saturacion NO es un error: el numero sale igual. Te esta
+ diciendo que ese numero es OPTIMISTA, porque el modelo es lineal y en la
+ realidad mu se desploma al saturar: el flujo real es MENOR.
 
  CONTROL QUE SIEMPRE DEBE DAR:   sum(r.caida) == r.fmm    (ley de Ampere)
-
  >> abs(sum(r.caida) - r.fmm) < 1e-9      % true
 
 -------------------------------------------------------------------------------
@@ -416,9 +449,6 @@
    -2.5000e-04     <- vuelve por la 3
  >> sum(Fi)        % 0, ley de nodos magnetica
 
- >> [Fi, Rt, r] = IE.fluxE({s, s, s}, 2, 100, 1);   % con geometria
- >> r.B                                             % densidad por pierna
-
  CONTROL QUE SIEMPRE DEBE DAR:   sum(Fi) == 0
 
  QUE DESPRECIA (leer antes de confiar en el numero):
@@ -433,7 +463,219 @@
 
 
 ===============================================================================
- 4. RECETAS
+ 4. TRANSFORMADOR MONOFASICO
+ Tres modelos, de menos a mas realista:
+   ecTrafo     -> IDEAL, solo relaciones de vueltas
+   ecPerdidas  -> con perdidas y rendimiento
+   ecPerAprox  -> circuito equivalente APROXIMADO, con Req, Xeq, Rc, Xm
+===============================================================================
+
+-------------------------------------------------------------------------------
+ r   = IE.trafo(d)             <- numerico, el que vas a usar
+ res = IE.datosTrafo(d)        <- lo mismo pero simbolico
+ [eqs, S] = IE.ecTrafo()
+-------------------------------------------------------------------------------
+ TRANSFORMADOR IDEAL: sin dispersion, sin resistencia de bobinado, sin
+ perdidas en el hierro y con corriente de magnetizacion nula (mu -> inf).
+
+   Variables: a  b  Np  Ns  Vp  Vs  Ip  Is  Zp  Zs  dFi
+
+   Vp = a*Vs      Ip = Is/a      Zp = a^2*Zs
+ La tension y la corriente van con a; la impedancia con a AL CUADRADO.
+
+ >> r = IE.trafo(struct('a',10, 'Vp',2200, 'Zs',5));
+ >> r.Vs, r.Is, r.Ip, r.Zp
+
+ trafo devuelve numeros (ya pasados por double) y ademas te copia los datos
+ de entrada al struct de salida. Acepta complejos.
+
+-------------------------------------------------------------------------------
+ r   = IE.perdidas(d)          <- numerico, entra por los DOS ENSAYOS
+ res = IE.datosPerdidas(d)     <- version simbolica, despeja en cualquier sentido
+ [eqs, S] = IE.ecPerdidas()
+-------------------------------------------------------------------------------
+ QUE REPRESENTA CADA PERDIDA
+
+   COBRE   Pcu = I^2*Req        efecto Joule en los dos devanados
+   NUCLEO  Pfe = Ph + Pe        de origen magnetico, adentro del hierro
+     Ph = kh*f*Bmax^n           HISTERESIS: la energia de dar vuelta los
+                                dominios en cada ciclo. Es el area del lazo
+                                B-H. n = 1.6 a 2 (Steinmetz).
+     Pe = ke*f^2*Bmax^2*esp^2   CORRIENTES PARASITAS (Foucault): el flujo
+                                variable induce corrientes DENTRO del hierro,
+                                que es conductor. Van con el CUADRADO del
+                                espesor de la chapa: por eso se LAMINA.
+   ADICIONALES (dispersion)     no se calculan aparte: el ensayo de
+                                cortocircuito ya las mide con el cobre.
+   MECANICAS                    no hay. El trafo no tiene partes moviles.
+
+ COMO SE CATALOGAN
+
+   1) POR SU DEPENDENCIA DE LA CARGA   <- la que importa
+        VARIABLES  Pcu, van con el CUADRADO de la corriente:
+                   Pcu(x) = x^2 * PcuNom.  En vacio valen CERO.
+        FIJAS      Pfe, dependen de la TENSION y la FRECUENCIA, no de la
+                   carga. Estan desde que energizas, aun con el secundario
+                   abierto. Tambien se las llama "de vacio".
+
+   2) POR DONDE SE PRODUCEN
+        cobre (devanados) / hierro (nucleo) / adicionales (dispersion)
+
+   3) POR EL ENSAYO QUE LAS MIDE
+        VACIO (circuito abierto, por el lado de BAJA): la corriente es la de
+          excitacion, 2-5% de la nominal, asi que el I^2*Req es despreciable.
+          El vatimetro lee Pfe.
+        CORTOCIRCUITO (por el lado de ALTA): tension chica, 3-10% de la
+          nominal, hasta la corriente nominal. El flujo va con la tension,
+          asi que Pfe es despreciable. El vatimetro lee Pcu.
+        Cada ensayo anula la otra familia. Ese es todo el truco.
+
+ RENDIMIENTO
+   eta = Pout / (Pout + Pfe + Pcu)
+   Es MAXIMO cuando las variables igualan a las fijas, Pcu = Pfe. Como
+   Pcu = x^2*PcuNom, eso pasa en   xopt = sqrt(Pfe/PcuNom).
+   Un trafo de distribucion, que pasa muchas horas con poca carga, se disena
+   a proposito con xopt < 1.
+
+ ENTRADAS de IE.perdidas (todas opcionales, se usa lo que haya)
+   Ensayo de vacio        Poc  Voc  Ioc
+   Ensayo de cortocircuito Psc  Vsc  Isc
+   Directos               Pfe  Pcu  PcuNom  Req  Xeq  Padd
+   Punto de carga         x (default 1)  I  Inom  S  Snom  V  FP  tipoFP
+   Separacion del nucleo  kh  ke  f  Bmax  esp  nst (default 1.6)
+
+ SALIDAS
+   r.Pfe r.Ph r.Pe        nucleo: total, histeresis, Foucault    [W]
+   r.Pcu r.PcuNom         cobre: en el punto y a plena carga     [W]
+   r.Padd r.Pperd         adicionales y TOTAL                    [W]
+   r.Pout r.Pin           potencia util y de entrada             [W]
+   r.eta r.etapct         rendimiento en tanto por uno y en %
+   r.x r.xopt r.etamax    carga analizada, carga de rendimiento maximo y su eta
+   r.Req r.Xeq r.Zeq      impedancia serie                       [ohm]
+   r.Rc r.Xm r.Im r.Ife   rama de excitacion                [ohm, A]
+   r.Vp_a r.RV            Vp/a del diagrama fasorial y la regulacion en %
+   r.tabla                TABLA con cada perdida: W, % del total, si es fija
+                          o variable, de que depende y que ensayo la mide
+
+ >> d = struct('Poc',80, 'Voc',240, 'Ioc',1.2, ...
+               'Psc',300, 'Vsc',120, 'Isc',6.25, ...
+               'Snom',15e3, 'V',2400, 'FP',0.85);
+ >> r = IE.perdidas(d);
+ >> r.Req        % 7.68 ohm      r.Xeq   % 17.60 ohm
+ >> r.etapct     % 97.11 %       r.RV    % 4.15 %
+ >> r.xopt       % 0.5164        r.etamax% 97.63 %
+ >> disp(r.tabla)
+      NUCLEO (Pfe)     80   21.05%   fija       tension y frecuencia   vacio
+      COBRE  (Pcu)    300   78.95%   variable   I^2*Req -> x^2         cortocircuito
+
+ OJO CON EL LADO AL QUE ESTA REFERIDO CADA VALOR
+   Las POTENCIAS no tienen lado: 80 W son 80 W se midan donde se midan.
+   Las IMPEDANCIAS si: como el ensayo de vacio se hace por BAJA y el de
+   cortocircuito por ALTA, r.Rc y r.Xm quedan referidas a BAJA y r.Req,
+   r.Xeq a ALTA. Para pasarlas al otro lado, por a^2.
+   Los V, I, Inom, S que le pases tienen que ser del MISMO lado que Req.
+
+-------------------------------------------------------------------------------
+ [eqs, S] = IE.ecPerAprox()
+-------------------------------------------------------------------------------
+ CIRCUITO EQUIVALENTE APROXIMADO. La aproximacion consiste en correr la rama
+ de excitacion a los bornes de entrada: asi toda la caida Req + jXeq queda
+ del lado de la carga y las dos ramas quedan en paralelo directo.
+
+            Ip      Req     jXeq        Is
+      o----->----[====]---[====]----->----o
+                 |     |                  |
+    Vp/a        Rc   jXm                  Vs   (carga)
+                 |     |                  |
+      o----------+-----+------------------o
+
+ Todo REFERIDO AL SECUNDARIO y en FASORES (complejos, no modulos):
+
+   Vpa = Vp/a          Vpa = Vs + Zeq*Is        Zeq = Req + j*Xeq
+   Ic  = Vpa/Rc        Im  = Vpa/(j*Xm)         Iexc = Ic + Im
+   a*Ip = Is + Iexc
+
+ >> [eqs, S] = IE.ecPerAprox();
+ >> r = IE.despejar(eqs, S, struct('Vs',240, 'Is',IE.pol2rec(50,-30), ...
+                                   'Req',0.05, 'Xeq',0.12, 'a',10));
+ >> abs(double(r.Vpa))      % 245.20 V,  a 0.92 grados
+ >> abs(double(r.Vp))       % 2451.97 V
+
+ La regulacion sale de aca: RV = (|Vpa| - |Vs|)/|Vs| * 100, y tambien la
+ calcula IE.perdidas como r.RV.
+
+
+===============================================================================
+ 5. TRANSFORMADORES TRIFASICOS  (clase TT, archivo TT.m)
+===============================================================================
+
+ Se usa igual que IE: metodos estaticos, se les pasa un struct.
+
+   TT.YY(d)    Estrella - Estrella
+   TT.DD(d)    Delta - Delta
+   TT.YD(d)    Estrella - Delta
+   TT.DY(d)    Delta - Estrella
+   TT.mono(d)  Monofasico: mismos campos, sin sqrt(3)
+
+ Cada una arma el sistema de su conexion y lo pasa por IE.despejar, asi que
+ anda en cualquier direccion. Devuelve los datos de entrada MAS todo lo que
+ se pudo despejar, ya en double.
+
+ VARIABLES (todas opcionales, se usa lo que haya)
+   V_LP  V_phiP  V_LS  V_phiS         tensiones de linea y de fase   [V]
+   I_LP  I_phiP  I_LS  I_phiS         corrientes de linea y de fase  [A]
+   ang_VLP ang_VphiP ang_VLS ang_VphiS   angulos de las tensiones  [grados]
+   ang_ILP ang_IphiP ang_ILS ang_IphiS   angulos de las corrientes [grados]
+   a        relacion de transformacion POR FASE, a = V_phiP/V_phiS   [-]
+   N_P N_S  vueltas por fase de cada devanado                        [-]
+   S        potencia aparente TRIFASICA, sqrt(3)*V_L*I_L            [VA]
+   theta    angulo del factor de potencia de la carga, + atrasado [grados]
+   desf     desfase de la conexion, ang_VLP - ang_VLS             [grados]
+
+ ANGULOS: si no pasas ninguno, se toma ang_VphiP = 0 como referencia.
+   Sin theta NO salen los angulos de las corrientes.
+
+ DE DONDE SALE EL DESFASE (no esta puesto a mano, cae solo)
+   Y : V_L = sqrt(3)*V_phi, la linea ADELANTA 30 a la fase
+       I_L = I_phi, mismo angulo
+   D : V_L = V_phi, mismo angulo
+       I_L = sqrt(3)*I_phi, la linea ATRASA 30 a la fase
+   Las bobinas del mismo nucleo van en fase (punto con punto), o sea
+   ang_VphiS = ang_VphiP. Combinando eso con las dos reglas de arriba:
+
+     conexion   V_LP/V_LS      desf     que le pasa al secundario
+     --------   -----------    -----    -------------------------
+     Y-Y        a               0       en fase
+     D-D        a               0       en fase
+     Y-D        sqrt(3)*a     +30       ATRASA 30 grados
+     D-Y        a/sqrt(3)     -30       ADELANTA 30 grados
+
+   Si tu banco esta marcado al reves (permutando dos fases) el signo se
+   invierte: es la diferencia entre Dy11 y Dy1.
+   Dos bancos de conexion distinta NO se pueden poner en paralelo: por eso
+   este desfase importa.
+
+ >> r = TT.DY(struct('V_LP',13800, 'a',10))
+    r.V_phiP = 13800      r.ang_VphiP = 0
+    r.V_LS   = 2390.23    r.ang_VLS   = 30
+    r.V_phiS = 1380       r.desf      = -30
+
+ >> r = TT.DY(struct('V_LP',13800, 'a',10, 'S',500e3, 'theta',36.87));
+ >> r.I_LP, r.ang_ILP      % 20.92 A a -66.87 grados
+                           % (-36.87 del FP, -30 mas por la delta)
+ >> r.I_LS, r.ang_ILS      % 120.77 A a -36.87 grados
+
+ CONTROL QUE SIEMPRE DEBE DAR:  sqrt(3)*V_LP*I_LP == sqrt(3)*V_LS*I_LS == S
+
+ >> m = TT.mono(struct('V_LP',2400, 'a',10, 'S',15e3, 'theta',31.79));
+ >> m.V_LS, m.I_LP, m.I_LS      % 240 V, 6.25 A, 62.5 A, desf = 0
+
+ Los archivos TT_YY.m, TT_DD.m, TT_YD.m y TT_DY.m son los apuntes viejos con
+ los diagramas; los mismos diagramas estan adentro de TT.m.
+
+
+===============================================================================
+ 6. RECETAS
 ===============================================================================
 
  --- Toroide con entrehierro, cuanto flujo y que fuerza ---------------------
@@ -447,21 +689,33 @@
  >> y  = struct('len',0.04, 'a',0.02, 'b',0.02, 'mu',4000);   % yugo
  >> gp = struct('len',5e-4, 'a',0.02, 'b',0.02, 'mu',4000, 'g',5e-4, 'n',2);
  >> r  = IE.fluxO({p, y, p, y, gp}, 1200, 0.35);
- >> r.Ftot        % 84.1 N, la fuerza para despegar la barra (los 2 contactos)
+ >> r.Ftot        % la fuerza para despegar la barra (los 2 contactos)
  >> r.frac(5)     % 0.95 -> el gap se come el 95% de la reluctancia
 
  --- Que corriente necesito para un B dado ----------------------------------
  >> d = struct('mu',5000, 'len',0.3, 'N',200, 'A',1e-3, 'B',1.2);
- >> double(IE.datosB(d, 'I'))
+ >> double(IE.datosB(d).I)
 
  --- Nucleo que no es ni O ni E: armalo con reluctSeg -----------------------
- >> R1 = IE.reluctSeg(tramo1);
- >> R2 = IE.reluctSeg(tramo2);
- >> R3 = IE.reluctSeg(tramo3);
- >> Rt = R1 + IE.parZ([R2 R3]);       % serie con un paralelo
+ >> Rt = IE.reluctSeg(t1) + IE.parZ([IE.reluctSeg(t2), IE.reluctSeg(t3)]);
  >> Fi = N*I/Rt;
 
- --- Trifasico: tabla completa y potencia -----------------------------------
+ --- Los dos ensayos -> rendimiento y regulacion de un trafo ----------------
+ >> r = IE.perdidas(struct('Poc',80,'Voc',240,'Ioc',1.2, ...
+                           'Psc',300,'Vsc',120,'Isc',6.25, ...
+                           'Snom',15e3,'V',2400,'FP',0.85));
+ >> r.etapct, r.RV, r.xopt, disp(r.tabla)
+
+ --- Rendimiento a carga parcial (el 75%, por ejemplo) ----------------------
+ >> r75 = IE.perdidas(struct('Pfe',80, 'PcuNom',300, 'Snom',15e3, ...
+                             'FP',0.85, 'x',0.75));
+ (Pfe no cambia; Pcu baja a 0.75^2 = 56% del nominal)
+
+ --- Banco trifasico D-Y: que tension y que corriente sale ------------------
+ >> r = TT.DY(struct('V_LP',13800, 'a',10, 'S',500e3, 'theta',36.87));
+ >> r.V_LS, r.I_LS, r.desf
+
+ --- Trifasico generico: tabla completa y potencia --------------------------
  >> M = IE.fasores(220);
  >> Vf = IE.pol2rec(M(1,1), M(1,2));           % fase A como complejo
  >> If = Vf / (10 + 8j);                       % carga por fase
@@ -475,7 +729,7 @@
 
 
 ===============================================================================
- 5. LIMITES CONOCIDOS
+ 7. LIMITES CONOCIDOS
 ===============================================================================
 
  - TODO EL MODELO MAGNETICO ES LINEAL. mu es constante, no hay curva B-H.
@@ -495,10 +749,25 @@
  - datosB usa un modelo de UN camino uniforme. Para nucleos con varios
    tramos distintos usa fluxO o arma con reluctSeg.
 
+ - ecTrafo es el trafo IDEAL: no tiene perdidas ni dispersion. Para eso
+   estan ecPerdidas y ecPerAprox.
+
+ - perdidas no separa las perdidas adicionales: quedan adentro de Pcu,
+   que es lo que mide el ensayo de cortocircuito.
+
+ - Con Pfe hay que dar kh/ke (o Ph, o Pe) para separar histeresis de
+   Foucault. Con un solo ensayo de vacio no se pueden separar: hay que
+   repetirlo a dos frecuencias distintas.
+
+ - TT asume las tres fases EQUILIBRADAS y el transformador IDEAL: no le
+   metas perdidas, para eso esta IE.perdidas por fase.
+
+ - TT no modela el terciario en delta ni la conexion en zig-zag.
+
 
 ===============================================================================
  SI ALGO SE ROMPE
-   >> testIE          89 controles. Si alguno da false, ahi esta el problema.
+   >> testIE          117 controles. Si alguno da false, ahi esta el problema.
    El control mas sensible es "fluxO Ampere: sum(caida)=fmm": si ese cae,
    se rompio algo en las reluctancias.
 ===============================================================================

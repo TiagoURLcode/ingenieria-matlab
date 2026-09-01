@@ -218,4 +218,64 @@ catch ME
     ok('fluxE valida indice b', strcmp(ME.identifier,'IE:fluxEPierna'));
 end
 
+%% 12 perdidas y rendimiento del transformador real
+%  Trafo de 15 kVA, 2400/240 V. Ensayo de vacio por baja, corto por alta.
+dP = struct('Poc',80, 'Voc',240, 'Ioc',1.2, ...
+            'Psc',300, 'Vsc',120, 'Isc',6.25, ...
+            'Snom',15e3, 'V',2400, 'FP',0.85, 'x',1);
+rP = IE.perdidas(dP);
+ok('perdidas Pfe = Poc',        tol(rP.Pfe, 80));
+ok('perdidas Req = Psc/Isc^2',  tol(rP.Req, 300/6.25^2));
+ok('perdidas Zeq = Vsc/Isc',    tol(rP.Zeq, 120/6.25));
+ok('perdidas Xeq pitagoras',    tol(rP.Xeq, sqrt((120/6.25)^2-(300/6.25^2)^2)));
+ok('perdidas Rc = Voc^2/Poc',   tol(rP.Rc, 240^2/80));
+ok('perdidas Ioc^2 = Ife^2+Im^2', tol(rP.Ife^2 + rP.Im^2, 1.2^2));
+ok('perdidas Pcu a plena carga', tol(rP.Pcu, 300));
+ok('perdidas total = fijas+var', tol(rP.Pperd, rP.Pfe + rP.Pcu));
+ok('perdidas balance Pin',       tol(rP.Pin, rP.Pout + rP.Pperd));
+ok('perdidas eta = Pout/Pin',    tol(rP.etapct, 100*rP.Pout/rP.Pin));
+
+%  Las FIJAS no cambian con la carga; las VARIABLES van con x^2.
+rM = IE.perdidas(setfield(dP,'x',0.5)); %#ok<SFLD>
+ok('perdidas Pfe no depende de x', tol(rM.Pfe, rP.Pfe));
+ok('perdidas Pcu va con x^2',      tol(rM.Pcu, 0.25*rP.Pcu));
+ok('perdidas Pout va con x',       tol(rM.Pout, 0.5*rP.Pout));
+
+%  Rendimiento maximo donde Pcu = Pfe  ->  xopt = sqrt(Pfe/PcuNom)
+ok('perdidas xopt = sqrt(Pfe/PcuNom)', tol(rP.xopt, sqrt(80/300)));
+rO = IE.perdidas(setfield(dP,'x',rP.xopt)); %#ok<SFLD>
+ok('perdidas en xopt: Pcu = Pfe', tol(rO.Pcu, rO.Pfe));
+ok('perdidas etamax es el maximo', rO.etapct >= rP.etapct && tol(rO.etapct, rP.etamax));
+
+%  Regulacion: el mismo LVK del diagrama fasorial, Vs como referencia
+IsP = IE.pol2rec(6.25, -acosd(0.85));
+ok('perdidas Vp/a = Vs + Zeq*Is', ...
+    abs(rP.Vp_a - (2400 + (rP.Req + 1j*rP.Xeq)*IsP)) < 1e-9);
+ok('perdidas RV coherente', tol(rP.RV, 100*(abs(rP.Vp_a)-2400)/2400));
+rA = IE.perdidas(setfield(dP,'tipoFP','adelantado')); %#ok<SFLD>
+ok('perdidas FP adelantado baja la RV', rA.RV < rP.RV);
+
+%  Catalogo: el nucleo es fija, el cobre variable, y los porcentajes suman 100
+ok('tabla clasifica nucleo como fija', ...
+    rP.tabla.Categoria(rP.tabla.Perdida=="NUCLEO (Pfe)") == "fija");
+ok('tabla clasifica cobre como variable', ...
+    rP.tabla.Categoria(rP.tabla.Perdida=="COBRE (Pcu)") == "variable");
+ok('tabla porcentajes suman 100', tol(sum(rP.tabla.PctDelTotal,'omitnan'), 100));
+
+%  Separacion del nucleo: Steinmetz y por resta
+rS = IE.perdidas(struct('kh',0.02,'ke',0.05,'f',60,'Bmax',1.2,'esp',0.5e-3, ...
+                        'Req',0.05,'I',100));
+ok('Steinmetz Ph = kh*f*Bmax^n', tol(rS.Ph, 0.02*60*1.2^1.6));
+ok('Foucault Pe va con esp^2',   tol(rS.Pe, 0.05*(60*1.2*0.5e-3)^2));
+ok('Pfe = Ph + Pe',              tol(rS.Pfe, rS.Ph + rS.Pe));
+rR = IE.perdidas(struct('Pfe',350,'Ph',220,'Pcu',400));
+ok('Pe sale por resta', tol(rR.Pe, 130));
+
+%  Version simbolica: el despeje anda en las dos direcciones
+sP = IE.datosPerdidas(struct('Pout',40e3,'eta',0.98));
+ok('despeje inverso Pperd', tol(double(sP.Pperd), 40e3/0.98 - 40e3));
+sQ = IE.datosPerdidas(struct('Pfe',350,'Req',0.05,'I',100,'S',50e3,'FP',0.8));
+ok('despeje directo Pcu',  tol(double(sQ.Pcu), 500));
+ok('despeje directo eta',  tol(double(sQ.eta), 40e3/(40e3+850)));
+
 disp('=== FIN ===');

@@ -490,6 +490,434 @@ classdef IE
         end
 
         %{
+        ecPerdidas — Modelo simbólico de las PÉRDIDAS y el RENDIMIENTO de un
+        transformador real. Se usa con IE.despejar (o con IE.datosPerdidas,
+        que es el atajo), igual que ecB y ecTrafo.
+
+        ================================================================
+         QUÉ REPRESENTA CADA PÉRDIDA
+        ================================================================
+
+        PÉRDIDAS EN EL COBRE — Pcu = I^2 * Req            [W]
+          Efecto Joule en la resistencia de los DOS devanados, primario y
+          secundario, ya referidos a un mismo lado (por eso una sola Req).
+          Es energía que se va en calentar el alambre. La corriente es la
+          de CARGA: si no hay carga, no hay cobre.
+
+        PÉRDIDAS EN EL NÚCLEO O EN EL HIERRO — Pfe = Ph + Pe   [W]
+          De origen magnético, ocurren dentro del material, y existen desde
+          que se energiza el transformador aunque el secundario esté
+          abierto. Son dos fenómenos distintos:
+
+          HISTÉRESIS — Ph = kh * f * Bmax^n     (n = 1.6 a 2, Steinmetz)
+            Energía que hay que gastar en cada ciclo para dar vuelta los
+            dominios magnéticos del hierro. Es, literalmente, el ÁREA que
+            encierra el lazo B-H, multiplicada por los f ciclos por
+            segundo. Se combate con materiales de lazo angosto: acero al
+            silicio de grano orientado.
+
+          CORRIENTES PARÁSITAS (Foucault, eddy) — Pe = ke*f^2*Bmax^2*esp^2
+            El flujo variable induce fem DENTRO del propio hierro, que
+            también es conductor. Esas corrientes circulan en cortocircuito
+            adentro del núcleo y lo calientan. Van con el CUADRADO del
+            espesor de la chapa: por eso el núcleo se LAMINA en chapas
+            finas aisladas entre sí en vez de ser macizo.
+
+        PÉRDIDAS ADICIONALES O DISPERSAS (stray)
+          El flujo de dispersión induce corrientes en el tanque, los pernos
+          y las sujeciones. NO se calculan aparte en este modelo: el ensayo
+          de cortocircuito ya las mide junto con el cobre, así que quedan
+          adentro de Pcu. (Si te las dan sueltas, IE.perdidas las acepta
+          como campo Padd.)
+
+        MECÁNICAS: no hay. El transformador no tiene partes móviles, así
+          que no hay rozamiento ni ventilación. Esas aparecen recién en las
+          máquinas rotativas.
+
+        ================================================================
+         CÓMO SE CATALOGAN
+        ================================================================
+
+        1) POR SU DEPENDENCIA DE LA CARGA  <- la clasificación que importa
+             VARIABLES : Pcu. Van con el CUADRADO de la corriente, o sea
+                         con el cuadrado de la fracción de carga:
+                         Pcu(x) = x^2 * PcuNom.  En vacío valen CERO.
+             FIJAS o CONSTANTES : Pfe. Dependen de la TENSIÓN aplicada y de
+                         la FRECUENCIA, no de la carga. Están siempre, aun
+                         con el secundario abierto, y no cambian cuando la
+                         carga sube. También se las llama "de vacío".
+
+        2) POR DÓNDE SE PRODUCEN
+             en el COBRE (los devanados)  /  en el HIERRO (el núcleo)  /
+             adicionales (dispersión)
+
+        3) POR EL ENSAYO QUE LAS MIDE
+             Ensayo de VACÍO (circuito abierto, se hace por el lado de
+               BAJA): la corriente es la de excitación, 2-5% de la nominal,
+               así que el I^2*Req es despreciable. El vatímetro lee Pfe.
+             Ensayo de CORTOCIRCUITO (por el lado de ALTA): se aplica una
+               tensión chica, 3-10% de la nominal, hasta llegar a la
+               corriente nominal. Como el flujo va con la tensión, Pfe es
+               despreciable. El vatímetro lee Pcu.
+             Los dos ensayos separan limpio las dos familias porque cada
+             uno anula a la otra. Ese es todo el truco.
+
+        RENDIMIENTO
+          eta = Pout / Pin = Pout / (Pout + Pfe + Pcu)
+          Es MÁXIMO cuando las pérdidas variables igualan a las fijas,
+          Pcu = Pfe. Como Pcu = x^2*PcuNom, eso pasa en la fracción de
+          carga  xopt = sqrt(Pfe/PcuNom)  (la calcula IE.perdidas). Un
+          trafo de distribución, que pasa muchas horas con poca carga, se
+          diseña a propósito con xopt < 1.
+
+        ================================================================
+         VARIABLES DEL MODELO
+        ================================================================
+          Pcu    pérdidas en el cobre                      [W]
+          Ph     pérdidas por histéresis                   [W]
+          Pe     pérdidas por corrientes parásitas         [W]
+          Pfe    pérdidas en el núcleo, Ph + Pe            [W]
+          Pperd  pérdidas totales, Pfe + Pcu               [W]
+          Pin    potencia de entrada                       [W]
+          Pout   potencia útil entregada a la carga        [W]
+          S      potencia aparente de la carga             [VA]
+          FP     factor de potencia de la carga            [-]
+          eta    rendimiento, 0 a 1 (no en %)              [-]
+          I      corriente de carga                        [A]
+          Inom   corriente nominal                         [A]
+          x      fracción de carga, I/Inom                 [-]
+          PcuNom pérdidas en el cobre a plena carga        [W]
+          Req    resistencia equivalente serie             [ohm]
+          V      tensión en bornes de la carga             [V]
+          V1     tensión aplicada al primario              [V]
+          Rc     resistencia que modela el núcleo          [ohm]
+          f      frecuencia                                [Hz]
+          Bmax   densidad de flujo máxima                  [T]
+          kh, ke constantes del material                   [-]
+          nst    exponente de Steinmetz, 1.6 a 2           [-]
+          esp    espesor de la laminación                  [m]
+
+        EJEMPLO
+          d = struct('Pfe',350, 'Req',0.05, 'I',100, 'S',50e3, 'FP',0.8);
+          r = IE.datosPerdidas(d);
+          double(r.eta)      % 0.9821
+        %}
+        function [eqs, S] = ecPerdidas()
+            nom = {'Pcu','Ph','Pe','Pfe','Pperd','Pin','Pout','S','FP', ...
+                'eta','I','Inom','x','PcuNom','Req','V','V1','Rc', ...
+                'f','Bmax','kh','ke','nst','esp'};
+            S   = cell2struct(cellfun(@sym, nom, 'UniformOutput', false)', ...
+                nom', 1);
+
+            eqs = [ S.Pcu   == S.I^2 * S.Req              % Joule en los devanados
+                S.Ph    == S.kh * S.f * S.Bmax^S.nst      % Steinmetz: histéresis
+                S.Pe    == S.ke * (S.f*S.Bmax*S.esp)^2    % Foucault: va con esp^2
+                S.Pfe   == S.Ph + S.Pe                    % el núcleo son las dos
+                S.Pfe   == S.V1^2 / S.Rc                  % rama de excitación
+                S.Pperd == S.Pfe + S.Pcu                  % fijas + variables
+                S.S     == S.V * S.I                      % aparente de la carga
+                S.Pout  == S.S * S.FP                     % útil = aparente * FP
+                S.Pin   == S.Pout + S.Pperd               % balance de potencia
+                S.eta   == S.Pout / S.Pin                 % rendimiento
+                S.I     == S.x * S.Inom                   % fracción de carga
+                S.Pcu   == S.x^2 * S.PcuNom ];            % el cobre va con x^2
+        end
+
+        %{
+        datosPerdidas — Atajo sobre el modelo de pérdidas.
+          d : struct con lo conocido, en cualquier orden.
+        Devuelve un struct con TODO lo que los datos permitan despejar.
+        Funciona en cualquier dirección: si le das el rendimiento y la
+        salida, te saca las pérdidas.
+
+        Ej: double(IE.datosPerdidas(struct('Pout',40e3,'eta',0.98)).Pperd)
+        %}
+        function res = datosPerdidas(d)
+            [eqs, S] = IE.ecPerdidas();
+            res = IE.despejar(eqs, S, d);
+        end
+
+        %{
+        perdidas — Balance de pérdidas y rendimiento a partir de los DOS
+        ENSAYOS, que es como viene el dato en el parcial. Numérico, no
+        simbólico. La teoría de qué es cada pérdida está en IE.ecPerdidas.
+
+          r = IE.perdidas(d)
+
+        ENTRADAS (struct d, todos los campos opcionales: se usa lo que haya)
+
+          Ensayo de VACÍO — mide las pérdidas FIJAS
+            Poc  potencia leída [W]      -> es directamente Pfe
+            Voc  tensión aplicada [V]    -> con Poc da Rc
+            Ioc  corriente de excitación [A] -> da FP0, Im, Xm
+
+          Ensayo de CORTOCIRCUITO — mide las pérdidas VARIABLES
+            Psc  potencia leída [W]      -> con Isc da Req
+            Vsc  tensión aplicada [V]    -> con Isc da Zeq y Xeq
+            Isc  corriente [A]           -> si es la nominal, Psc = PcuNom
+
+          Datos directos, por si no hay ensayos
+            Pfe, Pcu, PcuNom, Req, Xeq   [W, W, W, ohm, ohm]
+            Padd  pérdidas adicionales   [W]   (default 0)
+
+          Punto de carga que se quiere analizar
+            x     fracción de carga (0.75 = al 75%)   (default 1)
+            I     corriente de carga [A]
+            Inom  corriente nominal  [A]
+            S     potencia aparente de la carga [VA]
+            Snom  potencia aparente nominal (la de placa) [VA]
+            V     tensión en bornes de la carga [V]
+            FP    factor de potencia de la carga (default 1)
+            tipoFP 'atrasado' (default) o 'adelantado'
+
+          Separación del núcleo (opcional, para partir Pfe en dos)
+            kh, ke, f, Bmax, esp, nst    (nst default 1.6)
+            Alcanza con dar Ph o Pe para que salga la otra por resta.
+
+        SALIDA (struct r, con los campos que los datos permitan)
+            r.Pfe r.Ph r.Pe    núcleo: total, histéresis, Foucault  [W]
+            r.Pcu r.PcuNom     cobre: en el punto y a plena carga   [W]
+            r.Padd r.Pperd     adicionales y TOTAL de pérdidas      [W]
+            r.Pout r.Pin       potencia útil y de entrada           [W]
+            r.eta r.etapct     rendimiento en tanto por uno y en %
+            r.x                fracción de carga analizada          [-]
+            r.xopt r.etamax    carga de rendimiento MÁXIMO y su eta
+            r.Req r.Xeq r.Zeq  impedancia serie equivalente       [ohm]
+            r.Rc r.Xm r.Im     rama de excitación             [ohm, A]
+            r.Vp_a r.RV        Vp/a del diagrama fasorial y la
+                               regulación de tensión en %
+            r.tabla            TABLA con cada pérdida: cuántos W, qué
+                               porcentaje del total, si es fija o
+                               variable, de qué depende y qué ensayo la
+                               mide. Es el resumen para copiar al examen:
+                               >> disp(r.tabla)
+
+        OJO CON EL LADO AL QUE ESTÁ REFERIDO CADA VALOR
+          Las POTENCIAS no tienen lado: 80 W de núcleo son 80 W se midan
+          donde se midan. Las IMPEDANCIAS sí: como el ensayo de vacío se
+          hace por BAJA y el de cortocircuito por ALTA, r.Rc y r.Xm quedan
+          referidas al lado de BAJA y r.Req, r.Xeq al de ALTA. Para pasarlas
+          al otro lado hay que multiplicar o dividir por a^2 (ver IE.trafo).
+          Los campos V, I, Inom, S que le pases tienen que ser todos del
+          MISMO lado que Req y Xeq, porque con esos se calculan Pcu y la
+          regulación.
+
+        REGULACIÓN: se calcula con Vs como referencia a 0 grados, o sea
+          Vp/a = Vs + (Req + j*Xeq)*Is,   RV = (|Vp/a| - Vs)/Vs * 100
+          El signo del ángulo de Is lo pone tipoFP: atrasado -> negativo.
+
+        EJEMPLO (ensayos de un trafo de 15 kVA, 2400/240 V)
+          d = struct('Poc',80, 'Voc',240, 'Ioc',1.2, ...
+                     'Psc',300, 'Vsc',120, 'Isc',6.25, ...
+                     'Snom',15e3, 'V',2400, 'FP',0.85, 'x',1);
+          r = IE.perdidas(d);
+          r.etapct        % rendimiento a plena carga
+          r.xopt          % a qué fracción de carga rinde más
+          disp(r.tabla)   % el catálogo de pérdidas
+        %}
+        function r = perdidas(d)
+            if nargin < 1, d = struct(); end
+            def = struct('nst',1.6, 'FP',1, 'tipoFP','atrasado', 'Padd',0, 'x',1);
+            nd  = fieldnames(def);
+            for k = 1:numel(nd)
+                if ~isfield(d, nd{k}), d.(nd{k}) = def.(nd{k}); end
+            end
+            hay = @(k) isfield(d,k) && ~isempty(d.(k));
+            r   = struct();
+
+            %% ENSAYO DE VACÍO -> pérdidas FIJAS y rama de excitación.
+            %  La corriente de excitación es 2-5% de la nominal, así que el
+            %  I^2*Req del cobre es despreciable: lo que lee el vatímetro
+            %  es el núcleo.
+            if hay('Poc'), r.Pfe = d.Poc; end
+            if hay('Poc') && hay('Voc')
+                r.Rc = d.Voc^2 / d.Poc;
+                if hay('Ioc')
+                    r.FP0 = d.Poc / (d.Voc*d.Ioc);
+                    r.Ife = d.Poc / d.Voc;                        % en fase con V
+                    r.Im  = sqrt(max(d.Ioc^2 - r.Ife^2, 0));      % magnetizante
+                    if r.Im > 0, r.Xm = d.Voc / r.Im; end
+                end
+            end
+
+            %% ENSAYO DE CORTOCIRCUITO -> pérdidas VARIABLES e impedancia serie.
+            %  La tensión aplicada es 3-10% de la nominal, y el flujo va con
+            %  la tensión: el núcleo casi no trabaja y el vatímetro lee cobre.
+            if hay('Psc') && hay('Isc')
+                r.Req    = d.Psc / d.Isc^2;
+                r.PcuNom = d.Psc;              % vale si el ensayo llegó a Inom
+                if hay('Vsc')
+                    r.Zeq = d.Vsc / d.Isc;
+                    r.Xeq = sqrt(max(r.Zeq^2 - r.Req^2, 0));
+                end
+                if ~hay('Inom'), d.Inom = d.Isc; end
+            end
+            if hay('Pfe'), r.Pfe = d.Pfe; end          % el dato directo manda
+            if hay('Req'), r.Req = d.Req; end
+            if hay('Xeq'), r.Xeq = d.Xeq; end
+            if isfield(r,'Req') && isfield(r,'Xeq')
+                r.Zeq = hypot(r.Req, r.Xeq);
+            end
+
+            %% PUNTO DE CARGA
+            r.x = d.x;
+            if hay('I') && hay('Inom'),  r.x = d.I/d.Inom;   end
+            if hay('S') && hay('Snom'),  r.x = d.S/d.Snom;   end
+            if hay('I'),                       r.I = d.I;
+            elseif hay('Inom'),                r.I = r.x*d.Inom;
+            elseif hay('S') && hay('V'),       r.I = d.S/d.V;
+            elseif hay('Snom') && hay('V'),    r.I = r.x*d.Snom/d.V;
+            end
+
+            %% COBRE: I^2*Req, o el escalado x^2 desde el valor nominal
+            if hay('PcuNom'), r.PcuNom = d.PcuNom; end
+            if ~isfield(r,'PcuNom') && isfield(r,'Req') && hay('Inom')
+                r.PcuNom = d.Inom^2 * r.Req;
+            end
+            if hay('Pcu'),                                r.Pcu = d.Pcu;
+            elseif isfield(r,'Req') && isfield(r,'I'),    r.Pcu = r.I^2 * r.Req;
+            elseif isfield(r,'PcuNom'),                   r.Pcu = r.x^2 * r.PcuNom;
+            end
+
+            %% NÚCLEO: separación histéresis / Foucault, si hay constantes
+            if hay('kh') && hay('f') && hay('Bmax')
+                r.Ph = d.kh * d.f * d.Bmax^d.nst;
+            end
+            if hay('ke') && hay('f') && hay('Bmax') && hay('esp')
+                r.Pe = d.ke * (d.f*d.Bmax*d.esp)^2;
+            end
+            if hay('Ph'), r.Ph = d.Ph; end
+            if hay('Pe'), r.Pe = d.Pe; end
+            if  isfield(r,'Ph') &&  isfield(r,'Pe') && ~isfield(r,'Pfe')
+                r.Pfe = r.Ph + r.Pe;
+            elseif isfield(r,'Pfe') && isfield(r,'Ph') && ~isfield(r,'Pe')
+                r.Pe = r.Pfe - r.Ph;
+            elseif isfield(r,'Pfe') && isfield(r,'Pe') && ~isfield(r,'Ph')
+                r.Ph = r.Pfe - r.Pe;
+            end
+
+            %% SALIDA, ENTRADA Y RENDIMIENTO
+            r.Padd = d.Padd;
+            if hay('S'),                        r.S = d.S;
+            elseif hay('Snom'),                 r.S = r.x*d.Snom;
+            elseif hay('V') && isfield(r,'I'),  r.S = d.V*r.I;
+            end
+            if hay('Pout'),          r.Pout = d.Pout;
+            elseif isfield(r,'S'),   r.Pout = r.S * d.FP;
+            end
+            if isfield(r,'Pfe') && isfield(r,'Pcu')
+                r.Pperd = r.Pfe + r.Pcu + r.Padd;
+                if isfield(r,'Pout')
+                    r.Pin    = r.Pout + r.Pperd;
+                    r.eta    = r.Pout / r.Pin;
+                    r.etapct = 100*r.eta;
+                end
+                %  MÁXIMO RENDIMIENTO: donde las variables igualan a las
+                %  fijas, Pcu = Pfe. Como Pcu = x^2*PcuNom, sale la raíz.
+                if isfield(r,'PcuNom') && r.PcuNom > 0
+                    r.xopt = sqrt(r.Pfe / r.PcuNom);
+                    if hay('Snom')
+                        Po = r.xopt * d.Snom * d.FP;
+                        r.etamax = 100 * Po / (Po + 2*r.Pfe + r.Padd);
+                    end
+                end
+            end
+
+            %% REGULACIÓN — el diagrama fasorial: Vs a 0 grados de referencia
+            if isfield(r,'Req') && isfield(r,'Xeq') && isfield(r,'I') && hay('V')
+                th = acosd(min(max(d.FP,-1),1));
+                if strcmpi(d.tipoFP,'adelantado'), th = +th; else, th = -th; end
+                Is     = IE.pol2rec(r.I, th);
+                r.Vp_a = d.V + (r.Req + 1j*r.Xeq)*Is;
+                r.RV   = 100*(abs(r.Vp_a) - d.V)/d.V;
+            end
+
+            %% TABLA-CATÁLOGO: qué es cada pérdida y en qué casilla cae
+            nombre = {}; W = []; cat = {}; dep = {}; ens = {};
+            if isfield(r,'Ph')
+                nombre{end+1} = 'Histeresis';
+                W(end+1) = r.Ph;  cat{end+1} = 'fija';
+                dep{end+1} = 'kh*f*Bmax^n';   ens{end+1} = 'vacio';
+            end
+            if isfield(r,'Pe')
+                nombre{end+1} = 'Corrientes parasitas';
+                W(end+1) = r.Pe;  cat{end+1} = 'fija';
+                dep{end+1} = 'ke*f^2*Bmax^2*esp^2';  ens{end+1} = 'vacio';
+            end
+            if isfield(r,'Pfe')
+                nombre{end+1} = 'NUCLEO (Pfe)';
+                W(end+1) = r.Pfe; cat{end+1} = 'fija';
+                dep{end+1} = 'tension y frecuencia';  ens{end+1} = 'vacio';
+            end
+            if isfield(r,'Pcu')
+                nombre{end+1} = 'COBRE (Pcu)';
+                W(end+1) = r.Pcu; cat{end+1} = 'variable';
+                dep{end+1} = 'I^2*Req  ->  x^2';  ens{end+1} = 'cortocircuito';
+            end
+            if r.Padd ~= 0
+                nombre{end+1} = 'Adicionales';
+                W(end+1) = r.Padd; cat{end+1} = 'variable';
+                dep{end+1} = 'flujo de dispersion';  ens{end+1} = 'cortocircuito';
+            end
+            if ~isempty(nombre)
+                if isfield(r,'Pperd'), tot = r.Pperd; else, tot = NaN; end
+                pct = 100*W(:)/tot;
+                %  Las subfilas de histéresis y Foucault no se cuentan en el
+                %  porcentaje: ya están adentro de la fila del núcleo.
+                sub = ismember(nombre, {'Histeresis','Corrientes parasitas'});
+                pct(sub) = NaN;
+                r.tabla = table(string(nombre(:)), W(:), pct, string(cat(:)), ...
+                    string(dep(:)), string(ens(:)), 'VariableNames', ...
+                    {'Perdida','W','PctDelTotal','Categoria','Depende','Ensayo'});
+            end
+        end
+
+        %{
+        ecPerAprox — CIRCUITO EQUIVALENTE APROXIMADO del transformador real.
+        Aproximación: la rama de excitación (Rc // jXm) se corre a los bornes
+        de entrada, así que toda la caída Req + jXeq queda del lado de la
+        carga y las dos ramas quedan en paralelo directo. Es el modelo del
+        diagrama fasorial: Vp/a = Vs + (Req + jXeq)*Is.
+
+                  Ip      Req     jXeq        Is
+            o----->----[====]---[====]----->----o
+                       |     |                  |
+          Vp/a        Rc   jXm                  Vs   (carga)
+                       |     |                  |
+            o----------+-----+------------------o
+
+        Todo REFERIDO AL SECUNDARIO y en FASORES (complejos, no módulos).
+          Vpa  = Vp/a, tensión del primario referida  [V]
+          Vp   tensión aplicada al primario           [V]
+          Vs   tensión en bornes de la carga          [V]
+          a    relación de transformación             [-]
+          Is   corriente de carga                     [A]
+          Ip   corriente del primario                 [A]
+          Zeq  impedancia serie, Req + j*Xeq          [ohm]
+          Rc   rama de pérdidas del núcleo            [ohm]
+          Xm   rama de magnetización                  [ohm]
+          Iexc corriente de excitación, Ic + Im       [A]
+
+        Ej: [eqs,S] = IE.ecPerAprox();
+            r = IE.despejar(eqs, S, struct('Vs',240,'Is',IE.pol2rec(50,-30), ...
+                                           'Req',0.05,'Xeq',0.12,'a',10));
+        %}
+        function [eqs, S] = ecPerAprox()
+            nom = {'Vpa','Vp','Vs','a','Is','Ip','Zeq','Req','Xeq', ...
+                'Rc','Xm','Iexc','Ic','Im'};
+            S   = cell2struct(cellfun(@sym, nom, 'UniformOutput', false)', ...
+                nom', 1);
+
+            eqs = [ S.Vpa  == S.Vp / S.a              % referir el primario
+                S.Vpa  == S.Vs + S.Zeq*S.Is       % LVK: la de la foto
+                S.Zeq  == S.Req + 1j*S.Xeq        % impedancia serie
+                S.Ic   == S.Vpa / S.Rc            % pérdidas del núcleo
+                S.Im   == S.Vpa / (1j*S.Xm)       % magnetización
+                S.Iexc == S.Ic + S.Im             % rama de excitación
+                S.a*S.Ip == S.Is + S.Iexc ];      % LCK en el nodo de entrada
+        end
+
+        %{
         ecSeg — Modelo simbólico de UN tramo con entrehierro.
         Mismo modelo que IE.reluctSeg, en versión simbólica.
           A_gap = A*(1 + dA)  -> crecimiento PROPORCIONAL por fringing.
