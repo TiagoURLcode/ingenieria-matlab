@@ -11,10 +11,11 @@ function sol = solver(c, A, b, sentido, tipo, varargin)
 %  de dos fases y la ramificación para variables enteras están acá adentro.
 %
 %  DÓNDE VIVE
-%    solver.m está en la raíz de MATLAB (la userpath), que es la PRIMERA
-%    carpeta del path. Se llama desde cualquier materia sin agregar nada al
-%    path y sin copiar el archivo. Su suite de pruebas es testSolver.m, al
-%    lado. El ejemplo resuelto paso a paso está en IO/IOsolver.m.
+%    solver.m está en la carpeta IO, al lado de IO.m. Se llama estando en IO,
+%    o desde cualquier otra carpeta si IO está agregada al path de MATLAB
+%    (Home > Set Path > Add Folder, o addpath en el startup.m). Su suite de
+%    pruebas es testSolver.m y el ejemplo resuelto paso a paso es IOsolver.m,
+%    los dos en la misma carpeta.
 %
 %  EQUIVALENCIAS CON EXCEL
 %    Celda objetivo          ->  c   (coeficientes de la función objetivo)

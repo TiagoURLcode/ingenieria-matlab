@@ -1,8 +1,8 @@
 % testSolver — suite de regresión de solver.m. Correr con: testSolver
 % Cada línea imprime true/false. Todo debe dar true.
-% solver.m vive en la raíz de MATLAB (userpath), así que se ve desde cualquier
-% carpeta. La carpeta IO se agrega acá solo para contrastar contra IO.pl2var.
-addpath(fullfile(fileparts(mfilename('fullpath')), 'IO'));
+% solver.m e IO.m viven en esta misma carpeta (IO). Se agrega al path acá para
+% poder correr las pruebas desde cualquier carpeta.
+addpath(fileparts(mfilename('fullpath')));
 hayIO = exist('IO','class') == 8;
 ok  = @(n,c) fprintf('%-40s %s\n', n, string(c));
 tol = @(a,b) abs(a-b) <= 1e-6*max(1,abs(b));
