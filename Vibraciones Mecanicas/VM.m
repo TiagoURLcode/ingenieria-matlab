@@ -854,6 +854,171 @@ classdef VM
             end
         end
 
+
+        function [tt, xx, vv, num] = trayA(varargin)
+            % TRAYECTORIA - x(t) y v(t) por ESPACIO DE ESTADOS, un solo
+            % camino para los tres regimenes. No clasifica para elegir
+            % formula, no despeja y no baja nada con matlabFunction: solo
+            % numeros. Es el camino RAPIDO, pensado para redibujar en vivo.
+            %
+            % ENTRADAS (pares nombre-valor o struct, ver VM.datos):
+            %   m, k    : masa [kg] y rigidez EQUIVALENTE [N/m]. Obligatorias
+            %   c       : coeficiente de amortiguamiento           [N*s/m]
+            %   z       : alternativa a c. Si llega z y no c, c = z*ccr.
+            %             Es por donde entra el slider de un panel
+            %   x0, v0  : condiciones iniciales [m] y [m/s].
+            %             Por defecto x0 = 1, v0 = 0
+            %   tf      : tiempo final [s]. Si no se da, sale solo: 4
+            %             periodos amortiguados si es sub, 6/wn si no
+            %   npts    : puntos de la curva [adim]. Por defecto 500. Se
+            %             llama npts y no n porque n ya son los ciclos del
+            %             decremento (ver VM.ecSubA)
+            % SALIDAS:
+            %   tt   : tiempos, 1 x npts, IGUAL ESPACIADOS         [s]
+            %   xx   : posicion en cada tiempo                     [m]
+            %   vv   : velocidad en cada tiempo                    [m/s]
+            %   num  : struct con los escalares del caso: regimen, wn, ccr,
+            %          z, wd, s1, s2, X y env. env es un VECTOR: la
+            %          envolvente evaluada en tt. wd, X y env salen NaN
+            %          cuando el caso no oscila, porque ahi no existen
+            %
+            %   [t,x,v,n] = VM.trayA('m',0.2, 'k',50, 'z',0.25, 'v0',4);
+            %   plot(t,x);   n.regimen
+            %
+            % COMO. Se baja la ecuacion de segundo orden a un sistema de
+            % PRIMER orden con dos estados, la posicion y la velocidad:
+            %   y = [x; v]      y' = A*y      A = [0 1; -k/m  -c/m]
+            % La solucion exacta de eso es y(t+dt) = expm(A*dt)*y(t). Como
+            % tt esta IGUAL ESPACIADO, expm(A*dt) es la misma matriz en
+            % todos los pasos: se calcula UNA vez y el resto son productos
+            % matriz-vector. Por eso es rapido y por eso es exacto.
+            %
+            % POR QUE ESTO Y NO LAS FORMULAS CERRADAS DE ecSubA/ecCritA/
+            % ecSobreA:
+            %   - Un solo camino, sin elegir formula segun el caso. No
+            %     queda nada que se pueda romper al cruzar z = 1.
+            %   - v(t) sale sola: es el segundo estado, no hay que derivar.
+            %   - Los autovalores de A SON s1 y s2, sin formula aparte.
+            % Las formulas cerradas NO se van: siguen siendo lo que se
+            % estudia y lo que resuelve hacia atras (de x1 y x2 hacia c).
+            % Este metodo las acompania y sirve de segunda opinion: los dos
+            % caminos tienen que dar lo mismo. Si no coinciden, uno esta mal.
+            %
+            % POR QUE expm Y NO eig. En z = 1 exacto la matriz es
+            % DEFECTIVA: los dos autovalores se juntan en -wn pero hay un
+            % solo autovector, asi que A no se puede diagonalizar. eig
+            % igual devuelve algo, con cond(V) ~ 1e9, y se pierden unos
+            % seis digitos JUSTO en el punto que mas interesa mirar. expm
+            % no diagonaliza (usa escalado y cuadrado con Pade) y ahi sigue
+            % exacta. Medido: 4e-10 de error relativo por eig contra 6e-16.
+            %
+            % POR QUE NO ode45. El sistema es LINEAL y tiene solucion
+            % exacta; integrar con paso adaptativo es aproximado y ademas
+            % mas lento. Medido sobre 500 puntos: ode45 252 ms contra
+            % 3.2 ms de expm punto por punto. No hay ningun sentido.
+            %
+            % OJO - dt UNIFORME. El propagador vale porque todos los pasos
+            % miden lo mismo. Si algun dia se acepta un tt arbitrario,
+            % expm(A*dt) deja de ser una sola matriz y hay que recalcularla
+            % en cada paso.
+
+            d = VM.datos(varargin);   % struct de datos, venga como pares o ya armado
+            if ~isfield(d,'x0') || isempty(d.x0), d.x0 = 1; end   % x(0) [m]
+            if ~isfield(d,'v0') || isempty(d.v0), d.v0 = 0; end   % xpunto(0) [m/s]
+
+            % tf y npts son opciones del MUESTREO, no variables del modelo.
+            tf = [];      % vacio = sin decidir; mas abajo se calcula solo
+            if isfield(d,'tf'),   tf   = d.tf;   d = rmfield(d,'tf');   end
+            npts = 500;
+            if isfield(d,'npts'), npts = d.npts; d = rmfield(d,'npts'); end
+
+            if ~all(isfield(d, {'m','k'}))
+                error('VM:faltaDato', 'VM.trayA necesita m y k.');
+            end
+            m = d.m;   % masa [kg]
+            k = d.k;   % rigidez equivalente [N/m]
+
+            wn  = sqrt(k/m);   % frecuencia natural NO amortiguada [rad/s]
+            ccr = 2*m*wn;      % amortiguamiento critico [N*s/m]
+
+            % ENTRADA POR c O POR z, no las dos. El panel entra por z
+            % (el slider barre regimenes); un enunciado entra por c.
+            if isfield(d,'c') && ~isempty(d.c)
+                c = d.c;
+            elseif isfield(d,'z') && ~isempty(d.z)
+                c = d.z*ccr;   % la definicion de zeta, despejada al reves
+            else
+                error('VM:faltaDato', ...
+                    'VM.trayA necesita c o z ademas de m y k.');
+            end
+            z = c/ccr;   % relacion de amortiguamiento [adim]
+
+            % EL REGIMEN ES SOLO UNA ETIQUETA, y sale de VM.clasifA para no
+            % duplicar aca la tolerancia del 0.5%. Ojo con la diferencia
+            % contra VM.graficarA: alla esa tolerancia CAMBIA LA CURVA,
+            % porque fuerza la formula del critico sobre un sistema que no
+            % lo es. Aca no toca nada: el propagador es exacto pase lo que
+            % pase, y la tolerancia solo decide que dice el cartel.
+            regimen = VM.clasifA('m',m, 'c',c, 'k',k);
+
+            if isempty(tf)   % no diste tf: se elige donde se vea el transitorio
+                if strcmp(regimen, 'sub')
+                    tf = 4*(2*pi)/(wn*sqrt(1 - z^2));   % 4 periodos amortiguados
+                else
+                    tf = 6/wn;                          % 6 constantes de tiempo
+                end
+            end
+
+            tt = linspace(0, tf, npts);   % tiempos igual espaciados [s]
+            dt = tt(2) - tt(1);           % paso, constante por construccion [s]
+
+            % A: matriz del sistema. La primera fila dice xpunto = v; la
+            % segunda es m*x'' + c*x' + k*x = 0 despejada en x''.
+            A   = [0 1; -k/m -c/m];
+            Phi = expm(A*dt);   % propagador de un paso; la MISMA para todos
+
+            yy = zeros(2, npts);          % fila 1 posicion, fila 2 velocidad
+            yy(:,1) = [d.x0; d.v0];       % estado inicial
+            for i = 2:npts
+                yy(:,i) = Phi*yy(:,i-1);  % un paso exacto de dt
+            end
+            xx = yy(1,:);   % posiciones [m]
+            vv = yy(2,:);   % velocidades [m/s]
+
+            % s1 y s2: autovalores de A. Se ordenan por parte real de mayor
+            % a menor para que s1 sea la MENOS negativa, igual que en
+            % VM.ecSobreA. Con z < 1 salen complejas conjugadas y s1 se
+            % queda con la parte imaginaria positiva.
+            s = eig(A);
+            [~, idx] = sortrows([real(s), imag(s)], [-1 -2]);
+            s = s(idx);
+
+            num = struct('regimen',regimen, 'wn',wn, 'ccr',ccr, 'z',z, ...
+                's1',s(1), 's2',s(2));
+
+            if z < 1
+                num.wd = wn*sqrt(1 - z^2);   % frecuencia amortiguada [rad/s]
+
+                % ENVOLVENTE SACADA DE LA PROPIA TRAYECTORIA, no de una
+                % copia de la formula de ecSubA. Con
+                %   x = e^(-z*wn*t)*(C1*cos(wd*t) + C2*sin(wd*t))
+                % se deriva que (v + z*wn*x)/wd = e^(-z*wn*t)*(C2*cos - C1*sen),
+                % y la suma de los cuadrados mata los senos y cosenos:
+                %   x^2 + ((v + z*wn*x)/wd)^2 = (C1^2 + C2^2)*e^(-2*z*wn*t)
+                % o sea la raiz de eso ES X*e^(-z*wn*t), la envolvente.
+                % Asi no se repite la formula y queda consistente con la
+                % curva por construccion: si xx esta bien, env esta bien.
+                num.env = sqrt(xx.^2 + ((vv + z*wn*xx)/num.wd).^2);
+                num.X   = num.env(1);   % la envolvente en t=0 es la amplitud
+            else
+                % Sin oscilacion no hay wd, ni amplitud, ni envolvente que
+                % apriete los picos: no hay picos. NaN y no cero, que seria
+                % mentir con un numero.
+                num.wd  = NaN;
+                num.X   = NaN;
+                num.env = nan(1, npts);
+            end
+        end
         function [fig, regimen] = graficarA(varargin)
             % GRAFICA x(t), eligiendo la formula sola segun z (mismo criterio
             % que VM.amortA).
@@ -898,7 +1063,7 @@ classdef VM
                 % eqs: las ecuaciones simbolicas del caso. S: los simbolos
                 % (S.x, S.t, S.m, ...) con que estan escritas.
                 case 'sub',     [eqs, S] = VM.ecSubA();
-                case 'critico', [eqs, S] = VM.ecCritA();  d = VM.sinC(d);   % sinC: saca c, en el critico no es dato
+                case 'critico', [eqs, S] = VM.ecCritA();  d = VM.sinZ(VM.sinC(d));   % sinC: saca c, en el critico no es dato. sinZ: saca z, ecCritA ni siquiera tiene ese simbolo
                 case 'sobre',   [eqs, S] = VM.ecSobreA();
             end
 
@@ -1025,6 +1190,37 @@ classdef VM
             % no aporta nada y solo estorba.
             if all(isfield(d, {'m','k','c'}))
                 d = rmfield(d, 'c');
+            end
+        end
+
+        function d = sinZ(d)
+            % Saca z de los datos para el caso CRITICO. Es el gemelo de
+            % sinC, pero por un motivo mas duro: ecCritA NO TIENE el simbolo
+            % z. En el critico z vale 1 por DEFINICION, asi que deja de ser
+            % variable del modelo y no figura en el diccionario. Si z se
+            % queda en el struct, despejar la busca ahi, no la encuentra y
+            % aborta con VM:campoDesconocido sobre datos que SI son
+            % criticos. Se veia entrando por z a VM.graficarA: con z = 0.9 y
+            % con z = 1.1 andaba, y moria justo en la banda del 0.5% que
+            % VM.clasifA llama 'critico'.
+            % Por eso no lleva la guarda de campos de sinC: alla c es una
+            % variable legitima de ecCritA y solo estorba cuando viene
+            % redondeada junto a m y k; aca z estorba siempre.
+            % El dato no se pierde: el caso ya lo decidio VM.clasifA leyendo
+            % esa misma z, y VM.graficarA repone z = 1 despues del despeje
+            % para el titulo y para el rango de tiempo.
+            %
+            % LO QUE NO CUBRE. Sacar z quita informacion, y lo que queda
+            % tiene que alcanzar para llegar a wn, que es lo unico que la
+            % x(t) del critico necesita ademas de x0 y v0. Alcanzan m y k,
+            % o wn sola, o c con m, o c con k. NO alcanza z junto con c y
+            % nada mas: de ahi ecCritA saca ccr = c y se queda ahi, porque
+            % ccr = 2*m*wn deja dos incognitas. En ese caso graficarA corta
+            % con VM:faltaDato pidiendo m y k, que es el error correcto.
+            % No se fuerza nada: m o k son dato del enunciado, no algo que
+            % esta funcion pueda inventar.
+            if isfield(d, 'z')
+                d = rmfield(d, 'z');
             end
         end
 
