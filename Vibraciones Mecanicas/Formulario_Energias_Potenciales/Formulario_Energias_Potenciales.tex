@@ -1,0 +1,587 @@
+% =====================================================================
+%  FORMULARIO Y GUÍA GRÁFICA — ENERGÍAS POTENCIALES Y ESTABILIDAD
+%  Vibraciones Mecánicas y Mecánica Analítica
+%  Universidad Rafael Landívar - Facultad de Ingeniería
+%  Autor: Santiago Cruz Rivera - Carné 1310823
+%  Compilar con: pdflatex Formulario_Energias_Potenciales.tex
+% =====================================================================
+\documentclass[10pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-noshorthands,es-tabla]{babel}
+\usepackage{amsmath,amssymb,amsfonts,mathtools}
+\usepackage[margin=1.15cm,top=1.0cm,bottom=1.2cm]{geometry}
+\usepackage{multicol}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{colortbl}
+\usepackage{tcolorbox}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,decorations.pathmorphing,patterns,calc,shapes.geometric,babel}
+
+\tcbuselibrary{skins,breakable}
+
+% Definición de Paleta Cromática Técnica
+\definecolor{urlblue}{RGB}{12, 45, 95}       % Azul institucional
+\definecolor{cobalt}{RGB}{24, 76, 145}      % Azul medio
+\definecolor{tealshade}{RGB}{0, 115, 125}   % Acento verdoso/teal
+\definecolor{darkgray}{RGB}{45, 52, 58}     % Texto técnico oscuro
+\definecolor{bglight}{RGB}{248, 250, 253}   % Fondo tenue de cajas
+\definecolor{accentgreen}{RGB}{26, 120, 60} % Verde estabilidad
+\definecolor{accentred}{RGB}{185, 35, 35}   % Rojo inestabilidad
+\definecolor{linegray}{RGB}{210, 218, 226}  % Líneas de separación
+
+\setlength{\parindent}{0pt}
+\setlength{\columnsep}{0.75cm}
+\pagestyle{empty}
+
+% Compactar espaciado de ecuaciones
+\setlength{\abovedisplayskip}{2.5pt}
+\setlength{\belowdisplayskip}{2.5pt}
+\setlength{\abovedisplayshortskip}{1.5pt}
+\setlength{\belowdisplayshortskip}{1.5pt}
+
+% Comando de sección estilizada
+\newcommand{\seccion}[1]{%
+  \vspace{2mm}%
+  \noindent\colorbox{urlblue}{\parbox{\dimexpr\linewidth-2\fboxsep\relax}{%
+    \color{white}\footnotesize\bfseries\strut\MakeUppercase{#1}}}%
+  \vspace{1.5mm}%
+}
+
+% Caja de resumen de fórmula clave
+\newtcolorbox{formulabox}[1][]{%
+  enhanced,
+  colback=bglight,
+  colframe=cobalt,
+  arc=1.5mm,
+  boxrule=0.8pt,
+  left=1.5mm, right=1.5mm, top=1.2mm, bottom=1.2mm,
+  fonttitle=\bfseries\footnotesize\color{white},
+  colbacktitle=cobalt,
+  attach boxed title to top left={xshift=2mm, yshift=-1.5mm},
+  boxed title style={arc=1mm, boxrule=0pt, left=1mm, right=1mm, top=0.5mm, bottom=0.5mm},
+  title=#1
+}
+
+\begin{document}
+\small
+
+% ENCABEZADO
+\begin{center}
+  {\fontsize{13pt}{15pt}\selectfont \textbf{\color{urlblue}FORMULARIO Y DIAGRAMAS: ENERGÍAS POTENCIALES Y ESTABILIDAD}} \\
+  \vspace{1mm}
+  {\footnotesize \color{darkgray} \textbf{Vibraciones Mecánicas y Mecánica Clásica} $\cdot$ Universidad Rafael Landívar $\cdot$ Santiago Cruz Rivera (1310823)} \\
+  \vspace{0.5mm}
+  {\scriptsize \color{tealshade} Relación Fuerza--Potencial $\cdot$ Gravitatoria $\cdot$ Elástica Discreta y Continua $\cdot$ Electrostática $\cdot$ Molecular $\cdot$ Rigidez Equivalente $k_{eq}$}
+\end{center}
+\vspace{-2mm}
+\noindent\textcolor{linegray}{\rule{\linewidth}{1pt}}
+\vspace{-1.5mm}
+
+\begin{multicols}{2}
+
+% =====================================================================
+\seccion{1. Principios Fundamentales del Potencial $V(\mathbf{q})$}
+% =====================================================================
+
+\textbf{Definición de Campo Conservativo:}
+Una fuerza $\mathbf{F}$ es conservativa si su rotacional es nulo y proviene del gradiente negativo de una función escalar de energía potencial $V(\mathbf{r})$:
+\begin{equation*}
+  \mathbf{F} = -\nabla V = -\left(\frac{\partial V}{\partial x}\hat{i} + \frac{\partial V}{\partial y}\hat{j} + \frac{\partial V}{\partial z}\hat{k}\right),
+  \quad \nabla \times \mathbf{F} = \mathbf{0}
+\end{equation*}
+
+\textbf{Trabajo y Conservación de la Energía:}
+El trabajo realizado por la fuerza conservativa entre las posiciones 1 y 2 es independiente de la trayectoria y depende solo de los puntos extremos:
+\begin{equation*}
+  W_{1\to 2} = \int_{1}^{2} \mathbf{F}\cdot d\mathbf{r} = -\int_{1}^{2} dV = V_1 - V_2 = -\Delta V
+\end{equation*}
+En un sistema conservativo libre de fuerzas disipativas:
+\begin{equation*}
+  E = T + V = \text{constante} \implies \frac{d}{dt}(T + V) = 0
+\end{equation*}
+
+\textbf{Formulación Lagrangiana y Fuerzas Generalizadas:}
+Para coordenadas generalizadas $q_j$ ($j = 1, \dots, n$):
+\begin{equation*}
+  L = T - V, \qquad Q_j = -\frac{\partial V}{\partial q_j}
+\end{equation*}
+\begin{equation*}
+  \frac{d}{dt}\left(\frac{\partial T}{\partial \dot{q}_j}\right) - \frac{\partial T}{\partial q_j} + \frac{\partial V}{\partial q_j} = Q_j^{(nc)}
+\end{equation*}
+
+\seccion{2. Linealización, Hessiano y Estabilidad}
+
+Sea $\mathbf{q}_0$ una posición de equilibrio estático donde todas las fuerzas generalizadas se anulan:
+\begin{equation*}
+  \left. \frac{\partial V}{\partial q_j} \right|_{\mathbf{q}_0} = 0 \quad \forall j=1,\dots,n
+\end{equation*}
+
+\textbf{Desarrollo en Serie de Taylor alrededor de $\mathbf{q}_0$:}
+Tomando $V(\mathbf{q}_0) = 0$ como referencia y definiendo los desplazamientos dinámicos perturbados $\eta_j = q_j - q_{j0}$:
+\begin{equation*}
+  V(\mathbf{q}) \approx \underbrace{V(\mathbf{q}_0)}_{0} + \sum_{j=1}^{n} \underbrace{\left.\frac{\partial V}{\partial q_j}\right|_{\mathbf{q}_0}}_{0}\eta_j + \frac{1}{2}\sum_{i=1}^{n}\sum_{j=1}^{n} \underbrace{\left.\frac{\partial^2 V}{\partial q_i \partial q_j}\right|_{\mathbf{q}_0}}_{K_{ij}} \eta_i \eta_j + \dots
+\end{equation*}
+
+\begin{formulabox}[Matriz de Rigidez y Rigidez Equivalente]
+\begin{equation*}
+  V \approx \frac{1}{2} \boldsymbol{\eta}^T \mathbf{K} \boldsymbol{\eta}, \qquad
+  K_{ij} = \left. \frac{\partial^2 V}{\partial q_i \partial q_j} \right|_{\mathbf{q}_0}
+\end{equation*}
+Para sistemas de 1 Grado de Libertad ($q = x$ o $\theta$):
+\begin{equation*}
+  k_{\text{eq}} = \left. \frac{d^2 V}{dq^2} \right|_{q_0}, \qquad \omega_n = \sqrt{\frac{k_{\text{eq}}}{m_{\text{eq}}}}
+\end{equation*}
+\end{formulabox}
+
+\textbf{Criterio de Estabilidad de Lyapunov / Dirichlet:}
+\begin{itemize}\setlength{\itemsep}{1pt}\setlength{\parskip}{0pt}
+  \item \textbf{\color{accentgreen}Estable ($k_{\text{eq}} > 0$):} $V(q)$ tiene un \emph{mínimo local}. La fuerza restauradora atrae la masa al centro: oscilaciones sinusoidales armónicas alrededor de $q_0$.
+  \item \textbf{\color{accentred}Inestable ($k_{\text{eq}} < 0$):} $V(q)$ tiene un \emph{máximo local}. La fuerza perturba alejando indefinidamente a la masa (exponenciales crecientes, pandeo).
+  \item \textbf{Indiferente / Neutro ($k_{\text{eq}} = 0$):} Punto plano o de ensilladura. Se analiza el orden superior ($\frac{d^3V}{dq^3}, \frac{d^4V}{dq^4}$).
+\end{itemize}
+
+% DIAGRAMA TIKZ: POZO DE POTENCIAL Y ESTABILIDAD
+\begin{center}
+\begin{tikzpicture}[scale=0.78, >=Stealth]
+  % Ejes
+  \draw[->, thick, darkgray] (-0.3,0) -- (5.6,0) node[right, font=\scriptsize] {$q$};
+  \draw[->, thick, darkgray] (0,-0.3) -- (0,3.2) node[above, font=\scriptsize] {$V(q)$};
+  
+  % Curva de potencial general
+  \draw[domain=0.5:5.1, smooth, variable=\x, cobalt, very thick] 
+    plot ({\x}, {0.35*(\x-1.5)*(\x-1.5) + 0.3 + 0.85*exp(-1.4*(\x-3.4)*(\x-3.4)) + 0.15*cos(deg(1.8*\x))});
+  
+  % Punto Estable (Mínimo en x=1.5 aprox)
+  \coordinate (Estable) at (1.5, 0.42);
+  \draw[fill=accentgreen!80!black] (Estable) circle (3pt);
+  \draw[dashed, gray] (1.5,0) -- (Estable);
+  \node[below, font=\tiny, darkgray] at (1.5,0) {$q_e$ (Estable)};
+  \node[above right, font=\tiny\bfseries, accentgreen!80!black] at (Estable) {$V''(q)>0$};
+  
+  % Aproximación parabólica (Taylor)
+  \draw[domain=0.8:2.2, smooth, variable=\x, accentgreen, thick, dashed]
+    plot ({\x}, {0.42 + 0.95*(\x-1.5)*(\x-1.5)});
+  \node[right, font=\tiny, accentgreen] at (2.05, 1.2) {$\frac{1}{2}k_{\text{eq}}\eta^2$};
+
+  % Punto Inestable (Máximo local)
+  \coordinate (Inestable) at (3.35, 2.05);
+  \draw[fill=accentred!90!black] (Inestable) circle (3pt);
+  \draw[dashed, gray] (3.35,0) -- (Inestable);
+  \node[below, font=\tiny, darkgray] at (3.35,0) {$q_u$ (Inestable)};
+  \node[above, font=\tiny\bfseries, accentred!90!black] at (Inestable) {$V''(q)<0$};
+  
+  % Punto Indiferente (Plataforma horizontal)
+  \coordinate (Neutro) at (4.7, 1.35);
+  \draw[fill=darkgray] (Neutro) circle (2.5pt);
+  \node[above right, font=\tiny\bfseries, darkgray] at (Neutro) {$V''=0$};
+\end{tikzpicture}
+\end{center}
+\vspace{-2mm}
+
+% =====================================================================
+\seccion{3. Energía Potencial Gravitatoria ($V_g$)}
+% =====================================================================
+
+\textbf{1. Campo Gravitatorio Homogéneo Terrestre ($g \approx \text{cte}$):}
+Nivel de referencia horizontal ($y=0$):
+\begin{equation*}
+  V_g = m\,g\,y \qquad \text{(Partícula)}
+\end{equation*}
+\begin{equation*}
+  V_g = m\,g\,\bar{y}_{cm} \qquad \text{(Cuerpo rígido con baricentro a cota $\bar{y}_{cm}$)}
+\end{equation*}
+
+\textbf{2. Péndulo Simple (hilo de longitud $L$, masa puntual $m$):}
+\begin{equation*}
+  y(\theta) = -L\cos\theta \implies V_g(\theta) = m\,g\,L\,(1 - \cos\theta)
+\end{equation*}
+Aproximación para pequeñas oscilaciones ($\cos\theta \approx 1 - \frac{\theta^2}{2}$):
+\begin{equation*}
+  V_g(\theta) \approx \frac{1}{2}\underbrace{(m\,g\,L)}_{k_{t,g}}\theta^2 \implies k_{t,g} = m\,g\,L
+\end{equation*}
+
+\textbf{3. Péndulo Físico (centro de masa a distancia $d$ del pivote $O$):}
+\begin{equation*}
+  V_g(\theta) = m\,g\,d\,(1 - \cos\theta) \approx \frac{1}{2}(m\,g\,d)\,\theta^2 \implies k_{t,g} = m\,g\,d
+\end{equation*}
+
+\textbf{4. Péndulo Invertido (inestabilidad gravitatoria):}
+\begin{equation*}
+  V_g(\theta) = m\,g\,L\,\cos\theta \approx m\,g\,L - \frac{1}{2}\underbrace{(m\,g\,L)}_{-k_{t,g}}\theta^2
+\end{equation*}
+\begin{equation*}
+  k_{t,g} = -m\,g\,L \quad \text{(Rigidez gravitacional negativa $\implies$ inestable)}
+\end{equation*}
+
+% DIAGRAMA TIKZ: PÉNDULOS
+\begin{center}
+\begin{tikzpicture}[scale=0.72, >=Stealth]
+  % Péndulo Simple
+  \draw[thick] (-1.5,2.2) -- (0.5,2.2);
+  \fill[pattern=north east lines] (-1.5,2.2) rectangle (0.5,2.4);
+  \draw[fill=black] (-0.5,2.2) circle (2pt) node[above left, font=\scriptsize] {$O$};
+  
+  \draw[dashed, gray] (-0.5,2.2) -- (-0.5,0.0);
+  \draw[very thick, cobalt] (-0.5,2.2) -- (0.4, 0.45);
+  \draw[fill=cobalt!30, draw=cobalt, thick] (0.4, 0.45) circle (5pt) node[right=5pt, font=\scriptsize] {$m$};
+  
+  \draw[->] (-0.5,1.4) arc (-90:-63:0.8);
+  \node[font=\scriptsize] at (-0.2, 1.25) {$\theta$};
+  
+  \draw[<->, gray] (-0.8, 2.2) -- (-0.8, 0.45) node[midway, left, font=\tiny] {$L\cos\theta$};
+  \draw[<->, tealshade] (0.8, 0.0) -- (0.8, 0.45) node[midway, right, font=\tiny] {$h = L(1-\cos\theta)$};
+  \draw[dashed, tealshade] (-0.5,0.0) -- (0.8, 0.0);
+  \draw[dashed, tealshade] (0.4, 0.45) -- (0.8, 0.45);
+  \node[font=\tiny\bfseries, cobalt] at (-0.5, -0.3) {Péndulo Simple};
+  
+  % Separador
+  \draw[dotted, linegray, thick] (1.7, -0.3) -- (1.7, 2.4);
+
+  % Péndulo Invertido
+  \draw[thick] (2.2,0.0) -- (4.2,0.0);
+  \fill[pattern=north east lines] (2.2,-0.2) rectangle (4.2,0.0);
+  \draw[fill=black] (3.2,0.0) circle (2pt) node[below=2pt, font=\scriptsize] {$O$};
+  
+  \draw[dashed, gray] (3.2,0.0) -- (3.2,2.2);
+  \draw[very thick, accentred] (3.2,0.0) -- (3.9, 1.85);
+  \draw[fill=accentred!30, draw=accentred, thick] (3.9, 1.85) circle (5pt) node[above right, font=\scriptsize] {$m$};
+  \draw[->] (3.2,0.9) arc (90:70:0.9);
+  \node[font=\scriptsize] at (3.45, 1.1) {$\theta$};
+  \node[font=\tiny\bfseries, accentred] at (3.2, -0.45) {Péndulo Invertido};
+\end{tikzpicture}
+\end{center}
+\vspace{-2.5mm}
+
+\textbf{5. Gravitación Universal de Newton (Cuerpos Celestes):}
+Para masas $M$ y $m$ separadas a distancia $r$ ($V(\infty) = 0$):
+\begin{equation*}
+  V(r) = -\frac{G\,M\,m}{r} \implies \mathbf{F} = -\frac{d V}{dr}\hat{r} = -\frac{G\,M\,m}{r^2}\hat{r}
+\end{equation*}
+
+\textbf{6. Potencial Efectivo en Fuerzas Centrales (con Momento Angular $L_z$):}
+\begin{equation*}
+  V_{\text{eff}}(r) = -\frac{G\,M\,m}{r} + \underbrace{\frac{L_z^2}{2\,m\,r^2}}_{\text{Barrera centrífuga}}
+\end{equation*}
+El mínimo de $V_{\text{eff}}(r)$ define el radio de la órbita circular estable.
+
+\columnbreak
+
+% =====================================================================
+\seccion{4. Energía Elástica en Componentes Discretos ($V_e$)}
+% =====================================================================
+
+\textbf{1. Resorte Helicoidal / Lineal Traslacional:}
+Si $\Delta x = x - x_0$ es la deformación respecto a la longitud libre:
+\begin{equation*}
+  V_e = \frac{1}{2} k\,\Delta x^2 = \frac{1}{2} k (x_2 - x_1)^2, \qquad F_e = -k\,\Delta x
+\end{equation*}
+
+\textbf{2. Resorte con Pretensión Estática ($\delta_{st}$):}
+Al desplazarse dinámicamente $x$ desde la posición de equilibrio:
+\begin{equation*}
+  V = V_e + V_g = \frac{1}{2}k(\delta_{st} + x)^2 - m\,g\,x
+\end{equation*}
+Como $k\,\delta_{st} = m\,g$ (equilibrio estático):
+\begin{equation*}
+  V(x) = \frac{1}{2} k \delta_{st}^2 + \underbrace{(k\delta_{st} - mg)}_{0}x + \frac{1}{2}k x^2 = V_0 + \frac{1}{2}k x^2
+\end{equation*}
+\textit{¡Regla de oro!: Al medir desde el equilibrio estático, el peso se cancela con la precarga y solo queda $\frac{1}{2}kx^2$.}
+
+\textbf{3. Resorte Torsional / Espiral:}
+Para un ángulo de giro $\theta$:
+\begin{equation*}
+  V_e = \frac{1}{2} k_t\,\theta^2, \qquad M_t = -k_t\,\theta \quad [k_t \text{ en } \mathrm{N\cdot m/rad}]
+\end{equation*}
+
+\textbf{4. Resorte No Lineal (Modelo de Duffing):}
+Fuerza no lineal $F(x) = k\,x + \beta\,x^3$:
+\begin{equation*}
+  V(x) = \frac{1}{2} k\,x^2 + \frac{1}{4} \beta\,x^4
+\end{equation*}
+\begin{itemize}\setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}
+  \item $\beta > 0$: Resorte \textbf{endurecedor} (\textit{hardening}).
+  \item $\beta < 0$: Resorte \textbf{ablandador} (\textit{softening}).
+\end{itemize}
+
+\textbf{5. Resorte Inclinado con Ángulo $\alpha$:}
+Para un desplazamiento vertical $y$, la elongación es $\Delta l \approx y\cos\alpha$:
+\begin{equation*}
+  V_e \approx \frac{1}{2} k (y\cos\alpha)^2 = \frac{1}{2}\underbrace{(k\cos^2\alpha)}_{k_{\text{eff}}} y^2
+\end{equation*}
+
+% DIAGRAMAS TIKZ: RESORTE TRASLACIONAL Y TORSIONAL
+\begin{center}
+\begin{tikzpicture}[scale=0.74, >=Stealth]
+  % Resorte lineal con masa
+  \draw[thick] (0,0) -- (0,1.8);
+  \fill[pattern=north east lines] (-0.2,0) rectangle (0,1.8);
+  
+  \draw[thick, decorate, decoration={zigzag, segment length=5, amplitude=4}] (0,0.9) -- (2.2,0.9);
+  \draw[thick] (2.2,0.9) -- (2.5,0.9);
+  
+  \draw[fill=cobalt!20, draw=cobalt, thick] (2.5,0.3) rectangle (3.5,1.5);
+  \node[font=\footnotesize\bfseries, cobalt] at (3.0,0.9) {$m$};
+  
+  % Ruedas o apoyo
+  \draw[fill=darkgray] (2.7, 0.2) circle (2.5pt);
+  \draw[fill=darkgray] (3.3, 0.2) circle (2.5pt);
+  \draw[thick] (2.4, 0.1) -- (3.8, 0.1);
+  
+  % Cotas
+  \draw[->, thick, darkgray] (3.0,1.7) -- (3.7,1.7) node[right, font=\scriptsize] {$x$};
+  \node[above, font=\scriptsize] at (1.1,1.1) {$k$};
+
+  % Resorte Torsional
+  \begin{scope}[xshift=4.5cm, yshift=0.9cm]
+    \draw[fill=black] (0,0) circle (2.5pt) node[below=2pt, font=\scriptsize] {$O$};
+    \draw[thick, cobalt] (0,0) -- (1.5,0.8);
+    \draw[fill=cobalt!30, draw=cobalt, thick] (1.5,0.8) circle (4pt) node[right=2pt, font=\tiny] {$m$};
+    % Espiral
+    \draw[thick, tealshade, domain=0:540, samples=100, variable=\t]
+      plot ({(0.1 + 0.0006*\t)*cos(\t)}, {(0.1 + 0.0006*\t)*sin(\t)});
+    \node[tealshade, font=\scriptsize] at (0.45,-0.35) {$k_t$};
+    \draw[->] (0.7,0.1) arc (0:28:0.7) node[midway, right, font=\tiny] {$\theta$};
+  \end{scope}
+\end{tikzpicture}
+\end{center}
+\vspace{-2.5mm}
+
+\textbf{6. Asociaciones Equivalentes de Rigidez ($k_{\text{eq}}$):}
+\begin{itemize}\setlength{\itemsep}{1pt}\setlength{\parskip}{0pt}
+  \item \textbf{En Paralelo} (mismo desplazamiento $x$):
+    \begin{equation*}
+      V = \frac{1}{2}\sum_i k_i x^2 \implies k_{\text{eq}} = \sum_{i=1}^n k_i = k_1 + k_2 + \dots
+    \end{equation*}
+  \item \textbf{En Serie} (misma fuerza $F$ soportada):
+    \begin{equation*}
+      \frac{1}{k_{\text{eq}}} = \sum_{i=1}^n \frac{1}{k_i} \implies k_{\text{eq}} = \frac{k_1 k_2}{k_1 + k_2} \quad (n=2)
+    \end{equation*}
+  \item \textbf{Efecto Palanca} (brazos $a$ y $b$ desde el pivote):
+    \begin{equation*}
+      k_{\text{eq}} = k \left(\frac{a}{b}\right)^2
+    \end{equation*}
+  \item \textbf{Poleas y Reducciones:}
+    Polea móvil con cable: $k_{\text{eq}} = 4\,k$ o $k/4$ según el punto de aplicación de la carga.
+\end{itemize}
+
+% =====================================================================
+\seccion{5. Energía Elástica Continua (Deformación $U$)}
+% =====================================================================
+
+Densidad volumétrica de energía elástica ($u_0 = \frac{1}{2}\boldsymbol{\sigma}:\boldsymbol{\varepsilon}$):
+\begin{equation*}
+  U = \frac{1}{2}\iiint_V \left( \sigma_x\varepsilon_x + \sigma_y\varepsilon_y + \tau_{xy}\gamma_{xy} + \dots \right) dV
+\end{equation*}
+
+\textbf{1. Barra Axial (Tracción / Compresión):}
+\begin{equation*}
+  U_{\text{axial}} = \frac{1}{2}\int_0^L \frac{N^2(x)}{E\,A} dx = \frac{1}{2}\int_0^L E\,A\left(\frac{du}{dx}\right)^2 dx
+\end{equation*}
+Para carga y sección constantes con elongación $\Delta L$:
+\begin{equation*}
+  U = \frac{1}{2}\left(\frac{E\,A}{L}\right)\Delta L^2 \implies k_{\text{axial}} = \frac{E\,A}{L}
+\end{equation*}
+
+\textbf{2. Eje Circular a Torsión Pura:}
+\begin{equation*}
+  U_{\text{tor}} = \frac{1}{2}\int_0^L \frac{T^2(x)}{G\,J} dx = \frac{1}{2}\int_0^L G\,J\left(\frac{d\theta}{dx}\right)^2 dx
+\end{equation*}
+Para eje uniforme con giro total $\theta$ y $J = \frac{\pi d^4}{32}$:
+\begin{equation*}
+  U = \frac{1}{2}\left(\frac{G\,J}{L}\right)\theta^2 \implies k_{t} = \frac{G\,J}{L}
+\end{equation*}
+
+\textbf{3. Flexión de Vigas (Euler--Bernoulli):}
+\begin{equation*}
+  U_{\text{flex}} = \frac{1}{2}\int_0^L \frac{M^2(x)}{E\,I} dx = \frac{1}{2}\int_0^L E\,I\left(\frac{d^2 w}{dx^2}\right)^2 dx
+\end{equation*}
+
+% DIAGRAMAS TIKZ: VIGAS EN FLEXIÓN
+\begin{center}
+\begin{tikzpicture}[scale=0.72, >=Stealth]
+  % Voladizo
+  \draw[thick] (0,0) -- (0,1.2);
+  \fill[pattern=north east lines] (-0.2,0) rectangle (0,1.2);
+  \draw[very thick, darkgray] (0,0.6) -- (2.6,0.6);
+  \draw[thick, cobalt, dashed] (0,0.6) to[out=0, in=170] (2.6, 0.15);
+  \draw[->, thick, accentred] (2.6, 0.9) -- (2.6, 0.15) node[right, font=\tiny] {$P$};
+  \draw[<->, tealshade] (2.8, 0.6) -- (2.8, 0.15) node[midway, right, font=\tiny] {$\delta$};
+  \node[above, font=\tiny] at (1.3, 0.6) {$L, EI$};
+  \node[below, font=\tiny\bfseries, cobalt] at (1.3, -0.05) {$k = \frac{3EI}{L^3}$};
+
+  % Simplemente apoyada
+  \begin{scope}[xshift=4.0cm]
+    \draw[very thick, darkgray] (0,0.6) -- (2.6,0.6);
+    % Apoyo fijo
+    \draw[thick] (0,0.6) -- (-0.15,0.3) -- (0.15,0.3) -- cycle;
+    \fill[pattern=north east lines] (-0.2,0.15) rectangle (0.2,0.3);
+    % Apoyo móvil
+    \draw[thick] (2.6,0.6) -- (2.45,0.35) -- (2.75,0.35) -- cycle;
+    \draw[fill=darkgray] (2.5, 0.25) circle (1.5pt);
+    \draw[fill=darkgray] (2.7, 0.25) circle (1.5pt);
+    \fill[pattern=north east lines] (2.4,0.1) rectangle (2.8,0.22);
+    % Deformada
+    \draw[thick, cobalt, dashed] (0,0.6) to[out=-20, in=200] (2.6, 0.6);
+    \draw[->, thick, accentred] (1.3, 1.1) -- (1.3, 0.35) node[right, font=\tiny] {$P$};
+    \node[below, font=\tiny\bfseries, cobalt] at (1.3, -0.05) {$k = \frac{48EI}{L^3}$};
+  \end{scope}
+\end{tikzpicture}
+\end{center}
+\vspace{-2.5mm}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.2}
+\scriptsize
+\begin{tabular*}{\linewidth}{@{\extracolsep{\fill}}lcc@{}}
+\toprule
+\textbf{Configuración de Viga} & \textbf{Flecha $\delta$} & \textbf{Rigidez $k_{\text{eq}}$} \\
+\midrule
+Voladizo (carga puntual extremo) & $\frac{P L^3}{3EI}$ & $\mathbf{\frac{3EI}{L^3}}$ \\
+Voladizo (momento $M_0$ extremo) & $\theta = \frac{M_0 L}{EI}$ & $\mathbf{\frac{EI}{L}}$ (rot) \\
+Simplemente apoyada (carga central) & $\frac{PL^3}{48EI}$ & $\mathbf{\frac{48EI}{L^3}}$ \\
+Simplemente apoyada (carga en $a,b$) & $\frac{Pa^2b^2}{3EIL}$ & $\mathbf{\frac{3EIL}{a^2 b^2}}$ \\
+Biempotrada (carga central) & $\frac{PL^3}{192EI}$ & $\mathbf{\frac{192EI}{L^3}}$ \\
+Empotrada--Apoyada (carga central) & $\frac{7PL^3}{768EI}$ & $\mathbf{\frac{768EI}{7L^3}}$ \\
+\bottomrule
+\end{tabular*}
+\end{center}
+
+\end{multicols}
+
+\vspace{-1.5mm}
+\noindent\textcolor{linegray}{\rule{\linewidth}{1pt}}
+\vspace{-1mm}
+
+\begin{multicols}{2}
+
+% =====================================================================
+\seccion{6. Energías Potenciales Electrostáticas y Moleculares}
+% =====================================================================
+
+\textbf{1. Ley de Coulomb (Cargas Puntuales $q_1, q_2$):}
+\begin{equation*}
+  V_e(r) = \frac{1}{4\pi\varepsilon_0} \frac{q_1\,q_2}{r} = k_e \frac{q_1\,q_2}{r}, \quad F_e = -\frac{dV}{dr} = \frac{1}{4\pi\varepsilon_0}\frac{q_1 q_2}{r^2}
+\end{equation*}
+
+\textbf{2. Dipolo Eléctrico en Campo Uniforme $\mathbf{E}$:}
+Momento dipolar $\mathbf{p} = q\,\mathbf{d}$. Para ángulo $\theta$ con $\mathbf{E}$:
+\begin{equation*}
+  V = -\mathbf{p}\cdot\mathbf{E} = -p\,E\cos\theta \approx -pE + \frac{1}{2}(p\,E)\theta^2 \implies k_{t} = p\,E
+\end{equation*}
+
+\textbf{3. Dipolo Magnético en Campo Uniforme $\mathbf{B}$:}
+Momento dipolar magnético $\boldsymbol{\mu}$. Par restaurador $\boldsymbol{\tau} = \boldsymbol{\mu} \times \mathbf{B}$:
+\begin{equation*}
+  V = -\boldsymbol{\mu}\cdot\mathbf{B} = -\mu\,B\cos\theta \implies k_t = \mu\,B
+\end{equation*}
+
+\textbf{4. Almacenamiento en Elementos Eléctricos:}
+\begin{itemize}\setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}
+  \item \textbf{Capacitor (Energía electrostática):}
+    $V_C = \frac{1}{2} C\,v^2 = \frac{q^2}{2C}$ (Análogo a resorte con compliancia $1/k$).
+  \item \textbf{Inductor (Co-energía magnética):}
+    $T_L = \frac{1}{2} L\,i^2$ (Análogo a energía cinética con masa $m$).
+\end{itemize}
+
+\textbf{5. Potencial Interatómico de Lennard-Jones (12--6):}
+Describe la interacción de Van der Waals entre átomos neutros:
+\begin{equation*}
+  V(r) = 4\varepsilon \left[ \left(\frac{\sigma}{r}\right)^{12} - \left(\frac{\sigma}{r}\right)^{6} \right]
+\end{equation*}
+\begin{itemize}\setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}
+  \item Mínimo de energía (equilibrio): $r_0 = 2^{1/6}\sigma \approx 1.1224\,\sigma$.
+  \item Profundidad del pozo de potencial: $V(r_0) = -\varepsilon$.
+  \item \textbf{Rigidez interatómica equivalente} ($k = \left. \frac{d^2 V}{dr^2} \right|_{r_0}$):
+    \begin{equation*}
+      k_{\text{atómico}} = \frac{72\,\varepsilon}{2^{1/3}\sigma^2} = \frac{36\cdot 2^{2/3}\varepsilon}{\sigma^2} \approx 57.146\,\frac{\varepsilon}{\sigma^2}
+    \end{equation*}
+  \item Frecuencia de vibración molecular: $\omega_0 = \sqrt{k/\mu_{\text{red}}}$.
+\end{itemize}
+
+% DIAGRAMA TIKZ: LENNARD-JONES
+\begin{center}
+\begin{tikzpicture}[scale=0.75, >=Stealth]
+  \draw[->, thick, darkgray] (0.8,0) -- (4.6,0) node[right, font=\scriptsize] {$r$};
+  \draw[->, thick, darkgray] (1.0,-1.4) -- (1.0,1.8) node[above, font=\scriptsize] {$V(r)$};
+  
+  % Curva LJ normalizada
+  \draw[domain=1.12:4.2, smooth, variable=\r, cobalt, very thick]
+    plot ({\r}, {4*(pow(1.3/\r, 8) - pow(1.3/\r, 4))});
+  
+  % Línea del cero y pozo
+  \draw[dashed, gray] (1.3,0) -- (1.3,0.3) node[above, font=\tiny] {$\sigma$};
+  \draw[dashed, tealshade] (1.54,0) -- (1.54,-1.0) -- (1.0,-1.0);
+  \node[left, font=\tiny, tealshade] at (1.0,-1.0) {$-\varepsilon$};
+  \node[below, font=\tiny, tealshade] at (1.54,0) {$r_0$};
+  \draw[fill=accentgreen!80!black] (1.54,-1.0) circle (2.5pt);
+  \node[right, font=\tiny, darkgray] at (2.2, 1.2) {Repulsión ($\sim r^{-12}$)};
+  \node[right, font=\tiny, darkgray] at (2.4, -0.4) {Atracción ($\sim -r^{-6}$)};
+\end{tikzpicture}
+\end{center}
+\vspace{-2mm}
+
+\textbf{6. Potencial de Morse (Enlaces Covalentes):}
+\begin{equation*}
+  V(r) = D_e \left[ 1 - e^{-a(r-r_e)} \right]^2 - D_e
+\end{equation*}
+Rigidez armónica en el equilibrio ($r=r_e$): $k = 2\,a^2\,D_e$.
+
+\seccion{7. Mecánica de Fluidos y Flotación}
+
+\textbf{Estabilidad Metacéntrica de Cuerpos Flotantes:}
+Para un ángulo de escora/balanceo $\theta$ alrededor del metacentro $M$:
+\begin{equation*}
+  V(\theta) = W\cdot \overline{GM}\cdot(1 - \cos\theta) \approx \frac{1}{2}\underbrace{\left(W\cdot \overline{GM}\right)}_{k_{t,\text{boy}}}\theta^2
+\end{equation*}
+\begin{itemize}\setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}
+  \item $W = \rho\,g\,\nabla$: Peso del buque = Empuje de Arquímedes.
+  \item $\overline{GM}$: Altura metacéntrica ($M$ sobre el c.g. $G$).
+  \item $\overline{GM} > 0$: \textbf{Estable} (par adrizante restaurador).
+  \item $\overline{GM} < 0$: \textbf{Inestable} (zozobra / vuelco).
+\end{itemize}
+
+\end{multicols}
+
+\vspace{-1.5mm}
+\noindent\textcolor{linegray}{\rule{\linewidth}{1pt}}
+\vspace{-1mm}
+
+% =====================================================================
+\seccion{8. Tabla Maestra de Energías Potenciales y Rigideces Equivalentes ($k_{\text{eq}}$)}
+% =====================================================================
+\vspace{0.5mm}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.3}
+\scriptsize
+\begin{tabular*}{\linewidth}{@{\extracolsep{\fill}}llll@{}}
+\toprule
+\textbf{Sistema Físico} & \textbf{Coordenada $q$} & \textbf{Energía Potencial Exacta $V(q)$} & \textbf{Rigidez Equivalente $k_{\text{eq}} = \left.\frac{d^2V}{dq^2}\right|_{q_0}$} \\
+\midrule
+Resorte lineal ideal & Traslación $x$ & $V = \frac{1}{2}k x^2$ & $k_{\text{eq}} = k$ \\
+Resorte con precarga estática & Traslación $x$ & $V = \frac{1}{2}k(\delta_{st}+x)^2 - mgx = \text{cte} + \frac{1}{2}kx^2$ & $k_{\text{eq}} = k$ \\
+Resorte inclinado (ángulo $\alpha$) & Vertical $y$ & $V \approx \frac{1}{2}k(y\cos\alpha)^2$ & $k_{\text{eq}} = k\cos^2\alpha$ \\
+Resortes en paralelo & Traslación $x$ & $V = \frac{1}{2}\left(\sum k_i\right)x^2$ & $k_{\text{eq}} = k_1 + k_2 + \dots$ \\
+Resortes en serie & Traslación $x$ & $V = \frac{1}{2}k_{\text{eq}}x_{\text{total}}^2$ & $k_{\text{eq}} = \left(\frac{1}{k_1} + \frac{1}{k_2}\right)^{-1} = \frac{k_1 k_2}{k_1 + k_2}$ \\
+Resorte con palanca (brazos $a, b$) & Carga en $b$ & $V = \frac{1}{2}k(a\theta)^2 = \frac{1}{2}k\left(\frac{a}{b}x_b\right)^2$ & $k_{\text{eq}} = k\left(\frac{a}{b}\right)^2$ \\
+Resorte torsional puro & Ángulo $\theta$ & $V = \frac{1}{2}k_t \theta^2$ & $k_{t,\text{eq}} = k_t$ \\
+Péndulo simple & Ángulo $\theta$ & $V = mgL(1-\cos\theta)$ & $k_{t,\text{eq}} = mgL$ \\
+Péndulo físico & Ángulo $\theta$ & $V = mgd(1-\cos\theta)$ & $k_{t,\text{eq}} = mgd$ \\
+Péndulo invertido & Ángulo $\theta$ & $V = mgL\cos\theta$ & $k_{t,\text{eq}} = -mgL$ \quad (\textit{Inestable}) \\
+Barra axial elástica & Elongación $u$ & $V = \frac{1}{2}\left(\frac{EA}{L}\right)u^2$ & $k_{\text{eq}} = \frac{EA}{L}$ \\
+Eje circular en torsión & Giro $\theta$ & $V = \frac{1}{2}\left(\frac{GJ}{L}\right)\theta^2$ & $k_{t,\text{eq}} = \frac{GJ}{L}$ \\
+Viga en voladizo (carga en punta) & Flecha $w$ & $V = \frac{1}{2}\left(\frac{3EI}{L^3}\right)w^2$ & $k_{\text{eq}} = \frac{3EI}{L^3}$ \\
+Viga simplemente apoyada (centro) & Flecha $w$ & $V = \frac{1}{2}\left(\frac{48EI}{L^3}\right)w^2$ & $k_{\text{eq}} = \frac{48EI}{L^3}$ \\
+Viga biempotrada (centro) & Flecha $w$ & $V = \frac{1}{2}\left(\frac{192EI}{L^3}\right)w^2$ & $k_{\text{eq}} = \frac{192EI}{L^3}$ \\
+Dipolo eléctrico en campo $\mathbf{E}$ & Ángulo $\theta$ & $V = -pE\cos\theta$ & $k_{t,\text{eq}} = pE$ \\
+Dipolo magnético en campo $\mathbf{B}$ & Ángulo $\theta$ & $V = -\mu B\cos\theta$ & $k_{t,\text{eq}} = \mu B$ \\
+Potencial Lennard-Jones (12--6) & Radio $r$ & $V = 4\varepsilon [(\sigma/r)^{12} - (\sigma/r)^6]$ & $k_{\text{eq}} \approx 57.15\,\frac{\varepsilon}{\sigma^2} \quad (\text{en } r_0 = 2^{1/6}\sigma)$ \\
+Flotabilidad / Metacentro & Escora $\theta$ & $V = W\cdot\overline{GM}\cdot(1-\cos\theta)$ & $k_{t,\text{eq}} = W\cdot\overline{GM}$ \\
+\bottomrule
+\end{tabular*}
+\end{center}
+
+\end{document}
