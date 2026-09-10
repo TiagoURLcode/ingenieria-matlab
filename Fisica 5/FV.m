@@ -210,15 +210,29 @@ classdef FV
 
             eqs = [ gam == 1/sqrt(1 - v^2/c^2)
                 xp  == gam*(x - v*t)              % (1)
-                x   == gam*(xp + v*tp) ];         % (2)
+                x   == gam*(xp + v*tp)            % (2)
+                tp  == gam*(t - v*x/c^2) ];       % NO esta en el formulario
 
-            % LAS DOS ECUACIONES JUNTAS DAN tp, aunque el formulario no traiga
-            % la formula del tiempo. (1) te da xp desde x y t; metiendo ese xp
-            % en (2), la unica incognita que queda es tp y el motor la despeja
-            % sola. El resultado es exactamente tp = gam*(t - v*x/c^2), que es
-            % la transformacion que falta. Verificado.
-            % Por eso las dos estan aunque sean una la inversa de la otra:
-            % separadas no alcanzan, juntas cierran el juego completo.
+            % LAS DOS DEL FORMULARIO DAN tp, PERO SOLO SI v NO ES CERO, y por
+            % eso hay una tercera. (1) te da xp desde x y t; metiendo ese xp
+            % en (2), la unica incognita que queda es tp y el motor la despeja.
+            % El resultado es exactamente tp = gam*(t - v*x/c^2).
+            %
+            % EN v = 0 ESE CAMINO SE CAE. La (2) queda x == gam*(xp + 0*tp):
+            % el producto v*tp se anula y tp DESAPARECE del sistema. No es que
+            % el despeje sea dificil, es que la ecuacion ya no habla de tp, y
+            % despejar devuelve un resultado sin ese campo. Probado: con v = 0
+            % FV.lorentz devolvia solo gam y xp, y quien pidiera res.tp se
+            % comia un "Unrecognized field name".
+            % Por eso la tercera va escrita explicita. Es REDUNDANTE con las
+            % otras dos siempre que v no sea cero, y ahi queda de control
+            % porque cierra exacto; en v = 0 es la unica que determina tp, que
+            % vale t, como corresponde: sin movimiento relativo los dos marcos
+            % miden el mismo tiempo.
+            %
+            % NO ESTA EN EL FORMULARIO. Es la misma clase de extension que la
+            % Z de FV.ecBohr: no inventa fisica, escribe lo que las otras dos
+            % ya implican, para que el sistema no tenga un agujero en v = 0.
             %
             % v ES LA VELOCIDAD DEL MARCO, no la de una particula. Para
             % componer velocidades de particulas, FV.velo.
@@ -866,6 +880,143 @@ classdef FV
             d = FV.datos(varargin);
             [eqs, S] = FV.ecRed();
             res = FV.despejar(eqs, S, d);
+        end
+
+        function [I, y] = patronN(lam, a, d, N, X, th)
+            % PATRON DE INTENSIDAD DE N RENDIJAS - numerico y vectorizado.
+            % ENTRADAS:
+            %   lam : longitud de onda            [m]
+            %   a   : ANCHO de cada rendija       [m]
+            %   d   : SEPARACION entre centros    [m]  (d > a siempre)
+            %   N   : cantidad de rendijas        [-]  (N=2 es la doble rendija)
+            %   X   : distancia a la pantalla     [m]
+            %   th  : vector de angulos           [rad]
+            % SALIDAS:
+            %   I : intensidad relativa, 0 a 1    [-]
+            %   y : posicion en la pantalla       [m]
+            %
+            % NOTAS Y ALCANCE:
+            % - NO esta en el formulario. Es una extension, igual que la Z de
+            %   ecBohr. El formulario da donde CAEN los maximos; esto da cuanta
+            %   luz hay en cada angulo.
+            % - Con N = 2 se reduce a la doble rendija clasica.
+            % - env depende solo de a; itf depende solo de d. Son dos efectos
+            %   independientes montados uno sobre otro.
+            % - Es NUMERICA a proposito, no simbolica: se evalua sobre miles de
+            %   angulos y un despeje simbolico por punto seria inusable. Mismo
+            %   criterio que VM.trayA.
+
+            be = pi*a*sin(th)/lam;      % factor de UNA rendija (la envolvente)
+            al = pi*d*sin(th)/lam;      % factor de INTERFERENCIA entre las N
+            env = (sin(be)./be).^2;
+            itf = (sin(N*al)./(N*sin(al))).^2;
+
+            % TRAMPA NUMERICA:
+            % Las dos fracciones dan 0/0 y devuelven NaN justo en los picos:
+            % 1) sin(be)/be en be = 0: por el limite trigonometrico fundamental
+            %    lim_{be->0} sin(be)/be = 1, con lo cual env = 1^2 = 1.
+            % 2) sin(N*al)/(N*sin(al)) en al = m*pi (con m entero): aplicando
+            %    la regla de L'Hopital respecto de al, se obtiene
+            %    lim [N*cos(N*al)] / [N*cos(al)] = cos(N*m*pi)/cos(m*pi) = +-1.
+            %    Al elevar al cuadrado para la intensidad, (+-1)^2 = 1 para
+            %    cualquier entero m.
+            % Si no se corrigen, el patron sale con agujeros exactamente en los
+            % maximos principales.
+            env(abs(be) < 1e-12) = 1;
+            itf(abs(sin(al)) < 1e-12) = 1;
+
+            I   = env .* itf;
+            y   = X*tan(th);
+        end
+
+        function [I, y] = patronEmisores(em, X, th, modo)
+            % PATRON DE UN ARREGLO CUALQUIERA DE EMISORES - numerico.
+            % ENTRADAS:
+            %   em    : struct array, un elemento por emisor, con campos
+            %             em(j).x    posicion transversal en el plano   [m]
+            %             em(j).a    ancho de su abertura               [m]
+            %             em(j).A    amplitud relativa                  [-]
+            %             em(j).fase fase inicial                       [rad]
+            %             em(j).lam  longitud de onda                   [m]
+            %   X     : distancia a la pantalla                         [m]
+            %   th    : vector de angulos                               [rad]
+            %   modo  : 'coherente' o 'incoherente'
+            % SALIDAS:
+            %   I : intensidad relativa, normalizada a 1  [-]
+            %   y : posicion en la pantalla               [m]
+            %
+            % NOTAS Y ALCANCE:
+            % - NO esta en el formulario. Es una extension montada sobre
+            %   patronN, que ya era una extension del formulario oficial.
+            %   Anotado bajo el mismo criterio que la Z de ecBohr.
+            % - Contiene a patronN como caso particular: N emisores con igual
+            %   amplitud, igual fase, igual longitud de onda y mismo ancho a,
+            %   colocados en x_j = (j - (N+1)/2)*d, reproducen exactamente la
+            %   misma curva que FV.patronN.
+            % - En modo 'incoherente' las fases y las posiciones relativas no
+            %   se usan: cada emisor aporta su propia figura de difraccion en
+            %   intensidad sin interferir con los demas. Esto no es una
+            %   simplificacion numerica: es precisamente la definicion fisica
+            %   de radiacion mutuamente incoherente.
+
+            if nargin < 4 || isempty(modo)
+                modo = 'coherente';
+            end
+
+            s = sin(th);
+            y = X * tan(th);
+
+            if isempty(em)
+                I = zeros(size(th));
+                return;
+            end
+
+            if strcmpi(modo, 'incoherente')
+                % INCOHERENTE: se suman INTENSIDADES. Las fases y las
+                % posiciones no intervienen: cada emisor aporta su propia
+                % difraccion sin interferencia cruzada.
+                I = zeros(size(th));
+                for j = 1:numel(em)
+                    be_j = pi * em(j).a * s / em(j).lam;
+                    % Trampa numerica: sin(be)/be en be=0 da 0/0. Limite = 1.
+                    f = sin(be_j) ./ be_j;
+                    f(abs(be_j) < 1e-12) = 1;
+                    I = I + (em(j).A * f).^2;
+                end
+            else
+                % COHERENTE: se suman AMPLITUDES complejas y se toma |E|^2.
+                %
+                % COHERENCIA EXIGE LA MISMA LONGITUD DE ONDA: dos emisores con
+                % longitudes de onda distintas no forman un patron de
+                % interferencia estacionario, pues el termino cruzado oscila
+                % temporalmente a la frecuencia de batido |w1 - w2| y se promedia
+                % a cero en cualquier detector.
+                all_lam = [em.lam];
+                if any(abs(all_lam - all_lam(1)) > 1e-15)
+                    warning('FV:coherenciaImposible', ...
+                        ['Emisores con distinta longitud de onda no producen ' ...
+                         'un patron de interferencia estacionario coherente.']);
+                end
+
+                E = zeros(size(th));
+                for j = 1:numel(em)
+                    be_j = pi * em(j).a * s / em(j).lam;
+                    % Trampa numerica: sin(be)/be en be=0 da 0/0. Limite = 1.
+                    f = sin(be_j) ./ be_j;
+                    f(abs(be_j) < 1e-12) = 1;
+
+                    % Fase geometrica por posicion x_j: 2*pi*x_j*sin(th)/lam_j
+                    fase_geom = 2 * pi * em(j).x * s / em(j).lam;
+                    E = E + em(j).A .* f .* exp(1i * (fase_geom + em(j).fase));
+                end
+                I = abs(E).^2;
+            end
+
+            % Normalizar al final respecto al maximo, cuidando max(I) == 0
+            maxI = max(I(:));
+            if maxI > 0
+                I = I / maxI;
+            end
         end
 
         %% ================================================================

@@ -1,0 +1,90 @@
+SIMULADORES DE FISICA 5
+Santiago Cruz Rivera - Universidad Rafael Landivar
+
+Tres simuladores interactivos de MATLAB y la clase de ecuaciones sobre la
+que corren, armados a partir del formulario oficial del curso.
+
+
+QUE HACE FALTA
+--------------
+  MATLAB R2020b o posterior
+  Symbolic Math Toolbox     <- obligatorio: FV.m resuelve simbolico
+
+Sin el Symbolic Math Toolbox nada de esto arranca.
+
+
+COMO SE USA
+-----------
+Descomprimi los cuatro archivos .m en una misma carpeta, abrila en MATLAB
+(o agregala al path con addpath) y escribi el nombre del simulador:
+
+  sim1_saltoOrbital     salto entre orbitas del modelo de Bohr
+  sim2_minkowski        diagrama de espacio-tiempo de relatividad
+  sim3_nRendijas        difraccion e interferencia de N rendijas
+
+Cada uno abre su ventana con sliders. Los tres aceptan tambien el modo
+exportar, que deja un PNG en ./figs/ sin abrir ninguna ventana:
+
+  sim1_saltoOrbital('exportar')
+
+
+FV.m - LA CLASE DE ECUACIONES
+-----------------------------
+Es el motor. Los simuladores no contienen ni una formula de fisica: todo
+se le pide a FV. Tambien se puede usar sola desde la linea de comandos.
+
+Trae quince sistemas de ecuaciones que cubren el formulario completo:
+
+  Relatividad        FV.rel      FV.lorentz   FV.velo
+  Fotones y ondas    FV.foton    FV.fe        FV.compton
+                     FV.rx       FV.pares     FV.magB
+  Dualidad           FV.broglie  FV.incert    FV.rendija   FV.red
+  Bohr               FV.bohr     FV.bohrT
+
+Se le pasan los datos que tengas, en pares nombre-valor, y devuelve TODO
+lo que quede determinado. Anda en cualquier direccion:
+
+  r = FV.fe('lam',400e-9, 'fi',FV.eV2J(2.3));   double(r.Vo)
+  r = FV.bohr('n',3);                            FV.J2eV(double(r.En))
+  r = FV.rel('v',0.8*3e8, 'mo',2);               double(r.gam)
+
+Los resultados son simbolicos: convertilos con double() para usarlos.
+Para leer energias en electronvolts esta FV.J2eV, y para entrar en eV
+esta FV.eV2J.
+
+Unidades: SI base en todo. Metros, joules, kilogramos, segundos. Los eV,
+nanometros y micrometros son solo para mostrar, nunca para calcular.
+Angulos en RADIANES: si el enunciado da grados, usa deg2rad().
+
+
+LO QUE NO ES DEL FORMULARIO
+---------------------------
+Tres cosas son extensiones, y estan anotadas como tales en el codigo:
+
+  Z en FV.bohr y FV.bohrT
+      El formulario escribe el modelo para el hidrogeno. Con Z se puede
+      usar con iones de UN SOLO electron: He+, Li2+, etc. Con dos
+      electrones o mas NO SIRVE, porque la repulsion entre ellos no esta
+      en las ecuaciones. El simulador avisa en rojo cuando dibujas mas de
+      un electron.
+
+  tp en FV.lorentz
+      La transformacion del tiempo. Se deduce de las dos que trae el
+      formulario, salvo cuando v = 0, donde el termino se anula y tp
+      queda indeterminado. Por eso va escrita explicita.
+
+  FV.patronN y FV.patronEmisores
+      El formulario da donde CAEN los maximos, no cuanta luz hay en cada
+      angulo. Estas dos calculan la intensidad, que es lo que se dibuja.
+
+
+CUIDADOS
+--------
+Las constantes del formulario estan redondeadas, y en Bohr se nota: los
+niveles salen 13.548 eV contra los 13.6 eV de tabla, 0.6% de diferencia.
+Es del formulario, no del codigo, y esta explicado en los comentarios de
+FV.ecBohr.
+
+Los despejes son simbolicos y cuestan unos 50 ms cada uno. Los
+simuladores los memorizan para que los sliders vayan fluidos. Si usas FV
+directo dentro de un bucle grande, guarda los resultados vos tambien.
