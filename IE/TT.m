@@ -1,7 +1,8 @@
 classdef TT
     %{
     TT — Transformadores Trifásicos. Métodos estáticos: TT.nombre(d).
-         Cada uno arma el sistema de su conexión y lo pasa por IE.despejar,
+         Cada uno arma el sistema de su conexión y lo pasa por
+         Motor.despejar (Motor.m, raíz del repo; correr setup.m una vez),
          así que se le da lo que se sabe y devuelve todo lo que se pueda.
 
       TT.YY(d)    Estrella - Estrella (Y-Y)
@@ -251,7 +252,7 @@ classdef TT
 
         %{
         resolver — Fija la referencia de ángulos si no se dio ninguno, pasa
-        el sistema por IE.despejar y devuelve numérico lo que se pueda.
+        el sistema por Motor.despejar y devuelve numérico lo que se pueda.
         %}
         function res = resolver(cP, cS, d)
             if nargin < 3 || isempty(d), d = struct(); end
@@ -259,19 +260,17 @@ classdef TT
                 d.ang_VphiP = 0;        % referencia: fase A del primario
             end
             [eqs, Sy] = TT.modelo(cP, cS);
-            sal = IE.despejar(eqs, Sy, d);
 
-            %  despejar solo devuelve lo que DESPEJÓ, no lo que se le dio:
-            %  se arranca de los datos y se le encima lo despejado.
-            res = d;
-            campos = fieldnames(sal);
-            for k = 1:numel(campos)
-                res.(campos{k}) = sal.(campos{k});
-            end
-            campos = fieldnames(res);
-            for k = 1:numel(campos)
-                try, res.(campos{k}) = double(res.(campos{k})); catch, end %#ok<NOCOM>
-            end
+            % Motor.despejar(eqs, Sy, d, 'prefijo','IE') — sustitución hacia
+            % adelante (ver IE.datosB). El prefijo es 'IE' y no 'TT' para
+            % que los errores sigan saliendo como IE:datosContradictorios,
+            % igual que antes de pasar al motor compartido.
+            sal = Motor.despejar(eqs, Sy, d, 'prefijo','IE');
+
+            % Motor.numerico(sal, d, Sy) — despejar solo devuelve lo que
+            % DESPEJÓ, no lo que se le dio: esto junta las dos cosas, en el
+            % orden de los campos de Sy, y baja a double lo que puede.
+            res = Motor.numerico(sal, d, Sy);
         end
 
         %{

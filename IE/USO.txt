@@ -7,25 +7,29 @@
 
  INSTALACION
    Poner IE.m y TT.m en el path de MATLAB, o trabajar parado en su carpeta.
-   Verificar que anda:   >> testIE          (117 controles, todos deben dar true)
+   Ademas hace falta Motor.m, que vive en la raiz del repo: correr UNA vez
+   >> setup   parado en la raiz, y queda en el path para siempre.
+   Verificar que anda:   >> testIE          (132 controles, todos deben dar true)
 
  CONVENCIONES QUE VALEN PARA TODO
    - Angulos en GRADOS en la interfaz.
    - Tension y corriente en RMS salvo aviso.
    - Secuencia de fases POSITIVA (ABC): B atrasa 120 a A, C atrasa 240.
    - mu es SIEMPRE permeabilidad RELATIVA (adimensional). El aire es mu = 1.
-     mu0 = 4*pi*1e-7 lo pone el codigo, nunca lo pasas vos.
+     mu0 = 4*pi*1e-7 lo pone el codigo (IE.mu0()), nunca lo pasas vos.
    - dA es crecimiento PROPORCIONAL del area del entrehierro:
        A_gap = A*(1 + dA).   dA = 0.10 significa 10% mas de area.
    - Las funciones que empiezan con "ec" devuelven ECUACIONES SIMBOLICAS sin
-     resolver. Las que empiezan con "datos" son el atajo: le pasas un struct
-     con lo que sabes y te devuelven todo lo que se pueda despejar.
+     resolver. Las que empiezan con "datos" son el atajo: le pasas lo que
+     sabes, en pares nombre-valor o en un struct, y te devuelven todo lo que
+     se pueda despejar:
+       IE.datosB('N',200, 'I',2)   ==   IE.datosB(struct('N',200,'I',2))
 
  INDICE
    1. FASORES Y CIRCUITOS
       pol2rec  parZ  f2l  l2f  d2e  e2d  fasores  divV  divI  potencias
    2. EL MOTOR DE DESPEJE
-      despejar
+      Motor.despejar  (Motor.m, en la raiz del repo)
    3. CIRCUITO MAGNETICO
       ecB  datosB  ecSeg  datosSeg  faradayB  reluctSeg  fluxO  fluxE
    4. TRANSFORMADOR MONOFASICO
@@ -185,13 +189,26 @@
 ===============================================================================
 
 -------------------------------------------------------------------------------
- res = IE.despejar(eqs, S, d)
+ res = Motor.despejar(eqs, S, d, 'prefijo','IE', ...)
 -------------------------------------------------------------------------------
+ No es de IE: es el motor compartido por IE, MM, VM, FV y sp (Motor.m, en la
+ raiz del repo). Los atajos datosXxx lo llaman por vos; directo solo hace
+ falta para un sistema sin atajo, como ecPerAprox.
+
    eqs : sistema simbolico (de IE.ecB, IE.ecTrafo, IE.ecPerdidas, ...)
    S   : diccionario de simbolos del MISMO sistema
    d   : struct con SOLO lo que sabes, en cualquier orden
    res : struct con TODAS las variables que quedaron determinadas.
          Para numero: double(res.Fi) o vpa(res.Fi, 6).
+
+ OPCIONES (pares nombre-valor despues de d)
+   'prefijo'   'IE' -> los errores salen como IE:datosContradictorios
+   'positivos' cell de variables que la fisica obliga a ser > 0. Cuando
+               solve da VARIAS raices (I de Pcu = I^2*Req da +I y -I),
+               descarta las negativas y complejas. Una raiz unica negativa
+               NO la rechaza. Nunca sobre fasores: son complejos.
+   'libres'    variables que quedan como parametro (t) y no se despejan
+   'tol'       tolerancia RELATIVA del control de contradiccion (1e-3)
 
  NO SE PIDE UNA INCOGNITA, A PROPOSITO.
    La sustitucion hacia adelante determina TODO lo que los datos permitan,
@@ -211,7 +228,8 @@
    propaga el valor a todas, y se repite hasta que no queda nada.
 
  >> [eqs, S] = IE.ecSeg();
- >> r = IE.despejar(eqs, S, struct('len',.3,'A',1e-3,'mu',5e3,'g',0));
+ >> r = Motor.despejar(eqs, S, struct('len',.3,'A',1e-3,'mu',5e3,'g',0), ...
+                       'prefijo','IE');
  >> double(r.Rn)
     ans = 47746
 
@@ -220,9 +238,11 @@
  Usando S siempre pegan.
 
  ERRORES Y AVISOS
+   IE:parInvalido          nombre-valor incompleto o al reves
    IE:campoDesconocido     le pasaste un campo que no es del modelo
-   IE:datosContradictorios los datos violan una ecuacion
-   IE:variasSoluciones     la ecuacion era cuadratica; se toma la primera
+   IE:datosContradictorios los datos violan una ecuacion (tolerancia 1e-3)
+   IE:variasSoluciones     varias raices y ninguna regla para elegir; se
+                           toma la primera
 
 
 ===============================================================================
@@ -596,8 +616,8 @@
    a*Ip = Is + Iexc
 
  >> [eqs, S] = IE.ecPerAprox();
- >> r = IE.despejar(eqs, S, struct('Vs',240, 'Is',IE.pol2rec(50,-30), ...
-                                   'Req',0.05, 'Xeq',0.12, 'a',10));
+ >> r = Motor.despejar(eqs, S, struct('Vs',240, 'Is',IE.pol2rec(50,-30), ...
+                      'Req',0.05, 'Xeq',0.12, 'a',10), 'prefijo','IE');
  >> abs(double(r.Vpa))      % 245.20 V,  a 0.92 grados
  >> abs(double(r.Vp))       % 2451.97 V
 
@@ -617,7 +637,7 @@
    TT.DY(d)    Delta - Estrella
    TT.mono(d)  Monofasico: mismos campos, sin sqrt(3)
 
- Cada una arma el sistema de su conexion y lo pasa por IE.despejar, asi que
+ Cada una arma el sistema de su conexion y lo pasa por Motor.despejar, asi que
  anda en cualquier direccion. Devuelve los datos de entrada MAS todo lo que
  se pudo despejar, ya en double.
 
@@ -767,7 +787,7 @@
 
 ===============================================================================
  SI ALGO SE ROMPE
-   >> testIE          117 controles. Si alguno da false, ahi esta el problema.
+   >> testIE          132 controles. Si alguno da false, ahi esta el problema.
    El control mas sensible es "fluxO Ampere: sum(caida)=fmm": si ese cae,
    se rompio algo en las reluctancias.
 ===============================================================================
