@@ -26,7 +26,7 @@ function sim4_canonRetroceso(modo)
 % El sentido positivo de x es HACIA ATRAS: x > 0 es retroceso.
 %
 % DE DONDE SALEN LOS NUMEROS. Toda la fisica es de VM.m:
-%   VM.critA    de m y c saca la K que hace CRITICO al sistema. VM.despejar
+%   VM.critA    de m y c saca la K que hace CRITICO al sistema. Motor.despejar
 %               va hacia atras: la ecuacion c == ccr fija ccr, ccr == 2*m*wn
 %               fija wn, y wn == sqrt(k/m) fija k
 %   VM.trayA    entrega x(t), v(t) y los escalares del caso
@@ -524,7 +524,7 @@ function k = rigidez(m, c)
     %   c : amortiguamiento             [lb*s/ft]
     %   k : rigidez del recuperador     [lb/ft]
     % VM.critA no "calcula k": resuelve el sistema de VM.ecCritA con lo que
-    % le des, y VM.despejar sustituye hacia adelante en el orden que los
+    % le des, y Motor.despejar sustituye hacia adelante en el orden que los
     % datos permitan. Con m y c entra por c == ccr (la definicion del caso
     % critico) y sale por wn == sqrt(k/m). Eso es ir HACIA ATRAS: de la
     % condicion al parametro que la cumple.
