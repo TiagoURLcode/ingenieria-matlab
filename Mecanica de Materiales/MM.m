@@ -17,10 +17,15 @@ classdef MM
     %   - Modelo LINEAL ELÁSTICO: E constante, sin fluencia, sin necking.
     %     Vale solo mientras sig < límite de proporcionalidad.
     %
+    % MOTOR DE DESPEJE
+    %   El que resuelve es Motor.despejar (Motor.m, en la raíz del repo): es
+    %   el mismo motor que usan VM, FV, IE y sp, no una copia. Para que MATLAB
+    %   lo encuentre parado en esta carpeta, correr UNA vez setup.m (raíz).
+    %
     % LO QUE NO ESTÁ (todavía)
     %   Efectos térmicos, sistemas indeterminados y factor de seguridad
-    %   (secciones 4 y 5 del formulario). El motor MM.despejar ya sirve para
-    %   eso: alcanza con escribir otra función ecXXX y pasársela.
+    %   (secciones 4 y 5 del formulario). Motor.despejar ya sirve para eso:
+    %   alcanza con escribir otra función ecXXX y pasársela.
     %
     % A REVISAR — POISSON FUERA DE LA SECCIÓN CIRCULAR
     %   La deformación lateral entra hoy por una sola ecuación del modelo,
@@ -73,7 +78,7 @@ classdef MM
         %  POR QUÉ HAY ECUACIONES REDUNDANTES:
         %    delta == P*L/(E*A) sale de las tres primeras, y k == E*A/L sale
         %    de las otras dos. Están igual, a propósito, por dos motivos:
-        %    1) ENTRADA: MM.despejar sustituye hacia adelante, así que tener
+        %    1) ENTRADA: Motor.despejar sustituye hacia adelante, así que tener
         %       el mismo dato por varios caminos permite entrar por donde
         %       venga el enunciado (por el esfuerzo, por la carga o por la
         %       rigidez) sin que falte un eslabón intermedio.
@@ -133,152 +138,6 @@ classdef MM
         end
 
         %% ===================================================================
-        %  despejar — MOTOR de despeje. Lo usa datosAxial.
-        %
-        %  Entradas:
-        %    eqs : sistema simbólico (de MM.ecAxial, ...)
-        %    S   : diccionario de símbolos del MISMO sistema
-        %    d   : struct con SOLO lo que conocés, en cualquier orden
-        %
-        %  Salida:
-        %    res : struct con TODAS las variables que quedaron determinadas.
-        %          Para número: double(res.delta) o vpa(res.delta, 6).
-        %
-        %  NO SE PIDE UNA INCÓGNITA, A PROPÓSITO.
-        %    La sustitución hacia adelante determina TODO lo que los datos
-        %    permitan, en la misma pasada. Pedir una variable no ahorraba
-        %    trabajo: solo elegía cuál de las ya calculadas devolver y
-        %    escondía el resto. Elegís vos, del struct.
-        %    Si un campo NO está en res, es que los datos no alcanzaron para
-        %    determinarlo. Ese es el diagnóstico: mirá qué falta.
-        %
-        %  POR QUÉ NO ES UN solve() PELADO:
-        %    solve(eqs, x) exige que TODAS las ecuaciones se satisfagan
-        %    eligiendo únicamente x. Como el sistema tiene varias incógnitas
-        %    intermedias (sig, eps, k...), cualquier ecuación que no contenga
-        %    x lo vuelve insatisfacible y solve devuelve VACÍO aunque los
-        %    datos alcancen de sobra.
-        %    Acá se hace SUSTITUCIÓN HACIA ADELANTE, que es exactamente el
-        %    método a mano: se busca una ecuación con una sola incógnita, se
-        %    despeja, se propaga el valor, y se repite hasta que no queda nada
-        %    por despejar.
-        %
-        %  ES EL MISMO MOTOR QUE IE.despejar, COPIADO A PROPÓSITO.
-        %    MM.m y IE.m viven en carpetas distintas y cada uno tiene que
-        %    funcionar solo (se trabaja parado en la carpeta de la materia).
-        %    Precio de eso: si acá aparece un bug, hay que arreglarlo en los
-        %    dos archivos. No hay una sola fuente de verdad y conviene saberlo.
-        %% ===================================================================
-        function res = despejar(eqs, S, d)
-
-            % fieldnames — devuelve los nombres de los campos del struct como
-            % CELL ARRAY de texto: {'P'; 'L'; 'E'; ...}. Permite que la
-            % función no sepa de antemano qué datos le van a pasar.
-            campos = fieldnames(d);
-
-            for k = 1:numel(campos)
-                if ~isfield(S, campos{k})
-                    error('MM:campoDesconocido', ...
-                        ['"%s" no es una variable del modelo. ' ...
-                         'Válidas: %s'], campos{k}, strjoin(fieldnames(S)', ', '));
-                end
-                % campos{k}  -> LLAVES porque es cell array; da el texto 'P'.
-                % S.(...)    -> acceso DINÁMICO a campo. S.P exige saber el
-                %               nombre al escribir el código; S.('P') acepta
-                %               el nombre como variable en ejecución.
-                %               S.(campos{k}) = el SÍMBOLO
-                %               d.(campos{k}) = el VALOR
-                % subs(eqs, simbolo, valor) reemplaza en TODAS las ecuaciones
-                % de una vez. El loop es necesario: subs no recorre structs.
-                eqs = subs(eqs, S.(campos{k}), d.(campos{k}));
-            end
-
-            % --- sustitución hacia adelante -------------------------------
-            res    = struct();
-            cambio = true;
-            while cambio
-                cambio = false;
-                for k = 1:numel(eqs)
-                    libres = symvar(eqs(k));
-
-                    % Sin incógnitas libres, la ecuación ya es un veredicto.
-                    % OJO: subs NO la colapsa a symfalse, la deja como
-                    % "999 == 100", así que hay que preguntarle a isAlways en
-                    % vez de comparar con sym(false).
-                    if isempty(libres)
-                        if ~isAlways(eqs(k), 'Unknown', 'false')
-                            error('MM:datosContradictorios', ...
-                                ['Los datos violan la ecuación %d del ' ...
-                                 'modelo: %s'], k, char(eqs(k)));
-                        end
-                        continue
-                    end
-                    if numel(libres) ~= 1, continue; end
-
-                    s = solve(eqs(k), libres);
-                    if isempty(s), continue; end
-                    if numel(s) > 1
-                        warning('MM:variasSoluciones', ...
-                            '%s tiene %d soluciones; se toma la primera.', ...
-                            char(libres), numel(s));
-                    end
-                    res.(char(libres)) = s(1);
-                    eqs    = subs(eqs, libres, s(1));   % propaga a todas
-                    cambio = true;
-                end
-            end
-        end
-
-        %% ===================================================================
-        %  datos — Traduce los argumentos de entrada a un struct de datos.
-        %  Es la pieza que le permite a seccion, datosAxial y axial aceptar
-        %  las dos formas de llamada sin repetir el parseo en cada una.
-        %
-        %    args : cell array (el varargin de quien llama). Se acepta
-        %           {structDeDatos}  o  {'nombre',valor, 'nombre',valor, ...}
-        %
-        %  Escribir struct() a mano no agrega información: el nombre del
-        %  campo ya va entre comillas. Los pares nombre-valor son la
-        %  convención de MATLAB (plot('LineWidth',1.5) es exactamente esto).
-        %  El struct NO se elimina porque a veces el dato YA es un struct
-        %  —el tramo que escalonada le pasa a seccion, por ejemplo— y ahí
-        %  desarmarlo para volver a armarlo sería el ruido.
-        %% ===================================================================
-        function s = datos(args)
-            n = numel(args);
-
-            if n == 1 && isstruct(args{1})
-                s = args{1};
-                return
-            end
-            if n == 0 || mod(n,2) ~= 0
-                error('MM:parInvalido', ...
-                    ['Se esperaban pares nombre-valor (cantidad par de ' ...
-                     'argumentos) o un struct. Llegaron %d.'], n);
-            end
-
-            % Impares = nombres, pares = valores. 'end' dentro de un índice
-            % significa "el último", así que 1:2:end recorre 1,3,5...
-            % Se indexa con () y no con {}: el resultado sigue siendo cell.
-            nombres = args(1:2:end);
-            valores = args(2:2:end);
-
-            % cellfun aplica la función a cada celda; con el @(c) de una
-            % línea evita escribir un for de tres renglones.
-            if ~all(cellfun(@(c) ischar(c) || isstring(c), nombres))
-                error('MM:parInvalido', ...
-                    ['Los argumentos impares tienen que ser nombres. ' ...
-                     'Ej: MM.datosAxial(''L'',2, ''E'',200e9, ''delta'')']);
-            end
-
-            % cell2struct(valores, nombres, 1): el 1 dice que los campos se
-            % arman recorriendo las FILAS del cell de nombres — por eso los
-            % (:) que los ponen en columna. cellstr(string(...)) normaliza
-            % "dia" (comillas dobles) y 'dia' (simples) al mismo tipo.
-            s = cell2struct(valores(:), cellstr(string(nombres(:))), 1);
-        end
-
-        %% ===================================================================
         %  datosAxial — Atajo sobre el modelo de la barra uniforme.
         %  Los argumentos son los datos, en pares nombre-valor o en un struct:
         %
@@ -292,9 +151,9 @@ classdef MM
         %
         %  Funciona en cualquier dirección: dado delta despeja P, dado sig
         %  despeja A, dada la rigidez despeja L. No hay "entrada" fija. Eso
-        %  es lo que justifica el motor, y es la diferencia con sp.resolver:
-        %  el modelo axial es una MALLA de relaciones chicas y redundantes,
-        %  donde se entra por cualquier lado.
+        %  es lo que justifica el motor, y es la diferencia con los sisXXX
+        %  de sp: el modelo axial es una MALLA de relaciones chicas y
+        %  redundantes, donde se entra por cualquier lado.
         %% ===================================================================
         function res = datosAxial(varargin)
             if nargin < 1
@@ -302,10 +161,22 @@ classdef MM
                     ['Faltan los datos. Ej: ' ...
                      'MM.datosAxial(''sig'',s, ''E'',E)']);
             end
-            d = MM.datos(varargin);
+            % Motor.datos(args, pref) — convierte el varargin en struct.
+            %   args : pares nombre-valor {'P',20e3, 'L',2, ...} o {struct}
+            %   pref : 'MM', para que los errores salgan como MM:parInvalido
+            d = Motor.datos(varargin, 'MM');
 
             [eqs, S] = MM.ecAxial();
-            res = MM.despejar(eqs, S, d);
+
+            % Motor.despejar(eqs, S, d, opciones...) — sustitución hacia
+            % adelante: despeja todo lo que los datos permitan.
+            %   'prefijo'   : 'MM' -> MM:datosContradictorios, MM:campoDesconocido
+            %   'positivos' : variables que la física obliga a ser > 0. Solo
+            %                 actúa cuando solve devuelve VARIAS raíces:
+            %                 descarta las negativas y complejas. Una raíz
+            %                 única negativa NO la rechaza.
+            res = Motor.despejar(eqs, S, d, 'prefijo','MM', ...
+                'positivos',{'A','E','L','dia'});
         end
 
         %% ===================================================================
@@ -322,29 +193,20 @@ classdef MM
         %  campos que faltan para saber qué dato te está faltando.
         %% ===================================================================
         function r = axial(varargin)
-            d = MM.datos(varargin);
-            [eqs, S] = MM.ecAxial();
+            d = Motor.datos(varargin, 'MM');
 
-            % despejar determina todo lo que los datos permitan. Los campos
-            % que falten en la salida cuentan solos qué no se pudo sacar.
-            res = MM.despejar(eqs, S, d);
+            % Se pasa por datosAxial y no directo a Motor.despejar: así las
+            % opciones de despeje ('prefijo', 'positivos') están en UN lugar.
+            res = MM.datosAxial(d);
 
-            % Lo que entró como dato también va a la salida: res solo trae lo
-            % que se DESPEJÓ, no lo que se dio.
-            orden = {'P','A','sig','eps','E','L','delta','k','nu','epsp','dia','ddia'};
-            r = struct();
-            for i = 1:numel(orden)
-                ni = orden{i};
-                if isfield(d, ni)
-                    r.(ni) = d.(ni);
-                elseif isfield(res, ni)
-                    v = res.(ni);
-                    % double() falla si quedó en función de un símbolo libre;
-                    % en ese caso se deja la expresión simbólica tal cual.
-                    try, v = double(v); catch, end %#ok<NOCOM>
-                    r.(ni) = v;
-                end
-            end
+            % Motor.numerico(res, d, orden) — junta datos y despejes.
+            %   res   : lo que se DESPEJÓ (no trae lo que entró como dato)
+            %   d     : lo que entró como dato
+            %   orden : orden de los campos en la salida
+            % Baja a double lo que puede; lo que quedó en función de un
+            % símbolo libre se deja simbólico.
+            r = Motor.numerico(res, d, ...
+                {'P','A','sig','eps','E','L','delta','k','nu','epsp','dia','ddia'});
         end
 
         %% ===================================================================
@@ -352,7 +214,7 @@ classdef MM
         %  Es la pieza que usan escalonada y ahusada para no repetir el
         %  cálculo del área en cada tramo.
         %
-        %  DOS FORMAS DE LLAMARLA, la misma cuenta (ver MM.datos):
+        %  DOS FORMAS DE LLAMARLA, la misma cuenta (ver Motor.datos):
         %    MM.seccion('dia', 0.225)              <- pares nombre-valor
         %    MM.seccion(struct('dia', 0.225))      <- struct
         %  La segunda es la que usa escalonada, que le pasa el tramo entero
@@ -381,8 +243,9 @@ classdef MM
 
             % varargin — cell array con TODO lo que se pasó, sin nombres
             % fijos. Es lo que permite aceptar 1, 2, 4 o 6 argumentos con la
-            % misma firma. MM.datos se encarga de interpretarlo.
-            s = MM.datos(varargin);
+            % misma firma. Motor.datos se encarga de interpretarlo; 'MM' es
+            % el prefijo de los errores (MM:parInvalido).
+            s = Motor.datos(varargin, 'MM');
 
             tieneDia = isfield(s,'dia') && ~isempty(s.dia);
             tieneAB  = isfield(s,'a') && isfield(s,'b') && ...
