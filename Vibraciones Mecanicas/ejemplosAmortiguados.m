@@ -30,7 +30,7 @@ if isfield(E1,'X'),  fprintf('X     = %.4f m\n',     double(E1.X));  end
 % x NO aparece en E1: con 't' libre, la ecuacion de x(t) queda con dos
 % incognitas (x y t) y VM.despejar la saltea a proposito (ver la nota al
 % final de VM.ecSubA). Para verla como funcion del tiempo, se grafica:
-VM.graficarA('m',M1, 'c',c1, 'k',K1, 'x0',xo1, 'v0',vo1);
+%VM.graficarA('m',M1, 'c',c1, 'k',K1, 'x0',xo1, 'v0',vo1);
 
 %% == Ejemplo - yunque (impacto plastico + vibracion amortiguada) =======
 % Un martillo cae sobre un yunque y las dos masas quedan unidas (impacto
@@ -68,7 +68,10 @@ xobjetivo  = 0.1;   % posicion pedida en el inciso (c)          [m]
 ccr3= sqrt(4*mcanon*kcanon)
 omega3=sqrt(kcanon/mcanon)
 syms C1 C2 T3 V3
-T3calc = double(solve(diff((C2*T3)*exp(1)^(-omega3*T3)== V3,T3)))
+T3 = 0
+%T3= double(solve(C1*e(0)+C2*0==xretroceso,C1))
+
+%T3calc = double(solve(diff((C2*T3)*exp(1)^(-omega3*T3)== V3,T3)))
 
 %% == Ejemplo#2 - motocicleta (decremento logaritmico) ==================
 mmoto  = 200;       % masa de la motocicleta                    [kg]
@@ -76,6 +79,8 @@ reduccPorCiclo = 0.25;  % reduccion de amplitud por oscilacion completa
 %   [adim, 25%]
 x0moto = 250e-3;    % amplitud inicial                          [m] (250 mm)
 Tdmoto = 2.00;      % periodo amortiguado                       [s]
+
+
 
 %% == Ejemplo#4 - barra + disco + amortiguador (oscilaciones pequenas) ==
 % Barra delgada unida a un disco uniforme; el conjunto disco-barra gira
@@ -89,3 +94,5 @@ rA     = 100e-3;    % radio del disco hasta la junta A          [m] (100 mm)
 %   se asume que el amortiguador actua con el mismo
 %   brazo (radio del disco), por ser tangente al borde.
 LAB    = 400e-3;    % longitud de la barra, de A a B            [m] (400 mm)
+
+x4= mdisco*rA*rA/2+mbarra*LAB*LAB/3

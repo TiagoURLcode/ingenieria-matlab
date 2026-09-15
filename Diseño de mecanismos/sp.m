@@ -10,6 +10,8 @@ classdef sp
     %   sp.sisMC   MANIVELA-CORREDERA   (entra la manivela, sale la corredera)
     %   sp.sisCM   CORREDERA-MANIVELA   (entra la corredera, sale la manivela)
     %   sp.sisCI   manivela-corredera INVERTIDO (corredera sobre el eslabón 4)
+    %   sp.sisV4B  VELOCIDADES ANGULARES w3, w4 y VA, VBA, VB, cuatro barras
+    %   sp.sisVP   VELOCIDAD de cualquier punto (S, U, P), cuatro barras
     % Ninguno resuelve nada: cada uno devuelve [eqs, S], el sistema simbólico
     % y su diccionario de símbolos. El que resuelve es sp.resolver.
     %
@@ -60,7 +62,8 @@ classdef sp
     %   a propósito, porque es la que vas a tener en el parcial.
     %
     % LO QUE NO ESTÁ
-    %   Velocidades y aceleraciones como sistema propio. No hacen falta:
+    %   Aceleraciones como sistema propio (velocidades de puntos: sp.sisVP).
+    %   No hacen falta:
     %   pasándole t2 = w*t a datosSis, la salida ya queda en función del
     %   tiempo y se deriva con diff. Ver ejemplo.m.
 
@@ -463,6 +466,90 @@ classdef sp
         end
 
         %% ===================================================================
+        %  sisV4B — VELOCIDADES ANGULARES, cuatro barras con juntas de pasador.
+        %  Sustituyendo la identidad de Euler en la derivada del lazo y
+        %  separando parte real e imaginaria quedan dos ecuaciones
+        %  simultáneas, cuya solución da w3 y w4.
+        %
+        %  Entra: a, b, c, t2, t3, t4, w2.
+        %  Sale:  w3, w4, VA, VBA, VB  (complejos: real = x, imag = y).
+        %
+        %  t3 y t4 salen de sp.sisL4V: se corre una vez por configuración.
+        %
+        %  EJEMPLO DE USO
+        %    r = sp.datosSis('L4V', 'a',2,'b',7,'c',9,'d',6,'t2',pi/6);
+        %    v = sp.datosSis('V4B', 'a',2,'b',7,'c',9,'t2',pi/6, ...
+        %                    't3',double(r.t31),'t4',double(r.t41),'w2',10);
+        %    double([v.w3 v.w4])
+        %
+        %  Salidas: [eqs, S], igual que sisAC.
+        %% ===================================================================
+        function [eqs, S] = sisV4B()
+
+            nom = {'a','b','c','t2','t3','t4','w2','w3','w4','VA','VBA','VB'};
+            S   = cell2struct(cellfun(@sym, nom, 'UniformOutput', false)', ...
+                nom', 1);
+            a = S.a; b = S.b; c = S.c; t2 = S.t2; t3 = S.t3; t4 = S.t4;
+            w2 = S.w2; w3 = S.w3; w4 = S.w4;
+            VA = S.VA; VBA = S.VBA; VB = S.VB;
+
+            eqs = [ w3  == a*w2/b * sin(t4 - t2)/sin(t3 - t4)
+                w4  == a*w2/c * sin(t2 - t3)/sin(t4 - t3)
+                VA  == a*w2*(-sin(t2) + 1i*cos(t2))
+                VBA == b*w3*(-sin(t3) + 1i*cos(t3))
+                VB  == c*w4*(-sin(t4) + 1i*cos(t4)) ];
+
+            % CONTROL: VA + VBA == VB. Es el lazo de velocidades; si no
+            % cierra, t3 y t4 no son de la misma configuración.
+        end
+
+        %% ===================================================================
+        %  sisVP — VELOCIDAD DE CUALQUIER PUNTO, mecanismo de cuatro barras.
+        %  S y U giran en rotación pura alrededor de los pivotes fijos O2 y
+        %  O4, así que su velocidad es directa. P está en el acoplador, que
+        %  tiene movimiento complejo, y exige la suma vectorial VP = VA + VPA.
+        %
+        %  Entra: a, s, u, p, t2, t3, t4, delta2, delta3, delta4, w2, w3, w4.
+        %  Sale:  VS, VU, VA, VPA, VP  (complejos: real = x, imag = y).
+        %
+        %    s, u, p       distancia del pivote/junta al punto
+        %    delta2,3,4    ángulo del punto medido desde su eslabón   [rad]
+        %    w2, w3, w4    velocidades angulares                      [rad/s]
+        %
+        %  Utilidad: S y U suelen ser los centros de gravedad de los
+        %  eslabones 2 y 4; estas mismas expresiones alimentan después el
+        %  análisis dinámico del mecanismo.
+        %
+        %  EJEMPLO DE USO
+        %    r = sp.datosSis('VP', 'a',40,'p',50,'t2',pi/4,'t3',0.3, ...
+        %                    'delta3',pi/6,'w2',10,'w3',-2);
+        %    [abs(double(r.VP)) angle(double(r.VP))]
+        %
+        %  Salidas: [eqs, S], igual que sisAC.
+        %% ===================================================================
+        function [eqs, S] = sisVP()
+
+            nom = {'a','s','u','p','t2','t3','t4','delta2','delta3', ...
+                'delta4','w2','w3','w4','VS','VU','VA','VPA','VP'};
+            S   = cell2struct(cellfun(@sym, nom, 'UniformOutput', false)', ...
+                nom', 1);
+            a = S.a; s = S.s; u = S.u; p = S.p;
+            t2 = S.t2; t3 = S.t3; t4 = S.t4;
+            delta2 = S.delta2; delta3 = S.delta3; delta4 = S.delta4;
+            w2 = S.w2; w3 = S.w3; w4 = S.w4;
+            VS = S.VS; VU = S.VU; VA = S.VA; VPA = S.VPA; VP = S.VP;
+
+            eqs = [ VS  == 1i*s*exp(1i*(t2 + delta2))*w2   % punto S, eslabón 2
+                VU  == 1i*u*exp(1i*(t4 + delta4))*w4       % punto U, eslabón 4
+                VA  == 1i*a*exp(1i*t2)*w2                  % junta A
+                VPA == 1i*p*exp(1i*(t3 + delta3))*w3       % P respecto de A
+                VP  == VA + VPA ];                         % punto P, acoplador
+
+            % j*e^(j*theta) = -sin(theta) + j*cos(theta): es la forma
+            % expandida de la lámina. real(V) = Vx, imag(V) = Vy.
+        end
+
+        %% ===================================================================
         %  sistema — Traduce el NOMBRE de un método al sistema que le toca.
         %  Es la pieza que le permite a sp.datosSis servir a los cinco
         %  mecanismos sin escribir una función de despeje para cada uno.
@@ -487,10 +574,12 @@ classdef sp
                 case {'mc','manivelacorredera'},[eqs, S] = sp.sisMC();
                 case {'cm','correderamanivela'},[eqs, S] = sp.sisCM();
                 case {'ci','invertido'},        [eqs, S] = sp.sisCI();
+                case {'v4b','velangular'},      [eqs, S] = sp.sisV4B();
+                case {'vp','velocidad'},        [eqs, S] = sp.sisVP();
                 otherwise
                     error('sp:metodoInvalido', ...
                         ['"%s" no es un método de esta clase. ' ...
-                        'Válidos: AC, L4V, MC, CM, CI.'], char(metodo));
+                        'Válidos: AC, L4V, MC, CM, CI, V4B, VP.'], char(metodo));
             end
         end
 

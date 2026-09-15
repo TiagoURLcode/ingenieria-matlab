@@ -1,0 +1,48 @@
+%{
+DIAGRAMA: DELTA - DELTA (Δ - Δ)
+
+         A o-------+-------------------+
+                   |                   |
+         B o-------|-------+           |
+                   |       |           |
+         C o-------|-------|-------+   |
+                   |       |       |   |
+                  ---     ---     ---  |
+                 ( . )   ( . )   ( . ) |
+             NP1 (   )   (   )   (   ) |
+                 (   )NP2(   )NP3(   ) |
+                  ---     ---     ---  |
+                   |       |       |   |
+                   +-------+       |   |
+                           +-------+   |
+                                   +---+
+                 =====================
+                   +-------+
+                   |       +-------+
+                   |               +---+
+                  ---     ---     ---  |
+                 ( . )   ( . )   ( . ) |
+             NS1 (   )   (   )   (   ) |
+                 (   )NS2(   )NS3(   ) |
+                  ---     ---     ---  |
+                   |       |       |   |
+         a o-------+       |       |   |
+                   |       |       |   |
+         b o---------------+       |   |
+                           |       |   |
+         c o-----------------------+---+
+%}
+
+%% FÓRMULAS
+syms V_LP V_LS V_phiP V_phiS a N_P N_S real
+
+% Relación de transformación por fase
+a = N_P / N_S;
+a = V_phiP / V_phiS;
+
+% Voltajes de línea y fase
+V_LP = V_phiP;
+V_LS = V_phiS;
+
+% Relación de voltajes de línea
+rel_V = V_LP / V_LS; % a
