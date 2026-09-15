@@ -13,7 +13,9 @@ classdef sp
     %   sp.sisV4B  VELOCIDADES ANGULARES w3, w4 y VA, VBA, VB, cuatro barras
     %   sp.sisVP   VELOCIDAD de cualquier punto (S, U, P), cuatro barras
     % Ninguno resuelve nada: cada uno devuelve [eqs, S], el sistema simbólico
-    % y su diccionario de símbolos. El que resuelve es sp.resolver.
+    % y su diccionario de símbolos. El que resuelve es Motor.despejar (ver
+    % Motor.m en la raíz del repo): es el mismo motor que usan VM, FV, MM e
+    % IE, no una copia. sp.datosSis es el atajo que lo llama.
     %
     % Y DOS HERRAMIENTAS QUE NO ARMAN SISTEMAS
     %   sp.eslabones   criterio de Grashof: clase e inversión
@@ -106,7 +108,13 @@ classdef sp
                 'tt1','tt2','mu1','mu2'};
             S   = cell2struct(cellfun(@sym, nom, 'UniformOutput', false)', ...
                 nom', 1);
-            a = S.a; b = S.b; c = S.c; d = S.d; t2 = deg2rad(S.t2);
+            % t2 en RADIANES, igual que en toda la clase. Antes esta linea
+            % decia deg2rad(S.t2): con eso, pasar t2 = pi/4 (radianes, como
+            % dice la cabecera y como hace el ejemplo de mas abajo) lo
+            % trataba como pi/4 GRADOS y lo convertia mal. Se confirmo
+            % comparando contra sisL4V con el mismo mecanismo: antes del
+            % arreglo t41 no coincidia entre los dos metodos; despues, si.
+            a = S.a; b = S.b; c = S.c; d = S.d; t2 = S.t2;
             Ax = S.Ax; Ay = S.Ay; P = S.P; Q = S.Q; R = S.R; disc = S.disc;
             By1 = S.By1; By2 = S.By2; Bx1 = S.Bx1; Bx2 = S.Bx2;
             t31 = S.t31; t32 = S.t32; t41 = S.t41; t42 = S.t42;
@@ -584,60 +592,13 @@ classdef sp
         end
 
         %% ===================================================================
-        %  datos — Traduce los argumentos de entrada a un struct de datos.
-        %  Es la pieza que le permite a datosSis aceptar las dos formas de
-        %  llamada sin repetir el parseo.
-        %
-        %    args : cell array (el varargin de quien llama). Se acepta
-        %           {structDeDatos}  o  {'nombre',valor, 'nombre',valor, ...}
-        %
-        %  Escribir struct() a mano no agrega información: el nombre del
-        %  campo ya va entre comillas. Los pares nombre-valor son la
-        %  convención de MATLAB (plot('LineWidth',1.5) es exactamente esto).
-        %  El struct NO se elimina porque a veces el dato YA es un struct.
-        %% ===================================================================
-        function s = datos(args)
-            n = numel(args);
-
-            if n == 1 && isstruct(args{1})
-                s = args{1};
-                return
-            end
-            if n == 0 || mod(n,2) ~= 0
-                error('sp:parInvalido', ...
-                    ['Se esperaban pares nombre-valor (cantidad par de ' ...
-                    'argumentos) o un struct. Llegaron %d.'], n);
-            end
-
-            % Impares = nombres, pares = valores. 'end' dentro de un índice
-            % significa "el último", así que 1:2:end recorre 1,3,5...
-            % Se indexa con () y no con {}: el resultado sigue siendo cell.
-            nombres = args(1:2:end);
-            valores = args(2:2:end);
-
-            % cellfun aplica la función a cada celda; con el @(c) de una
-            % línea evita escribir un for de tres renglones.
-            if ~all(cellfun(@(c) ischar(c) || isstring(c), nombres))
-                error('sp:parInvalido', ...
-                    ['Los argumentos impares tienen que ser nombres. ' ...
-                    'Ej: sp.datosSis(''L4V'', ''a'',40, ''t2'',pi/4)']);
-            end
-
-            % cell2struct(valores, nombres, 1): el 1 dice que los campos se
-            % arman recorriendo las FILAS del cell de nombres — por eso los
-            % (:) que los ponen en columna. cellstr(string(...)) normaliza
-            % "t2" (comillas dobles) y 't2' (simples) al mismo tipo.
-            s = cell2struct(valores(:), cellstr(string(nombres(:))), 1);
-        end
-
-        %% ===================================================================
         %  longitudes — Lee y valida las CUATRO longitudes de un cuatro barras.
         %  Helper de las funciones que clasifican y comparan (sp.eslabones,
         %  sp.muAT); los sisXXX no lo usan porque ellos no miran valores,
         %  solo arman ecuaciones.
         %
         %    args : el varargin de quien llama, en cualquiera de las dos formas
-        %           que acepta sp.datos (pares nombre-valor o struct).
+        %           que acepta Motor.datos (pares nombre-valor o struct).
         %
         %  Devuelve a, b, c, d por separado y no un struct: quien llama los va
         %  a usar sueltos en fórmulas, y dat.a dentro de una cuenta larga se
@@ -645,7 +606,7 @@ classdef sp
         %% ===================================================================
         function [a, b, c, d] = longitudes(args)
 
-            dat = sp.datos(args);
+            dat = Motor.datos(args, 'sp');
 
             % fieldnames devuelve columna; el ' la pasa a fila para que
             % setdiff compare dos cell de texto de la misma forma.
@@ -674,82 +635,7 @@ classdef sp
         end
 
         %% ===================================================================
-        %  resolver — Recorre la CADENA y devuelve todas las incógnitas.
-        %  Lo usa datosSis.
-        %
-        %  Entradas:
-        %    eqs : sistema simbólico (de cualquier sp.sisXXX)
-        %    S   : diccionario de símbolos del MISMO sistema
-        %    d   : struct con los datos de entrada
-        %
-        %  Salida:
-        %    sol : struct con TODAS las variables del sistema, resueltas.
-        %          sol.t41 y sol.t31, y también las intermedias (K1, A, B...).
-        %          Para número: double(sol.t41).
-        %
-        %  POR QUÉ ALCANZA CON subs Y NO HACE FALTA solve:
-        %    Cada renglón de un sisXXX tiene la forma
-        %        símboloNuevo == expresión de los símbolos anteriores
-        %    y los renglones están escritos en orden de dependencia. Con esa
-        %    estructura no hay nada que despejar: el lado derecho YA es la
-        %    fórmula. Una sola pasada sustituyendo cada símbolo por su
-        %    expresión resuelve la cadena entera.
-        %
-        %  NO ES UN MOTOR DE DESPEJE, Y NO PRETENDE SERLO.
-        %    Va en UNA dirección: de las longitudes y el ángulo de entrada
-        %    hacia los ángulos de salida. Si querés la longitud que produce
-        %    cierto theta4, esto no sirve.
-        %    Un motor de sustitución hacia adelante como MM.despejar tampoco
-        %    serviría, y está probado: se frena porque casi toda ecuación
-        %    queda con dos o tres símbolos libres. La diferencia es de forma,
-        %    no de tamaño. El modelo axial de MM es una MALLA de relaciones
-        %    chicas y redundantes, donde se entra por cualquier lado; los
-        %    sisXXX son una CADENA de un solo sentido.
-        %
-        %  VENTAJA SOBRE UN MOTOR DE DESPEJE: los datos pueden ser SIMBÓLICOS.
-        %    Pasarle t2 = w*t deja la salida en función del tiempo, lista
-        %    para derivar. Un motor que cuente símbolos libres se traba ahí,
-        %    porque t y w le parecen incógnitas sin determinar.
-        %% ===================================================================
-        function sol = resolver(eqs, S, d)
-
-            % fieldnames — devuelve los nombres de los campos del struct como
-            % CELL ARRAY de texto: {'a'; 'b'; 't2'; ...}. Permite que la
-            % función no sepa de antemano qué datos le van a pasar.
-            campos = fieldnames(d);
-
-            for k = 1:numel(campos)
-                if ~isfield(S, campos{k})
-                    error('sp:campoDesconocido', ...
-                        ['"%s" no es una variable de este sistema. ' ...
-                        'Válidas: %s'], campos{k}, strjoin(fieldnames(S)', ', '));
-                end
-                % campos{k}  -> LLAVES porque es cell array; da el texto 'a'.
-                % S.(...)    -> acceso DINÁMICO a campo. S.a exige saber el
-                %               nombre al escribir el código; S.('a') acepta
-                %               el nombre como variable en ejecución.
-                %               S.(campos{k}) = el SÍMBOLO
-                %               d.(campos{k}) = el VALOR
-                % subs reemplaza en TODAS las ecuaciones de una vez. El loop
-                % es necesario: subs no recorre structs.
-                eqs = subs(eqs, S.(campos{k}), d.(campos{k}));
-            end
-
-            % --- una sola pasada por la cadena ----------------------------
-            sol = struct();
-            for k = 1:numel(eqs)
-                % lhs y rhs parten una ecuación simbólica en sus dos lados.
-                % En el paso k, lhs(eqs(k)) todavía es el símbolo pelado y
-                % rhs(eqs(k)) ya tiene sustituidos todos los anteriores: o
-                % sea que ya es la expresión resuelta.
-                sol.(char(lhs(eqs(k)))) = rhs(eqs(k));
-                eqs = subs(eqs, lhs(eqs(k)), rhs(eqs(k)));   % propaga al resto
-            end
-        end
-
-
-        %% ===================================================================
-        %  datosSis — Atajo sobre CUALQUIERA de los cinco sistemas.
+        %  datosSis — Atajo sobre CUALQUIERA de los sistemas de la clase.
         %  El PRIMER argumento es el método; el resto son los datos, en pares
         %  nombre-valor o en un struct:
         %
@@ -757,14 +643,33 @@ classdef sp
         %    r = sp.datosSis('L4V', dat)            % dat = struct(...)
         %    r = sp.datosSis('CI',  'a',40,'c',30,'d',100,'t2',pi/4,'g',pi/3)
         %
-        %  NO se pide una incógnita. La cadena resuelve TODAS las variables de
-        %  una sola pasada, así que pedir una sería tirar el resto: elegís
-        %  después, del struct que devuelve.
+        %  NO se pide una incógnita. Motor.despejar resuelve TODAS las
+        %  variables que los datos permitan en una sola pasada, así que pedir
+        %  una sería tirar el resto: elegís después, del struct que devuelve.
         %    double([r.t41 r.t42])     los dos ensambles del balancín
         %
         %  Los datos no tienen que ser números. Pasando t2 = w*t, con w y t
         %  simbólicos, la salida queda en función del tiempo y se deriva con
-        %  diff para sacar velocidades y aceleraciones.
+        %  diff para sacar velocidades y aceleraciones. Esto funciona porque
+        %  Motor.despejar cuenta incógnitas mirando el diccionario S del
+        %  sistema, no symvar: w y t no son símbolos de ESTE sistema, así que
+        %  pasan como parámetros y no traban el despeje.
+        %
+        %  POR QUÉ ALCANZA CON subs Y NO HACE FALTA solve, EN ESTA CLASE:
+        %    Cada renglón de un sisXXX tiene la forma
+        %        símboloNuevo == expresión de los símbolos anteriores
+        %    escrita en orden de dependencia: no hay nada que despejar
+        %    algebraicamente, el lado derecho YA es la fórmula. Motor.despejar
+        %    reconoce esta forma (su "camino rápido") y resuelve la cadena
+        %    entera sin llamar a solve ni una vez.
+        %
+        %  LOS sisXXX SON UNA CADENA, NO UNA MALLA: van en UNA dirección, de
+        %    las longitudes y el ángulo de entrada hacia los ángulos de
+        %    salida. Si querés la longitud que produce cierto theta4, esto no
+        %    sirve — a diferencia del modelo axial de MM.m, que es una malla
+        %    de relaciones chicas y redundantes donde se entra por cualquier
+        %    lado. Motor.despejar sirve para las dos formas; la forma la
+        %    decide cada sisXXX, no el motor.
         %% ===================================================================
         function sol = datosSis(metodo, varargin)
             if nargin < 2
@@ -772,10 +677,10 @@ classdef sp
                     ['Faltan argumentos: el método y los datos. Ej: ' ...
                     'sp.datosSis(''MC'', ''a'',40, ''b'',120, ''c'',0, ''t2'',pi/4)']);
             end
-            d = sp.datos(varargin);
+            d = Motor.datos(varargin, 'sp');
 
             [eqs, S] = sp.sistema(metodo);
-            sol = sp.resolver(eqs, S, d);
+            sol = Motor.despejar(eqs, S, d, 'prefijo','sp');
         end
 
         %% ===================================================================
