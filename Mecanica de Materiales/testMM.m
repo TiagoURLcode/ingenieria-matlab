@@ -10,7 +10,7 @@ s0 = P0/A0;                      % 66.667 MPa
 
 %% 1 ecAxial: estructura del modelo
 [eqs, S] = MM.ecAxial();
-ok('ecAxial da 8 ecuaciones', numel(eqs) == 8);
+ok('ecAxial da 15 ecuaciones', numel(eqs) == 15);
 ok('diccionario completo', all(isfield(S, ...
     {'P','A','sig','eps','E','L','delta','k','nu','epsp','dia','ddia'})));
 ok('S trae simbolos, no valores', isa(S.P,'sym') && isa(S.eps,'sym'));
@@ -93,7 +93,7 @@ ok('sin dia no hay ddia', ~isfield(MM.axial( ...
 
 %% 6 axial: resuelve todo de una
 r = MM.axial(d);
-ok('axial devuelve los 8 campos', numel(fieldnames(r)) == 8);
+ok('axial devuelve los 12 campos', numel(fieldnames(r)) == 12);
 ok('axial es numerico', isnumeric(r.delta) && isnumeric(r.sig));
 ok('axial delta', tol(r.delta, d0));
 ok('axial conserva los datos', tol(r.P,P0) && tol(r.A,A0));
