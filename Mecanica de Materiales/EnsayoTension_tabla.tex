@@ -1,0 +1,34 @@
+% Cuadro de datos para la interpretación de resultados (práctica 6).
+% Solo las filas que responden las cinco preguntas.
+% Paquetes necesarios: booktabs (reglas), siunitx no hace falta.
+
+\documentclass[11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[spanish]{babel}
+\usepackage{booktabs}
+\usepackage[labelsep=period]{caption}  % "Cuadro 1." en vez de "Cuadro 1:"
+\usepackage[margin=2.5cm]{geometry}
+
+\begin{document}
+
+\begin{table}[htbp]
+  \centering
+  \caption{Datos experimentales obtenidos. Los esfuerzos están en kilolibras
+           por pulgada cuadrada (ksi).}
+  \label{tab:interpretacion}
+  \begin{tabular}{lrrrr}
+    \toprule
+    \textbf{Propiedad} & \textbf{Aluminio} & \textbf{A-709} & \textbf{A-1045} & \textbf{A-1018 CR} \\
+    \midrule
+    $\sigma$ fluencia (ksi)     & 52.0   & 38.7   & 85.0    & 91.0 \\
+    $\sigma$ último (ksi)       & 59.7   & 63.0   & 118.0   & 95.2 \\
+    $\sigma$ ruptura (ksi)      & 46.0   & 36.7   & 92.0    & 70.0 \\
+    Relación fluencia/último    & 0.87   & 0.61   & 0.72    & 0.96 \\
+    $\varepsilon$ total (in/in) &        & 0.4233 & 0.1422  & 0.1557 \\
+    Rigidez $\sigma/\varepsilon$ (ksi) &  & 148.9 & 829.5 & 611.7 \\
+    Tipo de falla               & Frágil & Dúctil & Dúctil  & Dúctil \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\end{document}
