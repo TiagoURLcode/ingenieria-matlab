@@ -18,15 +18,16 @@ function ejecutarTodos()
     cargarVM();
 
     archivos = {
-        'ResorteMasaY.m'
+        'BarraColgando.m'
+        'BarraRigida.m'
+        'CanonRetroceso.m'
+        'DosResortes.m'
         'ImpactoPlastico.m'
         'OscilogramaMotor.m'
-        'VagonTope.m'
-        'CanonRetroceso.m'
-        'BarraRigida.m'
+        'ResorteMasaY.m'
         'ResortesParalelo.m'
         'SerieParalelo.m'
-        'DosResortes.m'
+        'VagonTope.m'
     };
 
     fprintf('=========================================================================\n');

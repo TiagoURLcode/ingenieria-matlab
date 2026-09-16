@@ -64,29 +64,11 @@ fprintf('Ecuaciones de movimiento:\n');
 fprintf('   x(t) = %s\n', char(vpa(x7_sym, 5)));
 fprintf('   v(t) = %s\n\n', char(vpa(v7_sym, 5)));
 
-%% 4. Gráfica integrada con el esquema
-fig = figure('Name', 'Serie y Paralelo - Tarea 2', 'Color', 'w', 'Position', [100, 100, 1100, 520]);
-
-% Panel izquierdo: Esquema físico
+%% 4. Esquema Físico del Sistema
 imgFile = fullfile(subfolderActual, 'SerieParalelo.png');
 if exist(imgFile, 'file')
-    subplot(2, 2, [1 3]);
+    fig = figure('Name', 'Esquema Físico - Serie y Paralelo', 'Color', 'w', 'Position', [100, 100, 650, 650]);
     image(imread(imgFile));
     axis image off;
-    title('Esquema Físico (Serie y Paralelo)', 'FontSize', 11, 'FontWeight', 'bold');
+    title('Esquema Físico (Serie y Paralelo)', 'FontSize', 12, 'FontWeight', 'bold');
 end
-
-% Panel derecho superior: x(t)
-t_vec = linspace(0, 0.25, 500);
-subplot(2, 2, 2);
-plot(t_vec, x7_fun(t_vec)*1e3, 'LineWidth', 1.8, 'Color', [0.85 0.33 0.10]);
-grid on; ylabel('x(t) [mm]');
-title('Respuesta Sobreamortiguada x(t)');
-
-% Panel derecho inferior: v(t)
-subplot(2, 2, 4);
-plot(t_vec, v7_fun(t_vec), 'LineWidth', 1.8, 'Color', [0.00 0.45 0.74]); hold on;
-plot(t_eval, v7_005, 'ro', 'MarkerFaceColor', 'r', 'MarkerSize', 7);
-grid on; xlabel('Tiempo t [s]'); ylabel('v(t) [m/s]');
-title('Velocidad v(t)');
-legend('v(t)', sprintf('v(0.05s) = %.3f m/s', v7_005), 'Location', 'northeast');

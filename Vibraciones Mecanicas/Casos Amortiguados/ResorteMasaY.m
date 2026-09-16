@@ -213,92 +213,18 @@ fprintf('   Ecuación a(t):      a(t) = %s\n\n', char(vpa(a3_sym, 5)));
 % Vector de tiempo común para evaluación numérica vectorizada (gracias a matlabFunction)
 t_vec = linspace(0, 1.5, 1000);
 
-%% FIGURA 0: Esquema Físico del Sistema
-imgFile = fullfile(subfolderActual, 'sistema_resorte_masa_y.jpg');
+%% FIGURA: Esquema Físico del Sistema
+imgFile = fullfile(subfolderActual, 'ResorteMasaY.png');
+if ~exist(imgFile, 'file')
+    imgFile = fullfile(subfolderActual, 'sistema_resorte_masa_y.jpg');
+end
 if exist(imgFile, 'file')
-    figure('Name', 'Esquema Físico - Resorte Masa Y', 'Color', 'w', 'Position', [50, 150, 600, 600]);
+    figure('Name', 'Esquema Físico - Resorte Masa Y', 'Color', 'w', 'Position', [50, 150, 650, 650]);
     image(imread(imgFile));
     axis image off;
     title('Esquema Físico del Sistema Vertical', 'FontSize', 12, 'FontWeight', 'bold');
 end
 
-%% FIGURA 1: Comparativa Directa x(t) y Normalizada x(t)/x0
-figure('Name', 'Comparativa de Regímenes Variando M', 'Color', 'w', ...
-       'Position', [80, 100, 1050, 480]);
-
-% Subplot 1: Respuesta real en metros
-subplot(1, 2, 1);
-plot(t_vec, x1_fun(t_vec), 'LineWidth', 2, 'Color', [0.85, 0.33, 0.10]); hold on;
-plot(t_vec, x2_fun(t_vec), 'LineWidth', 2, 'Color', [0.00, 0.45, 0.74]);
-plot(t_vec, x3_fun(t_vec), 'LineWidth', 2, 'Color', [0.47, 0.67, 0.19]);
-yline(0, 'k--', 'LineWidth', 1);
-grid on;
-title('Respuesta Real: Posición x(t)', 'FontSize', 12, 'FontWeight', 'bold');
-xlabel('Tiempo t [s]', 'FontSize', 11);
-ylabel('Desplazamiento x(t) [m]', 'FontSize', 11);
-legend(sprintf('Sobre (M = %g kg, \\zeta = %.2f)', m_sobre, z1), ...
-       sprintf('Crítico (M = %g kg, \\zeta = 1.00)', m_crit), ...
-       sprintf('Sub (M = %g kg, \\zeta = %.2f)', m_sub, z3), ...
-       'Location', 'northeast');
-
-% Subplot 2: Respuesta normalizada respecto a la deflexión inicial x0
-subplot(1, 2, 2);
-plot(t_vec, x1_fun(t_vec)/x0_sobre, 'LineWidth', 2, 'Color', [0.85, 0.33, 0.10]); hold on;
-plot(t_vec, x2_fun(t_vec)/x0_crit,  'LineWidth', 2, 'Color', [0.00, 0.45, 0.74]);
-plot(t_vec, x3_fun(t_vec)/x0_sub,   'LineWidth', 2, 'Color', [0.47, 0.67, 0.19]);
-yline(0, 'k--', 'LineWidth', 1);
-grid on;
-title('Respuesta Normalizada: x(t) / x_0', 'FontSize', 12, 'FontWeight', 'bold');
-xlabel('Tiempo t [s]', 'FontSize', 11);
-ylabel('Amplitud Relativa [adim]', 'FontSize', 11);
-legend('Sobre (Retorno lento asintótico)', ...
-       'Crítico (Retorno más rápido sin oscilar)', ...
-       'Sub (Cruza cero y oscila amortiguándose)', ...
-       'Location', 'northeast');
-
-%% FIGURA 2: Detalle Cinemático (x, v, a) para cada Régimen
-figure('Name', 'Detalle de Posición, Velocidad y Aceleración', 'Color', 'w', ...
-       'Position', [120, 80, 1100, 720]);
-
-% Columna 1: Sobreamortiguado
-subplot(3, 3, 1);
-plot(t_vec, x1_fun(t_vec), 'LineWidth', 1.8, 'Color', [0.85 0.33 0.10]); grid on;
-title(sprintf('Sobre (M = %g kg)\nPosición x(t) [m]', m_sobre)); ylabel('x [m]');
-
-subplot(3, 3, 4);
-plot(t_vec, v1_fun(t_vec), 'LineWidth', 1.8, 'Color', [0.85 0.33 0.10]); grid on;
-title('Velocidad v(t) [m/s]'); ylabel('v [m/s]');
-
-subplot(3, 3, 7);
-plot(t_vec, a1_fun(t_vec), 'LineWidth', 1.8, 'Color', [0.85 0.33 0.10]); grid on;
-title('Aceleración a(t) [m/s²]'); xlabel('Tiempo [s]'); ylabel('a [m/s²]');
-
-% Columna 2: Críticamente Amortiguado
-subplot(3, 3, 2);
-plot(t_vec, x2_fun(t_vec), 'LineWidth', 1.8, 'Color', [0.00 0.45 0.74]); grid on;
-title(sprintf('Crítico (M = %g kg)\nPosición x(t) [m]', m_crit));
-
-subplot(3, 3, 5);
-plot(t_vec, v2_fun(t_vec), 'LineWidth', 1.8, 'Color', [0.00 0.45 0.74]); grid on;
-title('Velocidad v(t) [m/s]');
-
-subplot(3, 3, 8);
-plot(t_vec, a2_fun(t_vec), 'LineWidth', 1.8, 'Color', [0.00 0.45 0.74]); grid on;
-title('Aceleración a(t) [m/s²]'); xlabel('Tiempo [s]');
-
-% Columna 3: Sub-amortiguado
-subplot(3, 3, 3);
-plot(t_vec, x3_fun(t_vec), 'LineWidth', 1.8, 'Color', [0.47 0.67 0.19]); grid on;
-title(sprintf('Sub (M = %g kg)\nPosición x(t) [m]', m_sub));
-
-subplot(3, 3, 6);
-plot(t_vec, v3_fun(t_vec), 'LineWidth', 1.8, 'Color', [0.47 0.67 0.19]); grid on;
-title('Velocidad v(t) [m/s]');
-
-subplot(3, 3, 9);
-plot(t_vec, a3_fun(t_vec), 'LineWidth', 1.8, 'Color', [0.47 0.67 0.19]); grid on;
-title('Aceleración a(t) [m/s²]'); xlabel('Tiempo [s]');
-
 fprintf('=========================================================================\n');
-fprintf('                ANÁLISIS Y GRÁFICAS GENERADAS EXITOSAMENTE               \n');
+fprintf('                ANÁLISIS Y ESQUEMA GENERADOS EXITOSAMENTE                \n');
 fprintf('=========================================================================\n');

@@ -71,22 +71,11 @@ fprintf('Ejemplo numérico con M = %g kg, l = %g m, k = %g N/m:\n', M_test, l_te
 fprintf('   c_cr calculado = %.4f N*s/m\n', c_cr_test);
 fprintf('   wn calculado   = %.4f rad/s\n\n', wn_test);
 
-%% 3. Gráfica integrada con el esquema
-fig = figure('Name', 'Barra Rígida Articulada - Tarea 2', 'Color', 'w', 'Position', [100, 100, 1100, 500]);
-
-% Panel izquierdo: Esquema físico
+%% 3. Esquema Físico del Sistema
 imgFile = fullfile(subfolderActual, 'BarraRigida.png');
 if exist(imgFile, 'file')
-    subplot(1, 2, 1);
+    fig = figure('Name', 'Esquema Físico - Barra Rígida Articulada', 'Color', 'w', 'Position', [100, 100, 650, 650]);
     image(imread(imgFile));
     axis image off;
-    title('Esquema Físico de la Barra Articulada', 'FontSize', 11, 'FontWeight', 'bold');
+    title('Esquema Físico de la Barra Articulada', 'FontSize', 12, 'FontWeight', 'bold');
 end
-
-% Panel derecho: Oscilación rotacional
-subplot(1, 2, 2);
-t_vec = linspace(0, 2, 500);
-plot(t_vec, theta_fun(t_vec), 'LineWidth', 1.8, 'Color', [0.00 0.45 0.74]);
-grid on;
-title(sprintf('Oscilación Angular \\theta(t) (\\zeta = %.2f, c_{cr} = %.2f N*s/m)', z_test, c_cr_test));
-xlabel('Tiempo t [s]'); ylabel('\theta(t) [rad]');

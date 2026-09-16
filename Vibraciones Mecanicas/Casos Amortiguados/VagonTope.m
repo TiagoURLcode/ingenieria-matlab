@@ -63,32 +63,11 @@ fprintf('Ecuaciones de movimiento:\n');
 fprintf('   x(t) = %s\n', char(vpa(x3_sym, 5)));
 fprintf('   v(t) = %s\n\n', char(vpa(v3_sym, 5)));
 
-%% 5. Gráfica integrada con el esquema
-fig = figure('Name', 'Vagón contra Tope - Tarea 2', 'Color', 'w', 'Position', [100, 100, 1100, 520]);
-
-% Panel izquierdo: Esquema físico
+%% 5. Esquema Físico del Sistema
 imgFile = fullfile(subfolderActual, 'VagonTope.png');
 if exist(imgFile, 'file')
-    subplot(2, 2, [1 3]);
+    fig = figure('Name', 'Esquema Físico - Vagón contra Tope', 'Color', 'w', 'Position', [100, 100, 650, 650]);
     image(imread(imgFile));
     axis image off;
-    title('Esquema Físico del Tope Amortiguador', 'FontSize', 11, 'FontWeight', 'bold');
+    title('Esquema Físico del Tope Amortiguador', 'FontSize', 12, 'FontWeight', 'bold');
 end
-
-% Panel derecho superior: Compresión x(t)
-t_span = linspace(0, 0.8, 500);
-subplot(2, 2, 2);
-plot(t_span, x3_fun(t_span), 'LineWidth', 1.8, 'Color', [0.00 0.45 0.74]); hold on;
-plot(t_max3, x_max3, 'ro', 'MarkerFaceColor', 'r', 'MarkerSize', 7);
-grid on; ylabel('Compresión x(t) [m]');
-title('Compresión del Tope x(t)');
-legend('x(t)', sprintf('x_{max} = %.4f m', x_max3), 'Location', 'northeast');
-
-% Panel derecho inferior: Velocidad v(t)
-subplot(2, 2, 4);
-plot(t_span, v3_fun(t_span), 'LineWidth', 1.8, 'Color', [0.85 0.33 0.10]); hold on;
-plot(t_max3, 0, 'ro', 'MarkerFaceColor', 'r', 'MarkerSize', 7);
-yline(0, 'k--');
-grid on; xlabel('Tiempo t [s]'); ylabel('Velocidad v(t) [m/s]');
-title('Velocidad del Vagón v(t)');
-legend('v(t)', 'v = 0', 'Location', 'northeast');

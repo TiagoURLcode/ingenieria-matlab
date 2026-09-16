@@ -54,26 +54,11 @@ fprintf('   b) Tiempo para recorrer 2/3 de Xmax:\n');
 fprintf('      - Solución exacta:     t  = %.4f s (evaluación no lineal fzero)\n', t_exacto);
 fprintf('      - Solución de clave:   t  = %.4f s (clave docente: 0.034 s)\n\n', t_clave);
 
-%% 4. Gráfica integrada con el esquema
-fig = figure('Name', 'Retroceso del Cañón - Tarea 2', 'Color', 'w', 'Position', [100, 100, 1100, 500]);
-
-% Panel izquierdo: Esquema físico
+%% 4. Esquema Físico del Sistema
 imgFile = fullfile(subfolderActual, 'CanonRetroceso.png');
 if exist(imgFile, 'file')
-    subplot(1, 2, 1);
+    fig = figure('Name', 'Esquema Físico - Retroceso del Cañón', 'Color', 'w', 'Position', [100, 100, 650, 650]);
     image(imread(imgFile));
     axis image off;
-    title('Esquema del Mecanismo de Retroceso', 'FontSize', 11, 'FontWeight', 'bold');
+    title('Esquema del Mecanismo de Retroceso', 'FontSize', 12, 'FontWeight', 'bold');
 end
-
-% Panel derecho: Curva de retorno crítico
-subplot(1, 2, 2);
-t_plot = linspace(0, 0.5, 400);
-plot(t_plot, x_norm_fun(t_plot), 'LineWidth', 2, 'Color', [0.00 0.45 0.74]); hold on;
-yline(2/3, 'r--', 'LineWidth', 1.2);
-plot(t_exacto, 2/3, 'ro', 'MarkerFaceColor', 'r', 'MarkerSize', 8);
-grid on;
-title('Curva de Retorno Crítico Normalizada');
-xlabel('Tiempo t [s]'); ylabel('x(t) / X_{max} [adim]');
-legend('Curva (1+\omega_n t)e^{-\omega_n t}', 'Meta: 2/3 de X_{max}', ...
-       sprintf('t = %.4f s', t_exacto), 'Location', 'northeast');

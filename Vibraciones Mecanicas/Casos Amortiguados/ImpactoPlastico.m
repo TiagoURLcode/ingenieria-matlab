@@ -73,32 +73,11 @@ fprintf('Ecuaciones analíticas:\n');
 fprintf('   x(t) = %s\n', char(vpa(x1_sym, 5)));
 fprintf('   v(t) = %s\n\n', char(vpa(v1_sym, 5)));
 
-%% 6. Gráfica integrada con el esquema del sistema
-fig = figure('Name', 'Impacto Plástico - Tarea 2', 'Color', 'w', 'Position', [100, 100, 1100, 520]);
-
-% Panel izquierdo: Esquema físico
+%% 6. Esquema Físico del Sistema
 imgFile = fullfile(subfolderActual, 'ImpactoPlastico.png');
 if exist(imgFile, 'file')
-    subplot(2, 2, [1 3]);
+    fig = figure('Name', 'Esquema Físico - Impacto Plástico', 'Color', 'w', 'Position', [100, 100, 650, 650]);
     image(imread(imgFile));
     axis image off;
-    title('Esquema Físico del Sistema', 'FontSize', 11, 'FontWeight', 'bold');
+    title('Esquema Físico del Impacto Plástico', 'FontSize', 12, 'FontWeight', 'bold');
 end
-
-% Panel derecho superior: Desplazamiento x(t)
-t_vec = linspace(0, 0.8, 500);
-subplot(2, 2, 2);
-plot(t_vec, x1_fun(t_vec), 'LineWidth', 1.8, 'Color', [0.00 0.45 0.74]); hold on;
-plot(t_pico1, x_max1, 'ro', 'MarkerFaceColor', 'r', 'MarkerSize', 7);
-grid on; ylabel('x(t) [m]');
-title('Desplazamiento x(t)');
-legend('x(t)', sprintf('x_{max} = %.3f m', x_max1), 'Location', 'northeast');
-
-% Panel derecho inferior: Velocidad v(t)
-subplot(2, 2, 4);
-plot(t_vec, v1_fun(t_vec), 'LineWidth', 1.8, 'Color', [0.85 0.33 0.10]); hold on;
-plot(t_pico1, 0, 'ro', 'MarkerFaceColor', 'r', 'MarkerSize', 7);
-yline(0, 'k--');
-grid on; xlabel('Tiempo t [s]'); ylabel('v(t) [m/s]');
-title('Velocidad v(t)');
-legend('v(t)', 'v = 0', 'Location', 'northeast');

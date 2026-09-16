@@ -58,29 +58,11 @@ fprintf('   c) Coeficiente c:   c = %.4f N*s/m (clave: 1.58 N*s/m)\n', c6);
 fprintf('   d) Posición en 0.1s: x(0.1s) = %.4f m (%.2f mm) (clave: 0.1758 m)\n\n', ...
     x6_01, x6_01 * 1e3);
 
-%% 4. Gráfica integrada con el esquema
-fig = figure('Name', 'Resortes en Paralelo - Tarea 2', 'Color', 'w', 'Position', [100, 100, 1100, 520]);
-
-% Panel izquierdo: Esquema físico
+%% 4. Esquema Físico del Sistema
 imgFile = fullfile(subfolderActual, 'ResortesParalelo.png');
 if exist(imgFile, 'file')
-    subplot(2, 2, [1 3]);
+    fig = figure('Name', 'Esquema Físico - Resortes en Paralelo', 'Color', 'w', 'Position', [100, 100, 650, 650]);
     image(imread(imgFile));
     axis image off;
-    title('Esquema Físico (Resortes en Paralelo)', 'FontSize', 11, 'FontWeight', 'bold');
+    title('Esquema Físico (Resortes en Paralelo)', 'FontSize', 12, 'FontWeight', 'bold');
 end
-
-% Panel derecho superior: x(t)
-t_vec = linspace(0, 1.2, 500);
-subplot(2, 2, 2);
-plot(t_vec, x6_fun(t_vec), 'LineWidth', 1.8, 'Color', [0.00 0.45 0.74]); hold on;
-plot(t_eval, x6_01, 'ro', 'MarkerFaceColor', 'r', 'MarkerSize', 7);
-grid on; ylabel('x(t) [m]');
-title('Posición x(t)');
-legend('x(t)', sprintf('x(0.1s) = %.4f m', x6_01), 'Location', 'northeast');
-
-% Panel derecho inferior: v(t)
-subplot(2, 2, 4);
-plot(t_vec, v6_fun(t_vec), 'LineWidth', 1.8, 'Color', [0.85 0.33 0.10]);
-grid on; xlabel('Tiempo t [s]'); ylabel('v(t) [m/s]');
-title('Velocidad v(t)');

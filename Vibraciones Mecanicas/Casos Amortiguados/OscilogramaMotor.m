@@ -58,31 +58,11 @@ fprintf('   c) Coef. amortiguamiento: c  = %.2f N*s/m (clave: 353.3 N*s/m)\n', c
 fprintf('   d) Frec. amortiguada:     wd = %.4f rad/s (f = %.2f Hz)\n', wd2, wd2/(2*pi));
 fprintf('      Frec. natural:         wn = %.4f rad/s\n\n', wn2);
 
-%% 3. Gráfica integrada con el esquema
-fig = figure('Name', 'Oscilograma del Motor - Tarea 2', 'Color', 'w', 'Position', [120, 100, 1100, 500]);
-
-% Panel izquierdo: Esquema físico
+%% 3. Esquema Físico del Sistema
 imgFile = fullfile(subfolderActual, 'OscilogramaMotor.png');
 if exist(imgFile, 'file')
-    subplot(1, 2, 1);
+    fig = figure('Name', 'Esquema Físico - Oscilograma del Motor', 'Color', 'w', 'Position', [120, 100, 650, 650]);
     image(imread(imgFile));
     axis image off;
-    title('Esquema Físico del Motor y Soporte', 'FontSize', 11, 'FontWeight', 'bold');
+    title('Esquema Físico del Motor y Soporte', 'FontSize', 12, 'FontWeight', 'bold');
 end
-
-% Panel derecho: Reconstrucción del oscilograma
-subplot(1, 2, 2);
-t_picos = [0, 0.2, 0.4, 0.6];
-x_picos = [8, 4, 2, 1]; % [mm]
-t_plot = linspace(0, 0.8, 600);
-
-plot(t_plot, x2_fun(t_plot)*1e3, 'LineWidth', 1.8, 'Color', [0.00 0.45 0.74]); hold on;
-env_sup = (x1_2 * exp(-z2 * wn2 * t_plot)) * 1e3;
-plot(t_plot, env_sup, 'k--', 'LineWidth', 1.2);
-plot(t_plot, -env_sup, 'k--', 'LineWidth', 1.2);
-plot(t_picos, x_picos, 'ro', 'MarkerFaceColor', 'r', 'MarkerSize', 8);
-
-grid on;
-title('Oscilograma Ajustado y Envolvente Teórica');
-xlabel('Tiempo t [s]'); ylabel('Desplazamiento x [mm]');
-legend('Curva x(t)', 'Envolvente \pm X e^{-\zeta \omega_n t}', 'Picos medidos', 'Location', 'northeast');

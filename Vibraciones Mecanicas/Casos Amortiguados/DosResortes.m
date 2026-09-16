@@ -58,34 +58,11 @@ fprintf('      x(t) = %s\n', char(vpa(x8_sym, 5)));
 fprintf('   b) Ecuación de velocidad v(t):\n');
 fprintf('      v(t) = %s\n\n', char(vpa(v8_sym, 5)));
 
-%% 4. Gráfica integrada con el esquema
-fig = figure('Name', 'Dos Resortes Opuestos - Tarea 2', 'Color', 'w', 'Position', [100, 100, 1100, 520]);
-
-% Panel izquierdo: Esquema físico
+%% 5. Esquema Físico del Sistema
 imgFile = fullfile(subfolderActual, 'DosResortes.png');
 if exist(imgFile, 'file')
-    subplot(2, 2, [1 3]);
+    fig = figure('Name', 'Esquema Físico - Dos Resortes Opuestos', 'Color', 'w', 'Position', [100, 100, 650, 650]);
     image(imread(imgFile));
     axis image off;
-    title('Esquema Físico (Dos Resortes Opuestos)', 'FontSize', 11, 'FontWeight', 'bold');
+    title('Esquema Físico (Dos Resortes Opuestos)', 'FontSize', 12, 'FontWeight', 'bold');
 end
-
-% Panel derecho superior: x(t) y envolvente
-t_vec = linspace(0, 1.5, 600);
-env_val = (double(R8.X) * exp(-z8 * wn8 * t_vec)) * 1e3;
-
-subplot(2, 2, 2);
-plot(t_vec, x8_fun(t_vec)*1e3, 'LineWidth', 1.8, 'Color', [0.00 0.45 0.74]); hold on;
-plot(t_vec, env_val, 'k--', 'LineWidth', 1.2);
-plot(t_vec, -env_val, 'k--', 'LineWidth', 1.2);
-yline(0, 'k:');
-grid on; ylabel('x(t) [mm]');
-title('Oscilación Amortiguada y Envolvente');
-legend('x(t)', 'Envolvente \pm X e^{-\zeta \omega_n t}', 'Location', 'northeast');
-
-% Panel derecho inferior: v(t)
-subplot(2, 2, 4);
-plot(t_vec, v8_fun(t_vec), 'LineWidth', 1.8, 'Color', [0.85 0.33 0.10]);
-yline(0, 'k:');
-grid on; xlabel('Tiempo t [s]'); ylabel('v(t) [m/s]');
-title('Velocidad v(t)');
