@@ -18,6 +18,11 @@ classdef VM
     %   I,Jo[kg*m^2]   momento de inercia de masa / [m^4] momento polar de area
     %   g   [m/s^2]    aceleracion de la gravedad (9.81)
     %   omega [rad/s]  frecuencia natural circular
+    %
+    % MOTOR DE DESPEJE: los atajos (omega, subA, critA...) resuelven con
+    % Motor.despejar (Motor.m, en la raiz del repo). Es el mismo motor que
+    % usan MM, FV, IE y sp, no una copia. Para que MATLAB lo encuentre
+    % parado en esta carpeta, correr UNA vez setup.m (raiz del repo).
     % =========================================================================
 
     methods(Static)
@@ -94,11 +99,9 @@ classdef VM
                 nom', 1);
             k = S.k; m = S.m; wn = S.wn; tau = S.tau; f = S.f;
 
-            % sym(pi) y NO pi pelado: ver la nota larga en VM.ecSubA.
-            dpi = sym(pi);
-
+            % pi pelado alcanza: ver la nota PI en VM.ecSubA.
             eqs = [ wn  == sqrt(k/m)
-                tau == 2*dpi/wn
+                tau == 2*pi/wn
                 f   == 1/tau ];
 
             % k es la rigidez EQUIVALENTE, no la de un resorte suelto. Si hay
@@ -117,10 +120,8 @@ classdef VM
                 nom', 1);
             g = S.g; l = S.l; wn = S.wn; tau = S.tau; f = S.f;
 
-            dpi = sym(pi);
-
             eqs = [ wn  == sqrt(g/l)
-                tau == 2*dpi/wn
+                tau == 2*pi/wn
                 f   == 1/tau ];
 
             % NO APARECE LA MASA, y no es un olvido: al plantear la ecuacion
@@ -145,13 +146,11 @@ classdef VM
             m = S.m; g = S.g; l = S.l; Icm = S.Icm; Io = S.Io;
             leq = S.leq; wn = S.wn; tau = S.tau; f = S.f;
 
-            dpi = sym(pi);
-
             eqs = [ Io  == Icm + m*l^2        % teorema de Steiner
                 wn  == sqrt(m*g*l/Io)
                 leq == Io/(m*l)
                 wn  == sqrt(g/leq)        % redundante, ver abajo
-                tau == 2*dpi/wn
+                tau == 2*pi/wn
                 f   == 1/tau ];
 
             % STEINER (ejes paralelos): Io == Icm + m*l^2.
@@ -176,18 +175,35 @@ classdef VM
             % pueda despejar. Anda en cualquier direccion.
             %   r = VM.omega('k',100, 'm',4);   double(r.wn)   -> 5 rad/s
             %   r = VM.omega('wn',5, 'm',4);    double(r.k)    -> 100 N/m
-            d = VM.datos(varargin);
+            %
+            % LAS DOS LLAMADAS AL MOTOR, que se repiten en todos los atajos:
+            % Motor.datos(args, pref) - convierte el varargin en struct.
+            %   args : pares nombre-valor {'k',100, 'm',4} o {struct}
+            %   pref : 'VM', para que los errores salgan como VM:parInvalido
+            % Motor.despejar(eqs, S, d, opciones...) - sustitucion hacia
+            % adelante: despeja todo lo que los datos permitan.
+            %   'prefijo'   : 'VM' -> VM:datosContradictorios, VM:campoDesconocido
+            %   'positivos' : variables que la fisica obliga a ser > 0. Solo
+            %                 actua cuando solve devuelve VARIAS raices:
+            %                 descarta las negativas y complejas. Una raiz
+            %                 unica negativa NO la rechaza.
+            %   'libres'    : simbolos que quedan como PARAMETROS (t en los
+            %                 amortiguados), ver VM.subA
+            d = Motor.datos(varargin, 'VM');
             [eqs, S] = VM.ecOmega();
-            res = VM.despejar(eqs, S, d);
+            res = Motor.despejar(eqs, S, d, 'prefijo','VM', ...
+                'positivos',{'k','m','wn'});
         end
 
         function res = omegaPS(varargin)
             % DESPEJE - frecuencia natural, pendulo simple.
             %   r = VM.omegaPS('g',9.81, 'l',1);   double(r.tau)
             %   r = VM.omegaPS('l',1, 'tau',2);    double(r.g)   % mide g
-            d = VM.datos(varargin);
+            % Argumentos de Motor.datos y Motor.despejar: ver VM.omega.
+            d = Motor.datos(varargin, 'VM');
             [eqs, S] = VM.ecOmegaPS();
-            res = VM.despejar(eqs, S, d);
+            res = Motor.despejar(eqs, S, d, 'prefijo','VM', ...
+                'positivos',{'wn'});
         end
 
         function res = omegaPF(varargin)
@@ -196,9 +212,14 @@ classdef VM
             % directo si ya lo tenes.
             %   r = VM.omegaPF('m',2, 'g',9.81, 'l',0.5, 'Icm',0.5);
             %   r = VM.omegaPF('m',2, 'g',9.81, 'l',0.5, 'Io',1);
-            d = VM.datos(varargin);
+            % Argumentos de Motor.datos y Motor.despejar: ver VM.omega.
+            % l va en 'positivos' porque Steiner (Io == Icm + m*l^2) da
+            % l = +-sqrt((Io - Icm)/m) cuando entras sin l: la negativa
+            % no es una distancia y hace abortar a la ecuacion de control.
+            d = Motor.datos(varargin, 'VM');
             [eqs, S] = VM.ecOmegaPF();
-            res = VM.despejar(eqs, S, d);
+            res = Motor.despejar(eqs, S, d, 'prefijo','VM', ...
+                'positivos',{'m','l','wn'});
         end
 
         function[Torsion] = datosT(M, R, Jo)
@@ -447,10 +468,11 @@ classdef VM
         %  Si ya sabes el caso, podes ir derecho a VM.subA, VM.critA o
         %  VM.sobreA. VM.genA sirve para las raices sin importar el caso.
         %
-        %  x(t) SI ESTA en los sistemas, con t como simbolo libre. Mientras t
-        %  no sea un numero, la ecuacion de x tiene DOS incognitas (x y t) y
-        %  VM.despejar la saltea: es lo esperado, no un error. Si le pasas un
-        %  t numerico, x sale con todo lo demas.
+        %  x(t) SI ESTA en los sistemas, con t como simbolo. VM.subA,
+        %  VM.critA y VM.sobreA le pasan t al motor como 'libres': t no se
+        %  despeja, queda de PARAMETRO, y x sale como expresion en t lista
+        %  para diff o para graficar. Si le pasas un t numerico, x sale
+        %  como numero en ese instante.
         %% ================================================================
 
         function [eqs, S] = ecGenA()
@@ -507,16 +529,17 @@ classdef VM
             x1 = S.x1; x2 = S.x2; n = S.n; x0 = S.x0; v0 = S.v0;
             C1 = S.C1; C2 = S.C2; X = S.X; t = S.t; x = S.x; env = S.env;
 
-            % PI SIMBOLICO, NO EL pi DE MATLAB. Escrito como pi pelado, la
-            % expresion (2*pi)^2 se evalua primero en doble precision y
-            % entra al simbolico congelada como la fraccion binaria exacta
-            % de ese double (2778046668940015/70368744177664), en vez de
-            % 4*pi^2. Mezclado con el pi simbolico que aparece por otro
-            % lado, la identidad entre las dos formas del decremento deja de
-            % ser DEMOSTRABLE, isAlways la da por falsa y despejar aborta con
-            % datosContradictorios sobre datos perfectamente buenos.
-            % Probado: pasa exactamente eso.
-            dpi = sym(pi);
+            % PI: el pi de MATLAB es un DOUBLE, no el pi exacto. 2*pi/wd
+            % entra al simbolico como 2*pi igual (sym reconoce los multiplos
+            % de pi), pero (2*pi)^2 se evalua primero en doble precision y
+            % entra como la fraccion binaria de ese double
+            % (2778046668940015/70368744177664), no como 4*pi^2. Con eso las
+            % dos formas del decremento ya no son IDENTICAS: difieren en el
+            % ultimo bit. No importa porque Motor.despejar controla las
+            % ecuaciones sobrantes con tolerancia RELATIVA (1e-3), no con
+            % igualdad exacta. Con un control exacto (isAlways) esa
+            % diferencia hacia abortar con datosContradictorios sobre datos
+            % buenos, y habia que escribir sym(pi).
 
             % == (doble igual) construye una ECUACION, no una comparacion.
             eqs = [ wn    == sqrt(k/m)
@@ -524,9 +547,9 @@ classdef VM
                 ccr   == 2*m*wn              % redundante, ver abajo
                 z     == c/ccr
                 wd    == sqrt(1 - z^2)*wn
-                taud  == 2*dpi/wd
+                taud  == 2*pi/wd
                 delta == z*wn*taud
-                z     == delta/sqrt((2*dpi)^2 + delta^2)
+                z     == delta/sqrt((2*pi)^2 + delta^2)
                 delta == (1/n)*log(x1/x2)    % n ciclos entre x1 y x2
                 C1    == x0
                 C2    == (v0 + z*wn*x0)/wd
@@ -574,14 +597,19 @@ classdef VM
             %   x      la POSICION en t, que oscila entre +env y -env
             % env no es la posicion: es la cota que la va apretando.
             %
-            % x Y env DEPENDEN DE t, Y ESTAN IGUAL. Mientras t siga siendo un
-            % simbolo, cada una de esas dos ecuaciones tiene DOS incognitas
-            % (x y t, env y t) y VM.despejar las saltea, porque solo despeja
-            % ecuaciones de una sola incognita. Por eso:
-            %   sin t  -> res no trae x ni env, y el resto sale igual
-            %   con t  -> res trae x y env como numeros, en ese instante
-            % Para la curva completa, VM.graficarA: agarra esta misma
-            % ecuacion de x ANTES de despejar y la evalua en un rango de t.
+            % x Y env DEPENDEN DE t, Y ESTAN IGUAL. Con t como simbolo, cada
+            % una de esas dos ecuaciones tiene dos simbolos sin valor (x y t,
+            % env y t). Motor.despejar solo despeja ecuaciones con UNA
+            % incognita, asi que lo que pasa depende de 'libres':
+            %   con 'libres',{'t'} (lo que hace VM.subA)
+            %            -> t no cuenta como incognita: res.x y res.env
+            %               salen como EXPRESIONES en t
+            %   sin 'libres' (Motor.despejar pelado sobre este sistema)
+            %            -> t cuenta como incognita: res no trae x ni env,
+            %               y el resto sale igual
+            %   con t numerico -> res trae x y env como numeros
+            % VM.graficarA usa la primera: lee res.x y la evalua en un
+            % rango de t.
         end
 
         function [eqs, S] = ecCritA()
@@ -612,9 +640,12 @@ classdef VM
             %   - Si das los tres y no cierran, despejar aborta con
             %     VM:datosContradictorios. Eso no es un bug: es la senal de
             %     que el sistema NO es critico y te toca ecSubA o ecSobreA.
-            % Ojo con el redondeo: un enunciado que dice c = 4472 con
-            % ccr = 4472.1356... no cierra EXACTO y aborta igual. Por eso
-            % VM.amortA saca c de los datos cuando ya clasifico el caso.
+            % Ojo con el redondeo: el control de Motor.despejar tolera una
+            % diferencia RELATIVA de 1e-3, asi que c = 4472 contra
+            % ccr = 4472.1359... pasa. Pero VM.clasifA llama 'critico' a
+            % todo z dentro del 0.5%, cinco veces mas ancho: un c que cae
+            % en esa banda y no en la del motor abortaria. Por eso VM.amortA
+            % saca c de los datos cuando ya clasifico el caso (VM.sinC).
             %
             % AQUI NO HAY z, wd, taud, delta NI X. z vale 1 por definicion,
             % y las otras cuatro suponen oscilacion: este caso no oscila.
@@ -665,9 +696,9 @@ classdef VM
             % solucion y su propio sistema: VM.ecCritA.
             %
             % x(t) = C1*exp(s1*t) + C2*exp(s2*t) SI esta, con t libre. Vale
-            % lo mismo que en ecSubA: mientras t sea simbolo, esa ecuacion
-            % tiene dos incognitas y despejar la saltea; con t numerico, x
-            % sale. Para la curva completa, VM.graficarA.
+            % lo mismo que en ecSubA: con 'libres',{'t'} x sale como
+            % expresion en t; con t numerico, x sale como numero. Para la
+            % curva completa, VM.graficarA.
         end
 
         function [eqs, S] = ecTorA()
@@ -727,9 +758,11 @@ classdef VM
             % Devuelve un struct con TODO lo que los datos permitan despejar.
             % Funciona en cualquier direccion: dados wn y Jo saca kt, dados
             % z y ctc saca ct.
-            d = VM.datos(varargin);
+            % Argumentos de Motor.datos y Motor.despejar: ver VM.omega.
+            d = Motor.datos(varargin, 'VM');
             [eqs, S] = VM.ecTorA();
-            res = VM.despejar(eqs, S, d);
+            res = Motor.despejar(eqs, S, d, 'prefijo','VM', ...
+                'positivos',{'Jo','kt','ctc','wn','wd'});
         end
 
         function res = subA(varargin)
@@ -743,11 +776,20 @@ classdef VM
             % esta, es que los datos no alcanzaban para determinarlo.
             % Funciona en cualquier direccion: dados x1 y x2 saca delta, de
             % ahi z, y con m y k tambien c.
-            % Si le pasas t numerico, tambien salen x y env en ese instante.
-            d = VM.datos(varargin);
+            % x y env salen SIEMPRE que alcancen los datos: como expresion
+            % en t si no le pasas t, como numero si le pasas t numerico.
+            %   r = VM.subA('m',1, 'k',100, 'c',2, 'x0',0.1, 'v0',0);
+            %   v = diff(r.x, sym('t'));             % velocidad v(t)
+            %
+            % Argumentos de Motor.datos y Motor.despejar: ver VM.omega.
+            % 'libres',{'t'}: t es el TIEMPO, un parametro de la solucion y
+            % no una incognita del sistema. Sin esto el motor la cuenta como
+            % incognita, la ecuacion de x queda con dos (x y t) y x no sale.
+            d = Motor.datos(varargin, 'VM');
             d = VM.nPorDefecto(d);
             [eqs, S] = VM.ecSubA();
-            res = VM.despejar(eqs, S, d);
+            res = Motor.despejar(eqs, S, d, 'prefijo','VM', 'libres',{'t'}, ...
+                'positivos',{'m','k','ccr','wn','wd','X'});
         end
 
         function res = genA(varargin)
@@ -756,9 +798,12 @@ classdef VM
             %   r = VM.genA('m',10, 'c',40, 'k',4000);
             %   double(r.z)                          % 0.0316 -> es sub
             % Con z < 1 las raices salen complejas: es correcto, ver ecGenA.
-            d = VM.datos(varargin);
+            % Argumentos de Motor.datos y Motor.despejar: ver VM.omega.
+            % s1 y s2 NO van en 'positivos': son negativas o complejas.
+            d = Motor.datos(varargin, 'VM');
             [eqs, S] = VM.ecGenA();
-            res = VM.despejar(eqs, S, d);
+            res = Motor.despejar(eqs, S, d, 'prefijo','VM', ...
+                'positivos',{'m','k','ccr','wn'});
         end
 
         function res = critA(varargin)
@@ -767,12 +812,16 @@ classdef VM
             %   r = VM.critA('m',500, 'k',10000, 'x0',0.4, 'v0',0);
             %   double(r.c)     % el c critico que hace falta
             %   double(r.wn)
-            % OJO: si le pasas m, k y c a la vez y no cumplen c = 2*m*wn
-            % EXACTO, aborta con VM:datosContradictorios. Eso significa que
-            % el sistema no es critico (ver ecCritA).
-            d = VM.datos(varargin);
+            % OJO: si le pasas m, k y c a la vez y c se aleja de 2*m*wn mas
+            % de 1e-3 relativo, aborta con VM:datosContradictorios. Eso
+            % significa que el sistema no es critico (ver ecCritA).
+            % Argumentos de Motor.datos y Motor.despejar: ver VM.omega.
+            % 'libres',{'t'}: igual que en VM.subA, x sale como expresion
+            % en t.
+            d = Motor.datos(varargin, 'VM');
             [eqs, S] = VM.ecCritA();
-            res = VM.despejar(eqs, S, d);
+            res = Motor.despejar(eqs, S, d, 'prefijo','VM', 'libres',{'t'}, ...
+                'positivos',{'m','k','ccr','wn'});
         end
 
         function res = sobreA(varargin)
@@ -780,16 +829,20 @@ classdef VM
             % Misma forma de llamada que VM.subA:
             %   r = VM.sobreA('m',1, 'k',100, 'c',30, 'x0',0.1, 'v0',0);
             %   double(r.s1)
-            d = VM.datos(varargin);
+            % Argumentos de Motor.datos y Motor.despejar: ver VM.omega.
+            % 'libres',{'t'}: igual que en VM.subA, x sale como expresion
+            % en t.
+            d = Motor.datos(varargin, 'VM');
             [eqs, S] = VM.ecSobreA();
-            res = VM.despejar(eqs, S, d);
+            res = Motor.despejar(eqs, S, d, 'prefijo','VM', 'libres',{'t'}, ...
+                'positivos',{'m','k','ccr','wn'});
         end
 
         function [regimen, wn, ccr, z] = clasifA(varargin)
             % CLASIFICADOR - el sistema es sub, critico o sobre? Calculo
             % NUMERICO directo, no simbolico: esta pensado para correr
             % PRIMERO y recien despues elegir que sistema usar.
-            % ENTRADAS (pares nombre-valor o struct, ver VM.datos):
+            % ENTRADAS (pares nombre-valor o struct, ver Motor.datos):
             %   VM.clasifA('m',10, 'c',40, 'k',4000)   desde m, c y k
             %   VM.clasifA('z',0.3)                    con z ya calculada
             % SALIDAS:
@@ -800,7 +853,7 @@ classdef VM
             %   VM.clasifA('m',10, 'c',40,   'k',4000)  -> 'sub'
             %   VM.clasifA('m',10, 'c',400,  'k',4000)  -> 'critico'
             %   VM.clasifA('z',1.4)                     -> 'sobre'
-            s = VM.datos(varargin);
+            s = Motor.datos(varargin, 'VM');
 
             if isfield(s,'z') && ~isempty(s.z)
                 z  = s.z;
@@ -844,7 +897,7 @@ classdef VM
             % la GEOMETRIA del mecanismo. Aca el caso lo deciden los propios
             % datos a traves de z, asi que pedirlo como argumento seria
             % pedirte que hagas vos la cuenta que la funcion ya hace.
-            d = VM.datos(varargin);
+            d = Motor.datos(varargin, 'VM');
             regimen = VM.clasifA(d);
 
             switch regimen
@@ -861,7 +914,7 @@ classdef VM
             % formula, no despeja y no baja nada con matlabFunction: solo
             % numeros. Es el camino RAPIDO, pensado para redibujar en vivo.
             %
-            % ENTRADAS (pares nombre-valor o struct, ver VM.datos):
+            % ENTRADAS (pares nombre-valor o struct, ver Motor.datos):
             %   m, k    : masa [kg] y rigidez EQUIVALENTE [N/m]. Obligatorias
             %   c       : coeficiente de amortiguamiento           [N*s/m]
             %   z       : alternativa a c. Si llega z y no c, c = z*ccr.
@@ -922,7 +975,7 @@ classdef VM
             % expm(A*dt) deja de ser una sola matriz y hay que recalcularla
             % en cada paso.
 
-            d = VM.datos(varargin);   % struct de datos, venga como pares o ya armado
+            d = Motor.datos(varargin, 'VM');   % struct de datos, venga como pares o ya armado
             if ~isfield(d,'x0') || isempty(d.x0), d.x0 = 1; end   % x(0) [m]
             if ~isfield(d,'v0') || isempty(d.v0), d.v0 = 0; end   % xpunto(0) [m/s]
 
@@ -1046,65 +1099,53 @@ classdef VM
             %   VM.graficarA('m',10, 'c',40, 'k',4000, 'x0',0.05, 'v0',0);
             %   VM.graficarA('m',10, 'c',900,'k',4000, 'tf',1.5);
 
-            d = VM.datos(varargin);   % struct de datos, venga como pares 'nombre',valor o ya armado
+            d = Motor.datos(varargin, 'VM');   % struct de datos, venga como pares 'nombre',valor o ya armado
             if ~isfield(d,'x0') || isempty(d.x0), d.x0 = 1; end   % x(0) [m]: 1 por defecto, si no no hay que dibujar
             if ~isfield(d,'v0') || isempty(d.v0), d.v0 = 0; end   % xpunto(0) [m/s]: 0 por defecto, soltado en reposo
             if isfield(d,'t'), d = rmfield(d,'t'); end     % t queda libre
 
             % tf y npts son opciones del dibujo, no variables del modelo: se
-            % sacan del struct antes de que despejar los vea y proteste.
+            % sacan del struct antes de que Motor.despejar los vea y proteste.
             tf = [];      % vacio = sin decidir todavia; si sigue asi, mas abajo se calcula solo
             if isfield(d,'tf'), tf = d.tf; d = rmfield(d,'tf'); end   % tiempo final [s] si vino como opcion
             npts = 500;   % puntos de la curva [adim]
             if isfield(d,'npts'), npts = d.npts; d = rmfield(d,'npts'); end   % lo pisa si pediste otro
 
             regimen = VM.clasifA(d);   % 'sub', 'critico' o 'sobre', mirando z (o c contra ccr)
+
+            % Se despeja con el MISMO atajo que usaria VM.amortA, asi las
+            % opciones del motor ('libres',{'t'}, 'positivos') viven en un
+            % solo lugar. Como esos atajos dejan t libre, res.x ya sale como
+            % expresion en t, con todos los datos sustituidos.
             switch regimen
-                % eqs: las ecuaciones simbolicas del caso. S: los simbolos
-                % (S.x, S.t, S.m, ...) con que estan escritas.
-                case 'sub',     [eqs, S] = VM.ecSubA();
-                case 'critico', [eqs, S] = VM.ecCritA();  d = VM.sinZ(VM.sinC(d));   % sinC: saca c, en el critico no es dato. sinZ: saca z, ecCritA ni siquiera tiene ese simbolo
-                case 'sobre',   [eqs, S] = VM.ecSobreA();
+                case 'sub',     res = VM.subA(d);
+                case 'critico', res = VM.critA(VM.sinZ(VM.sinC(d)));   % sinC: saca c, en el critico no es dato. sinZ: saca z, ecCritA ni siquiera tiene ese simbolo
+                case 'sobre',   res = VM.sobreA(d);
             end
 
-            % eqsOrig se guarda ANTES de despejar porque despejar recibe eqs
-            % POR VALOR: la copia de adentro no toca a esta. Aca sigue
-            % completa la ecuacion "x == ..." con t todavia libre, que es
-            % justo la que hace falta para graficar (despejar nunca la
-            % resuelve: con x y t libres son dos incognitas en una ecuacion).
-            eqsOrig = eqs;                      % copia con x(t) todavia sin tocar
-            res     = VM.despejar(eqs, S, d);   % res: struct con lo que se pudo despejar (wn, z, X, ...)
-
-            idxX = arrayfun(@(e) isequal(lhs(e), S.x), eqsOrig);   % mascara logica: marca la ecuacion cuyo lhs es x
-            xExpr = rhs(eqsOrig(idxX));         % se queda con el lado derecho: la formula de x(t)
-
-            % Se sustituye TODO lo conocido: lo que despejo (res) mas lo que
-            % entro directo como dato (d), para dejar a t como unica
-            % incognita. Lo que entro como dato NO esta en res, porque
-            % despejar lo sustituyo de una: por eso hay que recorrer los dos.
-            conocidos = res;                            % arranca con lo despejado
-            campos = fieldnames(d);                     % nombres de los datos de entrada
-            for i = 1:numel(campos)
-                if ~isfield(conocidos, campos{i})       % el dato no salio del despeje
-                    conocidos.(campos{i}) = d.(campos{i});   % se agrega desde d
-                end
+            % x(t) sale si se conocen wn y z (en el critico, solo wn): C1,
+            % C2, wd, s1 y s2 salen de esas dos y de x0, v0, que tienen
+            % valor por defecto. Si res no trae x, falta alguna de las dos.
+            if ~isfield(res, 'x')
+                if strcmp(regimen, 'critico'), clave = {'wn'}; else, clave = {'wn','z'}; end
+                faltan = setdiff(clave, [fieldnames(res); fieldnames(d)]);   % setdiff: las de clave que no estan en ninguno de los dos
+                error('VM:faltaDato', ...      % 'VM:faltaDato': identificador, para atraparlo con try/catch
+                    ['No se puede graficar: no se pudo determinar %s. Dale m, c ' ...
+                    'y k (o wn y z) y las condiciones iniciales.'], ...
+                    strjoin(faltan, ', '));
             end
-            campos = fieldnames(conocidos);             % ahora si, la lista completa
-            for i = 1:numel(campos)
-                % subs(expresion, simbolo, valor): cambia el simbolo por su numero
-                xExpr = subs(xExpr, S.(campos{i}), conocidos.(campos{i}));
-            end
+            xExpr = res.x;   % la formula de x(t), con t como unico simbolo
 
             % symvar lista los simbolos que quedaron sueltos; @char los pasa
             % a texto y 'UniformOutput',false los deja en un cell (char devuelve
-            % cadenas de largo distinto y no entran en un vector).
+            % cadenas de largo distinto y no entran en un vector). Aparece
+            % algo ademas de t solo si pasaste un dato SIMBOLICO ('k', sym('k0')).
             libres = arrayfun(@char, symvar(xExpr), 'UniformOutput', false);
-            faltan = setdiff(libres, {'t'});   % todo lo que no sea t es un dato que falta
-            if ~isempty(faltan)
-                error('VM:faltaDato', ...      % 'VM:faltaDato': identificador, para atraparlo con try/catch
-                    ['No se puede graficar: quedaron libres %s. Dale m, c y ' ...
-                    'k (o wn y z) y las condiciones iniciales.'], ...
-                    strjoin(faltan, ', '));
+            extra  = setdiff(libres, {'t'});
+            if ~isempty(extra)
+                error('VM:faltaDato', ...
+                    'No se puede graficar: x(t) depende de %s, que no tiene valor numerico.', ...
+                    strjoin(extra, ', '));
             end
 
             % LOOKUP CON RESPALDO: si un dato entro directo (wn o z en vez de
@@ -1127,7 +1168,7 @@ classdef VM
             % matlabFunction baja la expresion simbolica a una funcion
             % numerica; 'Vars' fija que la unica entrada sea t. arrayfun la
             % evalua punto por punto, asi no importa si quedo vectorizada.
-            xfun = matlabFunction(xExpr, 'Vars', S.t);   % 'Vars': fija cual simbolo es la entrada de la funcion
+            xfun = matlabFunction(xExpr, 'Vars', sym('t'));   % 'Vars': fija cual simbolo es la entrada de la funcion. sym('t') es el mismo t de los sistemas: dos simbolos con el mismo nombre son el mismo
             tt   = linspace(0, tf, npts);   % linspace(a,b,n): n tiempos igual espaciados de 0 a tf [s]
             xx   = arrayfun(xfun, tt);      % evalua xfun en cada tiempo: posiciones [m]
 
@@ -1184,8 +1225,10 @@ classdef VM
             % estan. En el critico c NO es un dato independiente: vale
             % 2*m*wn exacto. El del enunciado suele venir redondeado (con
             % m = 500 kg y k = 10000 N/m, ccr = 4472.1359... y la lamina
-            % dice 4472), y ecCritA exige la igualdad EXACTA: pasarselo
-            % hace abortar a despejar sobre datos que SI son criticos.
+            % dice 4472). Motor.despejar tolera 1e-3 relativo, pero
+            % VM.clasifA llama 'critico' a todo z dentro del 0.5%: un c en
+            % esa banda y fuera de la del motor hace abortar a despejar
+            % sobre datos que clasifA dio por criticos.
             % Como el caso ya lo decidio VM.clasifA usando ese mismo c, aca
             % no aporta nada y solo estorba.
             if all(isfield(d, {'m','k','c'}))
@@ -1225,7 +1268,7 @@ classdef VM
         end
 
         function v = buscarCampo(res, d, nombre, defecto)
-            % Lee un campo primero de res (lo que despejar determino) y, si
+            % Lee un campo primero de res (lo que Motor.despejar determino) y, si
             % no esta, de d (lo que ya era dato de entrada). Es lo que le
             % permite a VM.graficarA leer wn, z o X sin importar por que
             % camino entraron.
@@ -1235,113 +1278,6 @@ classdef VM
                 v = double(d.(nombre));
             else
                 v = defecto;
-            end
-        end
-
-        function s = datos(args)
-            % Traduce los argumentos de entrada a un struct de datos.
-            % Acepta {structDeDatos} o {'nombre',valor, 'nombre',valor, ...}.
-            n = numel(args);
-
-            if n == 1 && isstruct(args{1})
-                s = args{1};
-                return
-            end
-            if n == 0 || mod(n,2) ~= 0
-                error('VM:parInvalido', ...
-                    ['Se esperaban pares nombre-valor (cantidad par de ' ...
-                    'argumentos) o un struct. Llegaron %d.'], n);
-            end
-
-            % Impares = nombres, pares = valores. 1:2:end recorre 1,3,5...
-            % Se indexa con () y no con {}: el resultado sigue siendo cell.
-            nombres = args(1:2:end);
-            valores = args(2:2:end);
-
-            if ~all(cellfun(@(c) ischar(c) || isstring(c), nombres))
-                error('VM:parInvalido', ...
-                    ['Los argumentos impares tienen que ser nombres. ' ...
-                    'Ej: VM.subA(''m'',1, ''k'',100, ''c'',2)']);
-            end
-
-            s = cell2struct(valores(:), cellstr(string(nombres(:))), 1);
-        end
-
-        function res = despejar(eqs, S, d)
-            % MOTOR de despeje. Lo usan subA y sobreA.
-            % ENTRADAS:
-            %   eqs : sistema simbolico (de VM.ecSubA, ...)
-            %   S   : diccionario de simbolos del MISMO sistema
-            %   d   : struct con SOLO lo que conoces, en cualquier orden
-            % SALIDA:
-            %   res : struct con TODAS las variables que quedaron
-            %         determinadas. Para numero: double(res.wd).
-            %
-            % NO SE PIDE UNA INCOGNITA: la sustitucion hacia adelante
-            % determina todo lo que los datos permitan en la misma pasada,
-            % asi que pedir una sola escondia el resto.
-            %
-            % POR QUE NO ES UN solve() PELADO: solve(eqs,x) exige que TODAS
-            % las ecuaciones se satisfagan eligiendo unicamente x. Como el
-            % sistema tiene incognitas intermedias (wn, ccr, z...), cualquier
-            % ecuacion que no contenga x lo vuelve insatisfacible y solve
-            % devuelve VACIO aunque los datos alcancen de sobra.
-            % Aca se hace SUSTITUCION HACIA ADELANTE, que es el metodo a
-            % mano: se busca una ecuacion con una sola incognita, se despeja,
-            % se propaga, y se repite.
-            %
-            % ES EL MISMO MOTOR QUE MM.despejar E IE.despejar, COPIADO A
-            % PROPOSITO: cada carpeta tiene que funcionar sola. Precio: un
-            % bug aca hay que arreglarlo en los tres archivos.
-
-            campos = fieldnames(d);
-
-            for k = 1:numel(campos)
-                if ~isfield(S, campos{k})
-                    error('VM:campoDesconocido', ...
-                        ['"%s" no es una variable de este modelo. ' ...
-                        'Validas: %s'], campos{k}, strjoin(fieldnames(S)', ', '));
-                end
-                % S.(campos{k}) = el SIMBOLO ; d.(campos{k}) = el VALOR.
-                % subs reemplaza en TODAS las ecuaciones de una vez; el loop
-                % es necesario porque subs no recorre structs.
-                eqs = subs(eqs, S.(campos{k}), d.(campos{k}));
-            end
-
-            % --- sustitucion hacia adelante ------------------------------
-            res    = struct();
-            cambio = true;
-            while cambio
-                cambio = false;
-                for k = 1:numel(eqs)
-                    libres = symvar(eqs(k));
-
-                    % Sin incognitas libres, la ecuacion ya es un veredicto.
-                    % subs NO la colapsa a false: la deja como "999 == 100",
-                    % asi que hay que preguntarle a isAlways.
-                    if isempty(libres)
-                        if ~isAlways(eqs(k), 'Unknown', 'false')
-                            error('VM:datosContradictorios', ...
-                                ['Los datos violan la ecuacion %d del ' ...
-                                'modelo: %s'], k, char(eqs(k)));
-                        end
-                        continue
-                    end
-                    if numel(libres) ~= 1, continue; end
-
-                    sol = solve(eqs(k), libres);
-                    if isempty(sol), continue; end
-                    if numel(sol) > 1
-                        % Varias raices: se toma la primera y se avisa. Pasa
-                        % con los radicales (z, wn) cuando entras al reves.
-                        warning('VM:variasSoluciones', ...
-                            '%s tiene %d soluciones; se toma la primera.', ...
-                            char(libres), numel(sol));
-                    end
-                    res.(char(libres)) = sol(1);
-                    eqs    = subs(eqs, libres, sol(1));   % propaga a todas
-                    cambio = true;
-                end
             end
         end
 

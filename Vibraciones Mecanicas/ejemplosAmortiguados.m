@@ -27,9 +27,10 @@ fprintf('z     = %.4f\n',        double(E1.z));
 if isfield(E1,'wd'), fprintf('wd    = %.4f rad/s\n', double(E1.wd)); end
 if isfield(E1,'X'),  fprintf('X     = %.4f m\n',     double(E1.X));  end
 
-% x NO aparece en E1: con 't' libre, la ecuacion de x(t) queda con dos
-% incognitas (x y t) y VM.despejar la saltea a proposito (ver la nota al
-% final de VM.ecSubA). Para verla como funcion del tiempo, se grafica:
+% E1.x es una EXPRESION EN t, no un numero: VM.amortA le pasa t a
+% Motor.despejar como 'libres' (parametro, no incognita), asi que x(t)
+% sale resuelta con los datos sustituidos (ver la nota en VM.ecSubA).
+% Para un instante: double(subs(E1.x, sym('t'), 0.5)). Para la curva:
 %VM.graficarA('m',M1, 'c',c1, 'k',K1, 'x0',xo1, 'v0',vo1);
 
 %% == Ejemplo - yunque (impacto plastico + vibracion amortiguada) =======
