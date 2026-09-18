@@ -10,6 +10,13 @@ classdef IE
       - mu es SIEMPRE permeabilidad RELATIVA (adimensional); mu0 va aparte.
       - dA es un crecimiento PROPORCIONAL del área en el entrehierro:
         A_gap = A*(1 + dA). dA = 0.10 -> 10% más de área por fringing.
+      - mu0 sale de IE.mu0(), escrita UNA sola vez.
+
+    MOTOR DE DESPEJE
+      El que resuelve los sistemas ecXxx es Motor.despejar (Motor.m, en la
+      raíz del repo): es el mismo motor que usan VM, FV, MM y sp, no una
+      copia. Para que MATLAB lo encuentre parado en esta carpeta, correr
+      UNA vez setup.m (raíz). Los atajos datosXxx lo llaman por vos.
     %}
 
     methods(Static)
@@ -202,6 +209,17 @@ classdef IE
         end
 
         %{
+        mu0 — Permeabilidad magnética del vacío.   [H/m] = [T*m/A]
+          mu0 = 4*pi*1e-7 H/m
+        La usan ecB, ecSeg, faradayB, reluctSeg, fluxO y fluxE. Está en una
+        función y no copiada en cada una: un error de tipeo en una sola
+        copia (4*pi*1e7) da un flujo 1e14 veces equivocado y no salta.
+        %}
+        function m = mu0()
+            m = 4*pi*1e-7;
+        end
+
+        %{
         ecB — Declara el modelo del circuito magnético.
         No resuelve nada; solo entrega el sistema y el diccionario de
         símbolos para que otras funciones lo usen.
@@ -210,7 +228,7 @@ classdef IE
           B    densidad de flujo magnético           [T] = [Wb/m^2]
           H    intensidad de campo                   [A/m]
           mu   permeabilidad RELATIVA del medio      [adimensional]
-          mu0  permeabilidad del vacío = 4*pi*1e-7   [H/m]
+          mu0  permeabilidad del vacío, IE.mu0()     [H/m]
           len  longitud media del camino magnético   [m]  (2*pi*R en toroide)
           N    número de vueltas                     [-]
           I    corriente                             [A]
@@ -248,7 +266,7 @@ classdef IE
             B = S.B; H = S.H; mu = S.mu; len = S.len; N = S.N;
             I = S.I; Fi = S.Fi; dFi = S.dFi; A = S.A; v = S.v;
 
-            mu0 = 4*pi*1e-7;        % permeabilidad del vacío [H/m]
+            mu0 = IE.mu0();         % permeabilidad del vacío [H/m]
 
             eqs = [ H  == N*I/len            % Ley de Ampère
                 B  == mu*mu0*H           % Relación B-H del material
@@ -257,101 +275,49 @@ classdef IE
         end
 
         %{
-        despejar — MOTOR de despeje. Lo usan datosB y datosSeg.
-
-        Entradas:
-          eqs : sistema simbólico (de IE.ecB, IE.ecSeg, ...)
-          S   : diccionario de símbolos del MISMO sistema
-          d   : struct con SOLO lo que conocés, en cualquier orden
-
-        Salida:
-          res : struct con TODAS las variables que quedaron determinadas.
-                Para número: double(res.Fi) o vpa(res.Fi, 6).
-
-        NO SE PIDE UNA INCÓGNITA, A PROPÓSITO.
-          La sustitución hacia adelante determina TODO lo que los datos
-          permitan, en la misma pasada. Pedir una variable no ahorraba
-          trabajo: solo elegía cuál de las ya calculadas devolver y
-          escondía el resto. Elegís vos, del struct.
-          Si un campo NO está en res, es que los datos no alcanzaron para
-          determinarlo. Ese es el diagnóstico: mirá qué falta.
-
-        POR QUÉ NO ES UN solve() PELADO:
-          solve(eqs, x) exige que TODAS las ecuaciones se satisfagan
-          eligiendo únicamente x. Como el sistema tiene varias incógnitas
-          intermedias (H, B, Rn, ...), cualquier ecuación que no contenga
-          x lo vuelve insatisfacible y solve devuelve VACÍO aunque los
-          datos alcancen de sobra. Verificado en R2026a.
-          Acá se hace SUSTITUCIÓN HACIA ADELANTE, que es exactamente el
-          método a mano: se busca una ecuación con una sola incógnita, se
-          despeja, se propaga el valor, y se repite hasta que no queda nada
-          por despejar.
-        %}
-        function res = despejar(eqs, S, d)
-            campos = fieldnames(d);
-
-            for k = 1:numel(campos)
-                if ~isfield(S, campos{k})
-                    error('IE:campoDesconocido', ...
-                        ['"%s" no es una variable del modelo. ' ...
-                        'Válidas: %s'], campos{k}, strjoin(fieldnames(S)', ', '));
-                end
-                eqs = subs(eqs, S.(campos{k}), d.(campos{k}));
-            end
-
-            res    = struct();
-            cambio = true;
-            while cambio
-                cambio = false;
-                for k = 1:numel(eqs)
-                    libres = symvar(eqs(k));
-
-                    if isempty(libres)
-                        if ~isAlways(eqs(k), 'Unknown', 'false')
-                            error('IE:datosContradictorios', ...
-                                ['Los datos violan la ecuación %d del ' ...
-                                'modelo: %s'], k, char(eqs(k)));
-                        end
-                        continue
-                    end
-                    if numel(libres) ~= 1, continue; end
-
-                    s = solve(eqs(k), libres);
-                    if isempty(s), continue; end
-                    if numel(s) > 1
-                        warning('IE:variasSoluciones', ...
-                            '%s tiene %d soluciones; se toma la primera.', ...
-                            char(libres), numel(s));
-                    end
-                    res.(char(libres)) = s(1);
-                    eqs    = subs(eqs, libres, s(1));   % propaga a todas
-                    cambio = true;
-                end
-            end
-        end
-
-        %{
         datosB — Atajo sobre el modelo del circuito magnético.
-          d   : struct con lo conocido. Ej:
-                struct('mu',5000,'len',0.3,'N',200,'I',2,'A',1e-3)
+        Los argumentos son los datos, en pares nombre-valor o en un struct:
+          r = IE.datosB('mu',5000, 'len',0.3, 'N',200, 'I',2, 'A',1e-3);
+          r = IE.datosB(d)       % d = struct('mu',5000,'len',0.3,...)
+          double(r.Fi)           % para número
         Devuelve un struct con TODO lo que los datos permitan despejar.
-        Ej: double(IE.datosB(d).Fi)
+        NO se pide una incógnita: si el campo que buscás no está en r, los
+        datos no alcanzaban. Ese es el diagnóstico.
         %}
-        function res = datosB(d)
+        function res = datosB(varargin)
+            % Motor.datos(args, pref) — convierte el varargin en struct.
+            %   args : pares nombre-valor {'N',200, 'I',2, ...} o {struct}
+            %   pref : 'IE', para que los errores salgan como IE:parInvalido
+            d = Motor.datos(varargin, 'IE');
+
             [eqs, S] = IE.ecB();
-            res = IE.despejar(eqs, S, d);
+
+            % Motor.despejar(eqs, S, d, opciones...) — sustitución hacia
+            % adelante: despeja todo lo que los datos permitan.
+            %   'prefijo'   : 'IE' -> IE:datosContradictorios, IE:campoDesconocido
+            %   'positivos' : variables que la física obliga a ser > 0. Solo
+            %                 actúa cuando solve devuelve VARIAS raíces:
+            %                 descarta las negativas y complejas. Una raíz
+            %                 única negativa NO la rechaza, y tampoco
+            %                 controla que mu >= 1 (eso lo hace reluctSeg).
+            res = Motor.despejar(eqs, S, d, 'prefijo','IE', ...
+                'positivos',{'N','A','len','mu'});
         end
 
         %{
         datosSeg — Atajo sobre el modelo de UN tramo con entrehierro.
-          d   : struct con len, A, mu, g, dA, Fi... lo que tengas
+        Los argumentos son los datos (len, A, mu, g, dA, Fi... lo que
+        tengas), en pares nombre-valor o en un struct:
+          double(IE.datosSeg('len',.3, 'A',1e-3, 'mu',5e3, 'g',1e-3, 'dA',.1).Rs)
         Devuelve un struct con TODO lo que los datos permitan despejar.
-        Ej: double(IE.datosSeg(struct('len',.3,'A',1e-3,'mu',5e3, ...
-                                      'g',1e-3,'dA',.1)).Rs)
         %}
-        function res = datosSeg(d)
+        function res = datosSeg(varargin)
+            d = Motor.datos(varargin, 'IE');     % ver datosB
             [eqs, S] = IE.ecSeg();
-            res = IE.despejar(eqs, S, d);
+            % Opciones de Motor.despejar: ver datosB. g no va en 'positivos'
+            % porque un tramo sin entrehierro tiene g = 0.
+            res = Motor.despejar(eqs, S, d, 'prefijo','IE', ...
+                'positivos',{'len','A','mu'});
         end
 
         %{
@@ -376,7 +342,7 @@ classdef IE
         %}
         function [v_t, Fi_t, L] = faradayB(d, I_t, t)
             if nargin < 3, t = sym('t'); end
-            mu0 = 4*pi*1e-7;
+            mu0 = IE.mu0();                      % [H/m]
 
             L    = d.mu*mu0*d.N^2*d.A/d.len;     % inductancia [H]
             Fi_t = d.mu*mu0*d.N*d.A*I_t/d.len;   % flujo [Wb]
@@ -386,8 +352,8 @@ classdef IE
         %{
         ecTrafo — Modelo simbólico del TRANSFORMADOR IDEAL.
         Mismo esquema que IE.ecB: declara el sistema y devuelve
-        el diccionario. No resuelve nada. Se despeja con IE.despejar
-        (o el atajo IE.datosTrafo / IE.trafo).
+        el diccionario. No resuelve nada. Se despeja con Motor.despejar
+        (o el atajo IE.datosTrafo / IE.trafo, que lo llaman por vos).
 
         DE DÓNDE SALE: es Faraday aplicado al MISMO núcleo. Las dos
         bobinas ven el mismo dFi/dt, así que
@@ -425,8 +391,9 @@ classdef IE
 
         EJEMPLO:
           [eqs, S] = IE.ecTrafo();
-          eqs = subs(eqs, [S.Np S.Ns S.Vp], [500 100 220]);
-          double(IE.despejar(eqs, S, struct(), 'Vs'))
+          r = Motor.despejar(eqs, S, struct('Np',500,'Ns',100,'Vp',220), ...
+                             'prefijo','IE');
+          double(r.Vs)        % 44
         %}
         function [eqs, S] = ecTrafo()
             nom = {'a','b','Np','Ns','Vp','Vs','Ip','Is','Zp','Zs','dFi'};
@@ -449,50 +416,57 @@ classdef IE
 
         %{
         datosTrafo — Atajo sobre el modelo del transformador ideal.
-          d   : struct con lo conocido, en cualquier orden. Ej:
-                struct('a',5,'Vp',220,'Zs',10)
+        Los argumentos son los datos, en cualquier orden, en pares
+        nombre-valor o en un struct:
+          double(IE.datosTrafo('Np',500, 'Ns',100, 'Vp',220).Vs)
+          double(IE.datosTrafo(struct('a',5,'Vp',220,'Zs',10)).Is)
         Devuelve un struct con TODO lo que los datos permitan despejar.
-        Ej: double(IE.datosTrafo(struct('Np',500,'Ns',100,'Vp',220)).Vs)
         %}
-        function res = datosTrafo(d)
+        function res = datosTrafo(varargin)
+            d = Motor.datos(varargin, 'IE');     % ver datosB
             [eqs, S] = IE.ecTrafo();
-            res = IE.despejar(eqs, S, d);
+            % Opciones de Motor.despejar: ver datosB.
+            % 'positivos' acá SÍ trabaja: Zp == a^2*Zs da a = +10 y a = -10,
+            % y sin el filtro se tomaba la primera raíz, la negativa.
+            % Las tensiones, corrientes e impedancias NO van: aceptan
+            % complejos, y "positivo" no significa nada para un fasor.
+            res = Motor.despejar(eqs, S, d, 'prefijo','IE', ...
+                'positivos',{'a','b','Np','Ns'});
         end
 
         %{
         trafo — Resuelve TODO lo que se pueda del transformador ideal y lo
         devuelve numérico, sin tener que pedir variable por variable.
 
-          d : struct con lo conocido. Ej:
-              IE.trafo(struct('a',10,'Vp',2200,'Zs',5))
+          IE.trafo('a',10, 'Vp',2200, 'Zs',5)
+          IE.trafo(struct('a',10,'Vp',2200,'Zs',5))
 
         Salida r (struct) con los campos que quedaron determinados, en
         orden fijo: a, b, Np, Ns, Vp, Vs, Ip, Is, Zp, Zs, dFi.
 
         Acepta complejos.
         %}
-        function r = trafo(d)
-            [eqs, S] = IE.ecTrafo();
-            res = IE.despejar(eqs, S, d);
+        function r = trafo(varargin)
+            d = Motor.datos(varargin, 'IE');
 
-            orden = {'a','b','Np','Ns','Vp','Vs','Ip','Is','Zp','Zs','dFi'};
-            r = struct();
-            for k = 1:numel(orden)
-                nk = orden{k};
-                if isfield(d, nk)
-                    r.(nk) = d.(nk);
-                elseif isfield(res, nk)
-                    v = res.(nk);
-                    try, v = double(v); catch, end %#ok<NOCOM>
-                    r.(nk) = v;
-                end
-            end
+            % Se pasa por datosTrafo y no directo a Motor.despejar: así las
+            % opciones de despeje ('prefijo', 'positivos') están en UN lugar.
+            res = IE.datosTrafo(d);
+
+            % Motor.numerico(res, d, orden) — junta datos y despejes.
+            %   res   : lo que se DESPEJÓ (no trae lo que entró como dato)
+            %   d     : lo que entró como dato
+            %   orden : orden de los campos en la salida
+            % Baja a double lo que puede; lo que quedó en función de un
+            % símbolo libre se deja simbólico.
+            r = Motor.numerico(res, d, ...
+                {'a','b','Np','Ns','Vp','Vs','Ip','Is','Zp','Zs','dFi'});
         end
 
         %{
         ecPerdidas — Modelo simbólico de las PÉRDIDAS y el RENDIMIENTO de un
-        transformador real. Se usa con IE.despejar (o con IE.datosPerdidas,
-        que es el atajo), igual que ecB y ecTrafo.
+        transformador real. Se usa con Motor.despejar (o con
+        IE.datosPerdidas, que es el atajo), igual que ecB y ecTrafo.
 
         ================================================================
          QUÉ REPRESENTA CADA PÉRDIDA
@@ -625,16 +599,26 @@ classdef IE
 
         %{
         datosPerdidas — Atajo sobre el modelo de pérdidas.
-          d : struct con lo conocido, en cualquier orden.
+        Los argumentos son los datos, en cualquier orden, en pares
+        nombre-valor o en un struct.
         Devuelve un struct con TODO lo que los datos permitan despejar.
         Funciona en cualquier dirección: si le das el rendimiento y la
         salida, te saca las pérdidas.
 
-        Ej: double(IE.datosPerdidas(struct('Pout',40e3,'eta',0.98)).Pperd)
+        Ej: double(IE.datosPerdidas('Pout',40e3, 'eta',0.98).Pperd)
         %}
-        function res = datosPerdidas(d)
+        function res = datosPerdidas(varargin)
+            d = Motor.datos(varargin, 'IE');     % ver datosB
             [eqs, S] = IE.ecPerdidas();
-            res = IE.despejar(eqs, S, d);
+            % Opciones de Motor.despejar: ver datosB.
+            % 'positivos' acá SÍ trabaja: las variables que entran al
+            % CUADRADO dan dos raíces al despejarlas, +r y -r:
+            %   Pcu == I^2*Req      -> I       Pcu == x^2*PcuNom -> x
+            %   Pfe == V1^2/Rc      -> V1      Pe == ke*(f*Bmax*esp)^2
+            % Sin el filtro se tomaba la primera, que era la NEGATIVA
+            % (I = -100 A desde Pcu = 500 W y Req = 0.05 ohm).
+            res = Motor.despejar(eqs, S, d, 'prefijo','IE', ...
+                'positivos',{'I','Inom','x','V1','f','Bmax','esp'});
         end
 
         %{
@@ -898,9 +882,13 @@ classdef IE
           Xm   rama de magnetización                  [ohm]
           Iexc corriente de excitación, Ic + Im       [A]
 
+        No tiene atajo: se despeja con Motor.despejar directo. Sin
+        'positivos': Vpa, Is, Ip, Zeq... son FASORES complejos, y
+        "positivo" no significa nada para un complejo.
         Ej: [eqs,S] = IE.ecPerAprox();
-            r = IE.despejar(eqs, S, struct('Vs',240,'Is',IE.pol2rec(50,-30), ...
-                                           'Req',0.05,'Xeq',0.12,'a',10));
+            r = Motor.despejar(eqs, S, struct('Vs',240,'Is',IE.pol2rec(50,-30), ...
+                               'Req',0.05,'Xeq',0.12,'a',10), 'prefijo','IE');
+            double(r.Vp)
         %}
         function [eqs, S] = ecPerAprox()
             nom = {'Vpa','Vp','Vs','a','Is','Ip','Zeq','Req','Xeq', ...
@@ -929,7 +917,7 @@ classdef IE
             len = S.len; A = S.A; mu = S.mu; g = S.g; dA = S.dA;
             Rn = S.Rn; Rg = S.Rg; Rs = S.Rs; Fi = S.Fi; B = S.B; Bg = S.Bg;
 
-            mu0 = 4*pi*1e-7;
+            mu0 = IE.mu0();                      % [H/m]
 
             eqs = [ Rn == (len - g)/(mu*mu0*A)   % hierro: se descuenta el gap
                 Rg == g/(mu0*A*(1 + dA))     % gap: mu_r = 1, área ampliada
@@ -964,7 +952,7 @@ classdef IE
           det : struct con Rn (hierro), Rg (gap), A, Agap, g, dA, n, mu
         %}
         function [R, det] = reluctSeg(s)
-            mu0 = 4*pi*1e-7;
+            mu0 = IE.mu0();                      % [H/m]
 
             if ~isfield(s,'g') || isempty(s.g), s.g = 0; end
             if ~isfield(s,'n') || isempty(s.n), s.n = 1; end
@@ -1055,7 +1043,7 @@ classdef IE
         %}
         function r = fluxO(seg, N, I, Bsat)
             if nargin < 4 || isempty(Bsat), Bsat = 1.5; end
-            mu0 = 4*pi*1e-7;
+            mu0 = IE.mu0();                      % [H/m]
 
             if iscell(seg), lista = seg(:); else, lista = num2cell(seg(:)); end
             nt = numel(lista);
@@ -1163,7 +1151,7 @@ classdef IE
             r.Fi   = Fi;
 
             if ~isempty(det)               % hubo geometría: hay B, Bg y F
-                mu0  = 4*pi*1e-7;
+                mu0  = IE.mu0();
                 Ah   = [det.A]';    Ag = [det.Agap]';
                 gv   = [det.g]';    mv = [det.n]';   muv = [det.mu]';
                 r.B  = Fi ./ Ah;

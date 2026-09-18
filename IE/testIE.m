@@ -278,4 +278,44 @@ sQ = IE.datosPerdidas(struct('Pfe',350,'Req',0.05,'I',100,'S',50e3,'FP',0.8));
 ok('despeje directo Pcu',  tol(double(sQ.Pcu), 500));
 ok('despeje directo eta',  tol(double(sQ.eta), 40e3/(40e3+850)));
 
+%% 15 migracion a Motor.m: pares nombre-valor, mu0 unica, raices positivas
+ok('IE.despejar eliminada', ~any(strcmp(methods('IE'),'despejar')));
+ok('IE.mu0 = 4*pi*1e-7', IE.mu0() == 4*pi*1e-7);
+
+%  Las dos formas de llamada dan lo mismo en los cinco atajos
+ok('pares == struct (datosB)', tol(double(IE.datosB('mu',5000,'len',0.3, ...
+    'N',200,'A',1e-3,'I',2).Fi), Fi));
+ok('pares == struct (datosSeg)', tol(double(IE.datosSeg('len',0.3,'A',1e-3, ...
+    'mu',5000,'g',1e-3,'dA',0.10).Rs), double(Rsv)));
+ok('pares == struct (datosTrafo)', ...
+    tol(double(IE.datosTrafo('Np',500,'Ns',100,'Vp',220).Vs), ...
+        double(IE.datosTrafo(struct('Np',500,'Ns',100,'Vp',220)).Vs)));
+ok('pares == struct (trafo)', ...
+    tol(IE.trafo('a',10,'Vp',2200,'Zs',5).Ip, IE.trafo(struct('a',10,'Vp',2200,'Zs',5)).Ip));
+ok('pares == struct (datosPerdidas)', ...
+    tol(double(IE.datosPerdidas('Pout',40e3,'eta',0.98).Pperd), double(sP.Pperd)));
+try
+    IE.datosB('N',200,'I'); ok('datosB par incompleto', false);
+catch ME
+    ok('datosB rechaza par incompleto', strcmp(ME.identifier,'IE:parInvalido'));
+end
+
+%  'positivos': las variables al cuadrado dan dos raices; se toma la positiva.
+%  Con el motor viejo salian I = -100, x = -0.5 y a = -10.
+lastwarn('','');
+ok('I positiva desde Pcu = I^2*Req', ...
+    tol(double(IE.datosPerdidas('Pcu',500,'Req',0.05).I), 100));
+ok('x positiva desde Pcu = x^2*PcuNom', ...
+    tol(double(IE.datosPerdidas('Pcu',75,'PcuNom',300).x), 0.5));
+ok('a positiva desde Zp = a^2*Zs', ...
+    tol(double(IE.datosTrafo('Zp',500,'Zs',5).a), 10));
+[~, idp] = lastwarn;
+ok('sin aviso de varias soluciones', ~strcmp(idp,'IE:variasSoluciones'));
+
+%  TT tambien pasa por Motor.despejar
+rDY = TT.DY(struct('V_LP',13800,'a',10,'S',500e3,'theta',36.87));
+ok('TT.DY V_LS = sqrt(3)*V_LP/a', tol(rDY.V_LS, sqrt(3)*13800/10));
+ok('TT.DY desf = -30', tol(rDY.desf, -30));
+ok('TT.DY S = sqrt(3)*V_LP*I_LP', tol(sqrt(3)*13800*rDY.I_LP, 500e3));
+
 disp('=== FIN ===');

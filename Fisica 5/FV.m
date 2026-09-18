@@ -20,6 +20,11 @@ classdef FV
     % Los sistemas andan EN CUALQUIER DIRECCION: le das lo que tenes y
     % devuelve todo lo que quede determinado. No se pide una incognita.
     %
+    % MOTOR DE DESPEJE: los xxx resuelven con Motor.despejar (Motor.m, en la
+    % raiz del repo), el mismo motor de VM, MM, IE y sp, no una copia. Para
+    % que MATLAB lo encuentre parado en esta carpeta, correr UNA vez setup.m
+    % (raiz).
+    %
     % UNIDADES: SI base en TODO el archivo.
     %   longitud [m]    energia [J]     masa [kg]      carga [C]
     %   tiempo   [s]    velocidad [m/s] frecuencia [Hz] campo B [T]
@@ -32,39 +37,36 @@ classdef FV
     % rad2deg() al leer.
     %
     % VELOCIDADES: en m/s, no en fracciones de c. "0.8c" se escribe
-    % 0.8*double(FV.ctes().c). Poner 0.8 pelado da resultados sin sentido y
+    % 0.8*FV.ctes().c. Poner 0.8 pelado da resultados sin sentido y
     % no salta ningun error.
     % =========================================================================
 
     methods(Static)
 
         function C = ctes()
-            % CONSTANTES del formulario, en SIMBOLICO EXACTO.
-            % Se devuelven como sym y no como double para que las ecuaciones
-            % que las comparten cierren de forma exacta (ver la nota sobre
-            % constantes redondeadas en FV.ecBohr).
-            % Para el numero suelto:  double(FV.ctes().h)
+            % CONSTANTES del formulario, en double comun y en SI base.
+            % Para el numero suelto:  FV.ctes().h
             %
             % c y eps0 NO ESTAN en el formulario, y hacen falta: sin c no hay
             % relatividad y sin eps0 no hay Bohr. Van los valores estandar.
-            C.c    = sym(299792458);        % velocidad de la luz [m/s]
-            C.h    = sym(663)/sym(10)^36;   % Planck [J*s]        (6.63e-34)
-            C.hbar = sym(1055)/sym(10)^37;  % h barra [J*s]       (1.055e-34)
-            C.me   = sym(911)/sym(10)^33;   % masa electron [kg]  (9.11e-31)
-            C.mp   = sym(167)/sym(10)^29;   % masa proton [kg]    (1.67e-27)
-            C.qe   = sym(16)/sym(10)^20;    % carga elemental [C] (1.6e-19)
-            C.eV   = sym(16)/sym(10)^20;    % 1 eV en joules [J]  (1.6e-19)
-            C.R    = sym(1097)*sym(10)^4;   % Rydberg [1/m]       (1.097e7)
-            C.eps0 = sym(885)/sym(10)^14;   % permitividad [F/m]  (8.85e-12)
+            C.c    = 299792458;    % velocidad de la luz   [m/s]
+            C.h    = 6.63e-34;     % Planck                [J*s]
+            C.hbar = 1.055e-34;    % h barra               [J*s]
+            C.me   = 9.11e-31;     % masa del electron     [kg]
+            C.mp   = 1.67e-27;     % masa del proton       [kg]
+            C.qe   = 1.6e-19;      % carga elemental       [C]
+            C.eV   = 1.6e-19;      % 1 eV en joules        [J]
+            C.R    = 1.097e7;      % Rydberg               [1/m]
+            C.eps0 = 8.85e-12;     % permitividad          [F/m]
 
-            % POR QUE FRACCIONES DE ENTEROS Y NO sym('6.63e-34'). Escrito
-            % asi, MATLAB guarda un simbolico de COMA FLOTANTE: la aritmetica
-            % que sigue arrastra redondeo, las identidades que deberian
-            % cerrar exacto quedan con un residuo de 1e-51, isAlways las da
-            % por falsas y despejar aborta con datos perfectamente buenos.
-            % Probado: pasa exactamente eso en FV.ecCompton.
-            % Como razon de enteros, todo el sistema trabaja en racionales
-            % exactos y las identidades se demuestran.
+            % DOUBLE Y NO SIMBOLICO EXACTO. Con constantes en double, las
+            % identidades redundantes de cada sistema (la que queda de
+            % control) no cierran exacto: quedan con un residuo de redondeo
+            % de maquina. No importa, porque Motor.despejar compara con
+            % tolerancia RELATIVA (1e-3 por defecto), no con igualdad
+            % exacta: el redondeo pasa y un error de signo o de unidades no.
+            % Verificado con testFV.m, que corre igual con las fracciones
+            % de enteros que habia antes y con estos doubles.
 
             % SIGNO DE qe. El formulario lo escribe qe = -1.6e-19 C, que es
             % la carga del ELECTRON. Aca se guarda la MAGNITUD, positiva,
@@ -170,15 +172,16 @@ classdef FV
             % LA ULTIMA ES REDUNDANTE, y esta a proposito. Sale de las otras
             % (probado: la identidad cierra exacto para cualquier v), asi que
             % cuando entras por v no aporta nada y queda de CONTROL: si los
-            % datos no cierran entre si, FV.despejar aborta en vez de
+            % datos no cierran entre si, Motor.despejar aborta en vez de
             % devolver un numero mentiroso.
             % Lo que si habilita es la entrada SIN v: con mo y p conocidos,
             % ET sale de esta sola. Es el camino tipico de los problemas de
             % particulas, donde te dan el momentum y no la velocidad.
             %
-            % SI ENTRAS POR gam, v SALE CON SIGNO. La ecuacion de gamma tiene
-            % dos raices, +v y -v, porque v entra al cuadrado. El motor toma
-            % la primera y avisa con un warning. Tomale el valor absoluto.
+            % SI ENTRAS POR gam, v TIENE DOS RAICES, +v y -v, porque v entra
+            % al cuadrado. Lo mismo p si entras por ET, K o m. FV.rel declara
+            % v y p como 'positivos', asi que el motor descarta la negativa y
+            % no avisa (ver FV.rel).
             %
             % K NO ES (1/2)*m*v^2. Esa formula es el limite de v << c. Aca K
             % es ET - E0, que es lo que dice la formula (9). Usar la clasica
@@ -277,27 +280,46 @@ classdef FV
             %   r = FV.rel('v',0.8*2.998e8, 'mo',2);   double(r.ET)
             %   r = FV.rel('to',1, 'v',0.6*2.998e8);   double(r.t)
             %   r = FV.rel('mo',9.11e-31, 'p',5e-22);  double(r.ET)
-            d = FV.datos(varargin);
+            %
+            % LOS TRES RENGLONES DE CADA DESPEJE (todos los de FV son asi):
+            % Motor.datos(args, pref) - convierte el varargin en struct.
+            %   args : pares nombre-valor {'v',2.4e8, 'mo',2} o {struct}
+            %   pref : 'FV', para que los errores salgan como FV:parInvalido
+            % FV.ecXxx() - el sistema sin resolver y su diccionario S.
+            % Motor.despejar(eqs, S, d, opciones...) - sustitucion hacia
+            % adelante: despeja todo lo que los datos permitan.
+            %   'prefijo'   : 'FV' -> FV:datosContradictorios,
+            %                 FV:campoDesconocido
+            %   'positivos' : variables que la fisica obliga a ser > 0. Solo
+            %                 actua cuando solve devuelve VARIAS raices:
+            %                 descarta las negativas y complejas. Una raiz
+            %                 unica negativa NO la rechaza.
+            % Aca v y p son positivas, las DOS. gam tiene v al cuadrado y la
+            % (11) tiene p al cuadrado: entrando por gam salen +v y -v, y
+            % entrando por ET (o por K, o por m) salen +p y -p. Declarar solo
+            % v NO alcanza: entrando por mo y m, p sale negativa, v positiva,
+            % y p == m*v aborta con datos buenos. Probado.
+            d = Motor.datos(varargin, 'FV');
             [eqs, S] = FV.ecRel();
-            res = FV.despejar(eqs, S, d);
+            res = Motor.despejar(eqs, S, d, 'prefijo','FV', 'positivos',{'v','p'});
         end
 
         function res = lorentz(varargin)
             % DESPEJE - transformacion de coordenadas entre marcos.
             %   r = FV.lorentz('x',100, 't',2e-7, 'v',0.6*2.998e8);
             %   double(r.xp), double(r.tp)
-            d = FV.datos(varargin);
+            d = Motor.datos(varargin, 'FV');
             [eqs, S] = FV.ecLorentz();
-            res = FV.despejar(eqs, S, d);
+            res = Motor.despejar(eqs, S, d, 'prefijo','FV');
         end
 
         function res = velo(varargin)
             % DESPEJE - suma relativista de velocidades.
             %   r = FV.velo('vx',0.9*2.998e8, 'u',0.9*2.998e8); double(r.vxp)
             %   r = FV.velo('vxp',0.5*2.998e8, 'u',0.5*2.998e8); double(r.vx)
-            d = FV.datos(varargin);
+            d = Motor.datos(varargin, 'FV');
             [eqs, S] = FV.ecVelo();
-            res = FV.despejar(eqs, S, d);
+            res = Motor.despejar(eqs, S, d, 'prefijo','FV');
         end
 
         %% ================================================================
@@ -456,8 +478,8 @@ classdef FV
             % fi EN RADIANES: deg2rad(60), no 60.
             %
             % SI ENTRAS POR EL CORRIMIENTO PARA SACAR fi, la ecuacion tiene
-            % dos soluciones (+fi y -fi, porque el coseno es par). El motor
-            % toma la primera y avisa. Tomale el valor absoluto.
+            % dos soluciones (+fi y -fi, porque el coseno es par). FV.compton
+            % declara fi como 'positivos': el motor descarta -fi y no avisa.
             %
             % LA (20), p_electron = p - p', NO ESTA ACA. Es una resta de
             % VECTORES, no de numeros: el foton dispersado sale a fi del eje
@@ -583,13 +605,16 @@ classdef FV
             % Por eso esta escrita con p y no con q*B*r: asi el sistema la
             % puede usar aunque no conozcas B ni r.
             %
-            % EL ORDEN DE LAS DOS PRIMERAS IMPORTA, y no es cosmetico.
-            % p == mo*gam*v es LINEAL en v y da una sola raiz; la de gamma
-            % tiene v al cuadrado y da dos. Con la de gamma primero, apenas
-            % gam queda determinada el motor saca v de ahi, agarra la raiz
-            % NEGATIVA y el sistema aborta contra la otra ecuacion. Probado.
-            % Puesta la lineal adelante, v sale positiva y la de gamma queda
-            % de control.
+            % v Y p SON 'positivos' EN FV.magB, y eso vuelve irrelevante el
+            % orden de las dos primeras. La de gamma tiene v al cuadrado y
+            % la (23) tiene p al cuadrado: sin 'positivos', el motor agarra
+            % la raiz NEGATIVA y, segun por donde entres, el sistema aborta
+            % contra otra ecuacion o te devuelve v < 0. Probado con las
+            % entradas (q,B,r,mo), (mo,gam), (mo,E) y (mo,p), en los dos
+            % ordenes: con {'v','p'} las cuatro dan v positiva; con {'v'}
+            % solo, (mo,E) todavia da v < 0 porque la negativa entra por p.
+            % Poner la lineal primero era el truco del motor viejo; se deja
+            % asi porque no molesta.
             %
             % LA ULTIMA ES REDUNDANTE Y HACE FALTA IGUAL. Sin ella, entrando
             % por q, B, r y mo el despeje se TRABA: p y E salen, pero gam y v
@@ -608,54 +633,59 @@ classdef FV
             % DESPEJE - energia, frecuencia, lambda y momentum de un foton.
             %   r = FV.foton('lam',500e-9);   double(r.E)
             %   r = FV.foton('E',FV.eV2J(2)); double(r.lam)
-            d = FV.datos(varargin);
+            d = Motor.datos(varargin, 'FV');
             [eqs, S] = FV.ecFoton();
-            res = FV.despejar(eqs, S, d);
+            res = Motor.despejar(eqs, S, d, 'prefijo','FV');
         end
 
         function res = fe(varargin)
             % DESPEJE - efecto fotoelectrico.
             %   r = FV.fe('lam',400e-9, 'fi',FV.eV2J(2.3));  double(r.Vo)
             %   r = FV.fe('lam0',550e-9, 'lam',300e-9);      FV.J2eV(double(r.Kmax))
-            d = FV.datos(varargin);
+            d = Motor.datos(varargin, 'FV');
             [eqs, S] = FV.ecFE();
-            res = FV.despejar(eqs, S, d);
+            res = Motor.despejar(eqs, S, d, 'prefijo','FV');
         end
 
         function res = compton(varargin)
             % DESPEJE - dispersion de Compton.
             %   r = FV.compton('lam',0.05e-9, 'fi',deg2rad(60));
             %   double(r.lamp), FV.J2eV(double(r.Ke))
-            d = FV.datos(varargin);
+            % fi positivo: entrando por el corrimiento, el coseno da +fi y
+            % -fi. Los tres renglones se explican en FV.rel.
+            d = Motor.datos(varargin, 'FV');
             [eqs, S] = FV.ecCompton();
-            res = FV.despejar(eqs, S, d);
+            res = Motor.despejar(eqs, S, d, 'prefijo','FV', 'positivos',{'fi'});
         end
 
         function res = rx(varargin)
             % DESPEJE - tubo de rayos X.
             %   r = FV.rx('Vac',35e3);        double(r.lammin)
             %   r = FV.rx('lammin',0.05e-9);  double(r.Vac)
-            d = FV.datos(varargin);
+            d = Motor.datos(varargin, 'FV');
             [eqs, S] = FV.ecRX();
-            res = FV.despejar(eqs, S, d);
+            res = Motor.despejar(eqs, S, d, 'prefijo','FV');
         end
 
         function res = pares(varargin)
             % DESPEJE - produccion de pares.
-            %   me = double(FV.ctes().me);
+            %   me = FV.ctes().me;
             %   r  = FV.pares('mom',me, 'mop',me, 'lam',1e-12); double(r.Eu)
-            d = FV.datos(varargin);
+            d = Motor.datos(varargin, 'FV');
             [eqs, S] = FV.ecPares();
-            res = FV.despejar(eqs, S, d);
+            res = Motor.despejar(eqs, S, d, 'prefijo','FV');
         end
 
         function res = magB(varargin)
             % DESPEJE - particula cargada relativista en campo magnetico.
             %   r = FV.magB('q',1.6e-19, 'B',0.5, 'r',0.1, 'mo',9.11e-31);
             %   double(r.E)
-            d = FV.datos(varargin);
+            % v y p positivos: gamma tiene v al cuadrado y la (23) p al
+            % cuadrado (ver la nota en FV.ecMagB). Los tres renglones se
+            % explican en FV.rel.
+            d = Motor.datos(varargin, 'FV');
             [eqs, S] = FV.ecMagB();
-            res = FV.despejar(eqs, S, d);
+            res = Motor.despejar(eqs, S, d, 'prefijo','FV', 'positivos',{'v','p'});
         end
 
         %% ================================================================
@@ -851,35 +881,35 @@ classdef FV
             % DESPEJE - longitud de onda de De Broglie.
             %   r = FV.broglie('m',9.11e-31, 'v',1e6);              double(r.lam)
             %   r = FV.broglie('m',9.11e-31, 'q',1.6e-19, 'Vab',100); double(r.lam)
-            d = FV.datos(varargin);
+            d = Motor.datos(varargin, 'FV');
             [eqs, S] = FV.ecBroglie();
-            res = FV.despejar(eqs, S, d);
+            res = Motor.despejar(eqs, S, d, 'prefijo','FV');
         end
 
         function res = incert(varargin)
             % DESPEJE - incertidumbre minima de Heisenberg.
             %   r = FV.incert('dx',1e-10);   double(r.dp)
             %   r = FV.incert('dt',1e-8);    FV.J2eV(double(r.dE))
-            d = FV.datos(varargin);
+            d = Motor.datos(varargin, 'FV');
             [eqs, S] = FV.ecIncert();
-            res = FV.despejar(eqs, S, d);
+            res = Motor.despejar(eqs, S, d, 'prefijo','FV');
         end
 
         function res = rendija(varargin)
             % DESPEJE - difraccion por una rendija.
             %   r = FV.rendija('lam',500e-9, 'a',0.1e-3);  rad2deg(double(r.th))
             %   r = FV.rendija('lam',500e-9, 'a',0.1e-3, 'X',2, 'm',1); double(r.ym)
-            d = FV.datos(varargin);
+            d = Motor.datos(varargin, 'FV');
             [eqs, S] = FV.ecRendija();
-            res = FV.despejar(eqs, S, d);
+            res = Motor.despejar(eqs, S, d, 'prefijo','FV');
         end
 
         function res = red(varargin)
             % DESPEJE - red de difraccion o ley de Bragg.
             %   r = FV.red('d',1e-3/600, 'n',1, 'lam',589e-9); rad2deg(double(r.th))
-            d = FV.datos(varargin);
+            d = Motor.datos(varargin, 'FV');
             [eqs, S] = FV.ecRed();
-            res = FV.despejar(eqs, S, d);
+            res = Motor.despejar(eqs, S, d, 'prefijo','FV');
         end
 
         function [I, y] = patronN(lam, a, d, N, X, th)
@@ -1040,7 +1070,10 @@ classdef FV
         %    me*qe^4/(eps0^2*8*h^2) = 2.1677e-18 J = 13.548 eV, contra
         %    h*c*R = 2.1804e-18 J = 13.628 eV de la formula (18): 0.59%
         %  Por eso los sistemas usan SOLO las formas algebraicas y no los
-        %  numeros citados: entre ellas cierran exacto y el motor no aborta.
+        %  numeros citados: entre ellas cierran a redondeo de maquina y el
+        %  motor no aborta. Con 5.29e-11 o 13.6 eV metidos en una ecuacion,
+        %  el 0.37% o el 0.59% supera la tolerancia del control (0.1%) y
+        %  despejar abortaria con datos buenos.
         %  Si tu profe pide 13.6 eV o 5.29e-11 m, usa esos numeros a mano; la
         %  diferencia con lo que sale de aca es de decimas de porciento.
         %% ================================================================
@@ -1067,19 +1100,13 @@ classdef FV
 
             C = FV.ctes(); h = C.h; me = C.me; qe = C.qe; eps0 = C.eps0;
 
-            % sym(pi) y NO pi pelado: con pi doble, la expresion se congela
-            % como la fraccion binaria de ese double y las identidades entre
-            % rn, Ln y Un dejan de ser DEMOSTRABLES. isAlways las da por
-            % falsas y despejar aborta con datos perfectamente buenos.
-            dpi = sym(pi);
-
-            eqs = [ rn == eps0*n^2*h^2/(dpi*me*qe^2*Z)    % (14) con Z
+            eqs = [ rn == eps0*n^2*h^2/(pi*me*qe^2*Z)    % (14) con Z
                 vn == Z*qe^2/(eps0*2*n*h)                 % (15) con Z
                 Ln == me*vn*rn                            % (13)
-                Ln == n*h/(2*dpi)                         % (13), hbar = h/2pi
+                Ln == n*h/(2*pi)                         % (13), hbar = h/2pi
                 Kn == me*vn^2/2                           % (16)
                 Kn == me*Z^2*qe^4/(eps0^2*8*n^2*h^2)      % (16) con Z
-                Un == -Z*qe^2/(4*dpi*eps0*rn)             % (17) con Z
+                Un == -Z*qe^2/(4*pi*eps0*rn)             % (17) con Z
                 Un == -me*Z^2*qe^4/(eps0^2*4*n^2*h^2)     % (17) con Z
                 En == Kn + Un
                 En == -me*Z^2*qe^4/(eps0^2*8*n^2*h^2) ];  % (18) con Z
@@ -1102,21 +1129,21 @@ classdef FV
             % sigue valiendo igual, y sirve de control de que la Z entro bien
             % en las dos.
             %
-            % LAS FORMAS REPETIDAS SON A PROPOSITO, y cierran EXACTO entre si
-            % (verificado): las constantes se cancelan algebraicamente, asi
-            % que el redondeo no las separa. Cada par habilita una direccion
-            % distinta:
+            % LAS FORMAS REPETIDAS SON A PROPOSITO, y son la misma relacion
+            % algebraica: las constantes se cancelan, asi que entre ellas
+            % solo queda el redondeo de maquina, que el control tolera. Cada
+            % par habilita una direccion distinta:
             %   Ln == me*vn*rn        va de la orbita hacia Ln
-            %   Ln == n*h/(2*dpi)     deja entrar por Ln para sacar n
+            %   Ln == n*h/(2*pi)      deja entrar por Ln para sacar n
             %   Kn, Un, En cerradas   dejan entrar por una energia sin
             %                         conocer vn ni rn
             % La que sobra en cada corrida queda de CONTROL: si los datos no
             % cierran, despejar aborta en vez de mentir.
             %
-            % SI ENTRAS POR UNA ENERGIA O POR rn, n SALE CON SIGNO. Esas
-            % ecuaciones tienen n al cuadrado, asi que hay dos raices; el
-            % motor toma la primera y avisa con un warning. Tomale el valor
-            % absoluto: n es un entero positivo.
+            % SI ENTRAS POR UNA ENERGIA O POR rn, n TIENE DOS RAICES: esas
+            % ecuaciones tienen n al cuadrado. FV.bohr declara n como
+            % 'positivos' (n es un entero positivo), asi que el motor
+            % descarta la negativa y no avisa.
             %
             % En ES NEGATIVA Y ESO ESTA BIEN. El cero de energia es el
             % electron libre y quieto, infinitamente lejos. Estar ligado al
@@ -1192,27 +1219,33 @@ classdef FV
             % DESPEJE - una orbita del modelo de Bohr.
             %   r = FV.bohr('n',3,'Z',1);     double(r.rn), FV.J2eV(double(r.En))
             %   r = FV.bohr('n',1,'Z',2);     % He+, cuatro veces mas ligado
-            %   r = FV.bohr('En',FV.eV2J(-3.4),'Z',1);  abs(double(r.n))
-            d = FV.datos(varargin);
+            %   r = FV.bohr('En',FV.eV2J(-3.4),'Z',1);  double(r.n)
+            % n positivo: entrando por una energia o por rn, n va al
+            % cuadrado. Los tres renglones se explican en FV.rel.
+            d = Motor.datos(varargin, 'FV');
             d = FV.zPorDefecto(d);
             [eqs, S] = FV.ecBohr();
-            res = FV.despejar(eqs, S, d);
+            res = Motor.despejar(eqs, S, d, 'prefijo','FV', 'positivos',{'n'});
         end
 
         function res = bohrT(varargin)
             % DESPEJE - transicion entre niveles y foton emitido.
             %   r = FV.bohrT('ni',3, 'nf',2, 'Z',1);   double(r.lam)
-            %   r = FV.bohrT('nf',2, 'lam',656e-9, 'Z',1);  abs(double(r.ni))
-            d = FV.datos(varargin);
+            %   r = FV.bohrT('nf',2, 'lam',656e-9, 'Z',1);  double(r.ni)
+            % ni y nf positivos: los dos van al cuadrado en la (18). Los tres
+            % renglones se explican en FV.rel.
+            d = Motor.datos(varargin, 'FV');
             d = FV.zPorDefecto(d);
             [eqs, S] = FV.ecBohrT();
-            res = FV.despejar(eqs, S, d);
+            res = Motor.despejar(eqs, S, d, 'prefijo','FV', 'positivos',{'ni','nf'});
         end
 
         %% ================================================================
-        %  MOTOR
-        %  Lo que traduce los datos y resuelve. No es fisica: es el mismo
-        %  par datos/despejar de VM.m, MM.m e IE.m.
+        %  INTERFAZ
+        %  Lo que traduce los datos y resuelve NO esta en esta clase: es
+        %  Motor.datos y Motor.despejar (Motor.m, en la raiz del repo), el
+        %  mismo motor que usan VM, MM, IE y sp. Aca queda solo lo que es
+        %  decision de FV, como el Z por defecto.
         %% ================================================================
 
         function d = zPorDefecto(d)
@@ -1224,114 +1257,6 @@ classdef FV
             % porque las ecuaciones no tienen valores por defecto: son
             % relaciones. El default es una decision de la interfaz.
             if ~isfield(d, 'Z'), d.Z = 1; end
-        end
-
-        function s = datos(args)
-            % Traduce los argumentos de entrada a un struct de datos.
-            % Acepta {structDeDatos} o {'nombre',valor, 'nombre',valor, ...}.
-            n = numel(args);
-
-            if n == 1 && isstruct(args{1})
-                s = args{1};
-                return
-            end
-            if n == 0 || mod(n,2) ~= 0
-                error('FV:parInvalido', ...
-                    ['Se esperaban pares nombre-valor (cantidad par de ' ...
-                    'argumentos) o un struct. Llegaron %d.'], n);
-            end
-
-            % Impares = nombres, pares = valores. 1:2:end recorre 1,3,5...
-            % Se indexa con () y no con {}: el resultado sigue siendo cell.
-            nombres = args(1:2:end);
-            valores = args(2:2:end);
-
-            if ~all(cellfun(@(c) ischar(c) || isstring(c), nombres))
-                error('FV:parInvalido', ...
-                    ['Los argumentos impares tienen que ser nombres. ' ...
-                    'Ej: FV.fe(''lam'',400e-9, ''fi'',3.2e-19)']);
-            end
-
-            s = cell2struct(valores(:), cellstr(string(nombres(:))), 1);
-        end
-
-        function res = despejar(eqs, S, d)
-            % MOTOR de despeje. Lo usan todos los wrappers de esta clase.
-            % ENTRADAS:
-            %   eqs : sistema simbolico (de FV.ecRel, FV.ecFE, ...)
-            %   S   : diccionario de simbolos del MISMO sistema
-            %   d   : struct con SOLO lo que conoces, en cualquier orden
-            % SALIDA:
-            %   res : struct con TODAS las variables que quedaron
-            %         determinadas. Para numero: double(res.lam).
-            %
-            % NO SE PIDE UNA INCOGNITA: la sustitucion hacia adelante
-            % determina todo lo que los datos permitan en la misma pasada,
-            % asi que pedir una sola escondia el resto.
-            %
-            % POR QUE NO ES UN solve() PELADO: solve(eqs,x) exige que TODAS
-            % las ecuaciones se satisfagan eligiendo unicamente x. Como los
-            % sistemas tienen incognitas intermedias (gam, E, p...), cualquier
-            % ecuacion que no contenga x lo vuelve insatisfacible y solve
-            % devuelve VACIO aunque los datos alcancen de sobra.
-            % Aca se hace SUSTITUCION HACIA ADELANTE, que es el metodo a
-            % mano: se busca una ecuacion con una sola incognita, se despeja,
-            % se propaga, y se repite.
-            %
-            % ES EL MISMO MOTOR QUE VM.despejar, MM.despejar E IE.despejar,
-            % COPIADO A PROPOSITO: cada carpeta tiene que funcionar sola.
-            % Precio: un bug aca hay que arreglarlo en los cuatro archivos.
-
-            campos = fieldnames(d);
-
-            for k = 1:numel(campos)
-                if ~isfield(S, campos{k})
-                    error('FV:campoDesconocido', ...
-                        ['"%s" no es una variable de este modelo. ' ...
-                        'Validas: %s'], campos{k}, strjoin(fieldnames(S)', ', '));
-                end
-                % S.(campos{k}) = el SIMBOLO ; d.(campos{k}) = el VALOR.
-                % subs reemplaza en TODAS las ecuaciones de una vez; el loop
-                % es necesario porque subs no recorre structs.
-                eqs = subs(eqs, S.(campos{k}), d.(campos{k}));
-            end
-
-            % --- sustitucion hacia adelante ------------------------------
-            res    = struct();
-            cambio = true;
-            while cambio
-                cambio = false;
-                for k = 1:numel(eqs)
-                    libres = symvar(eqs(k));
-
-                    % Sin incognitas libres, la ecuacion ya es un veredicto.
-                    % subs NO la colapsa a false: la deja como "999 == 100",
-                    % asi que hay que preguntarle a isAlways.
-                    if isempty(libres)
-                        if ~isAlways(eqs(k), 'Unknown', 'false')
-                            error('FV:datosContradictorios', ...
-                                ['Los datos violan la ecuacion %d del ' ...
-                                'modelo: %s'], k, char(eqs(k)));
-                        end
-                        continue
-                    end
-                    if numel(libres) ~= 1, continue; end
-
-                    sol = solve(eqs(k), libres);
-                    if isempty(sol), continue; end
-                    if numel(sol) > 1
-                        % Varias raices: se toma la primera y se avisa. Pasa
-                        % con los radicales y los cuadrados (v en gamma, n en
-                        % Bohr) cuando entras al reves.
-                        warning('FV:variasSoluciones', ...
-                            '%s tiene %d soluciones; se toma la primera.', ...
-                            char(libres), numel(sol));
-                    end
-                    res.(char(libres)) = sol(1);
-                    eqs    = subs(eqs, libres, sol(1));   % propaga a todas
-                    cambio = true;
-                end
-            end
         end
 
     end
