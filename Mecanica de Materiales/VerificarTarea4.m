@@ -1,4 +1,4 @@
-%% VerificarTarea4.m — verificación de los problemas 1 y 2 con MM.m
+%% VerificarTarea4.m — verificación de los problemas 1, 2 y 4 con MM.m
 %  Solo funciones de MM. Todo en N, m, Pa; los mm y kN solo en fprintf.
 %  Correr parado en esta carpeta (Motor.m tiene que estar en el path:
 %  setup.m de la raíz, una vez).
@@ -97,3 +97,100 @@ fprintf('  d1 minimo = %.2f mm   ->  sig = %.2f MPa (permisible %.0f)\n', ...
     d1*1e3, sigVuelta/1e6, sigB/1e6);
 fprintf('  t minimo  = %.2f mm   ->  tau = %.2f MPa (permisible %.0f)\n', ...
     t*1e3, tauVuelta/1e6, tauD/1e6);
+
+%% ========================= PROBLEMA 4 ===============================
+% Datos del enunciado
+np4  = 4;        % pasadores en la unión B                        [-]
+dp4  = 0.011;    % diámetro del pasador                           [m]  (11 mm)
+dAB  = 0.041;    % diámetro EXTERIOR del tubo AB                  [m]  (41 mm)
+dBC  = 0.028;    % diámetro EXTERIOR del tubo BC                  [m]  (28 mm)
+tAB  = 0.0065;   % espesor de pared del tubo AB                   [m]  (6.5 mm)
+tBC  = 0.0075;   % espesor de pared del tubo BC                   [m]  (7.5 mm)
+sigY = 200e6;    % fluencia en tensión del acero                  [Pa] (200 MPa)
+sigU = 340e6;    % último en tensión del acero                    [Pa] (340 MPa)
+tauY = 80e6;     % fluencia en cortante del pasador               [Pa] (80 MPa)
+tauU = 140e6;    % último en cortante del pasador                 [Pa] (140 MPa)
+sbY  = 260e6;    % fluencia en soporte pasador-tubo               [Pa] (260 MPa)
+sbU  = 450e6;    % último en soporte pasador-tubo                 [Pa] (450 MPa)
+FSY  = 3.5;      % factor de seguridad respecto a la fluencia     [-]
+FSU  = 4.5;      % factor de seguridad respecto al último         [-]
+
+% Áreas de la hoja: A = Aext - Aint = (pi/4)*(d^2 - (d-2t)^2).
+% MM.seccion con 'dia' y 'hueco' es esa misma resta; el hueco es d - 2t.
+AAB = MM.seccion('dia',dAB, 'hueco',dAB - 2*tAB);   % pared del tubo AB [m^2]
+ABC = MM.seccion('dia',dBC, 'hueco',dBC - 2*tBC);   % pared del tubo BC [m^2]
+Ap  = MM.seccion('dia',dp4);                        % sección del pasador, un plano de corte [m^2]
+
+% Los dos criterios hacen la MISMA cuenta y solo cambian el par
+% (esfuerzo de falla, FS): de ahí el for de dos vueltas.
+crit = ["fluencia" "ultimo"];
+FS4  = [FSY  FSU];    % factor de seguridad de cada criterio           [-]
+sigF = [sigY sigU];   % falla en tensión de los tubos                  [Pa]
+tauF = [tauY tauU];   % falla en cortante del pasador                  [Pa]
+sbF  = [sbY  sbU];    % falla en soporte entre pasadores y tubos       [Pa]
+
+modos = ["tension AB"; "tension BC"; "cortante pasadores"; ...
+         "soporte en AB"; "soporte en BC"];
+P4 = zeros(numel(modos), numel(crit));   % P permisible de cada modo y criterio [N]
+
+for k = 1:numel(crit)
+    % MM.seguridad (35)(36)(37): permisible = falla/FS. 'sfalla'->'sperm'
+    % para esfuerzo normal, 'tfalla'->'tperm' para cortante. El soporte es
+    % un esfuerzo normal, así que entra por 'sfalla'.
+    sperm  = MM.seguridad('sfalla',sigF(k), 'FS',FS4(k)).sperm;   % [Pa]
+    tperm  = MM.seguridad('tfalla',tauF(k), 'FS',FS4(k)).tperm;   % [Pa]
+    sbperm = MM.seguridad('sfalla',sbF(k),  'FS',FS4(k)).sperm;   % [Pa]
+
+    % a) Tensión en los tubos: sig = P/A. MM.axial con 'sig' permisible y
+    %    'A' devuelve r.P, la carga que lleva ese tubo justo al permisible.
+    %    Toda la P pasa por cada tubo, así que son dos cuentas separadas.
+    P4(1,k) = MM.axial('sig',sperm, 'A',AAB).P;
+    P4(2,k) = MM.axial('sig',sperm, 'A',ABC).P;
+
+    % b) Cortante en los pasadores: 4 pasadores en corte doble = 8 planos.
+    %    MM.cortante: 'n' planos de corte, 'A' la sección de UN plano,
+    %    'tau' el permisible. Reparte V = F/8, que es la (P/4)/2 de la
+    %    hoja -> r.F es la P total de la unión.
+    P4(3,k) = MM.cortante('tau',tperm, 'n',2*np4, 'A',Ap).F;
+
+    % c) Soporte (aplastamiento): sig = (P/8)/(dp*t). Cada pasador lleva
+    %    P/4, pero cruza DOS paredes de cada tubo y las dos apoyan en
+    %    paralelo: a cada pared le toca P/8.
+    %    MM.apoyo: 'sigb' permisible, 't' espesor de pared, 'd' diámetro
+    %    del pasador; Ab = t*d es el área proyectada de UNA pared y r.P la
+    %    fuerza sobre esa pared. La P total son 2*np4 paredes.
+    P4(4,k) = 2*np4 * MM.apoyo('sigb',sbperm, 't',tAB, 'd',dp4).P;
+    P4(5,k) = 2*np4 * MM.apoyo('sigb',sbperm, 't',tBC, 'd',dp4).P;
+end
+
+Pmodo = min(P4, [], 2);          % cada modo lo limita su criterio más exigente [N]
+
+% Cada inciso se queda con el valor MÁS BAJO de sus modos: el primero que
+% falla es el que manda. inciso(i) dice a qué inciso pertenece el modo i.
+inciso  = [1 1 2 3 3];
+incisos = ["a) tension en los tubos"; "b) cortante en los pasadores"; ...
+           "c) soporte pasador-tubo"];
+Pinc  = zeros(numel(incisos),1);        % P permisible de cada inciso [N]
+manda = strings(numel(incisos),1);      % modo que lo limita          [-]
+for j = 1:numel(incisos)
+    idx = find(inciso == j);            % modos que entran en este inciso
+    % min con dos salidas: el valor y la posición DENTRO de idx, por eso
+    % el nombre sale como idx(k) y no como k.
+    [Pinc(j), k] = min(Pmodo(idx));
+    manda(j) = modos(idx(k));
+end
+
+% El valor de control es el más bajo de los tres incisos.
+[Pctrl, jCtrl] = min(Pinc);      % [N]
+
+fprintf('\n--- Problema 4 ---\n');
+fprintf('  %-22s %11s %11s %11s\n', 'modo de falla', crit(1), crit(2), 'manda');
+for i = 1:numel(modos)
+    fprintf('  %-22s %8.2f kN %8.2f kN %8.2f kN\n', modos(i), ...
+        P4(i,1)/1e3, P4(i,2)/1e3, Pmodo(i)/1e3);
+end
+fprintf('\n');
+for j = 1:numel(incisos)
+    fprintf('  %-30s %8.2f kN   (%s)\n', incisos(j), Pinc(j)/1e3, manda(j));
+end
+fprintf('  P de control = %.2f kN, la limita: %s\n', Pctrl/1e3, incisos(jCtrl));
