@@ -1,0 +1,686 @@
+% =====================================================================
+%  Parcial #2 - Vibraciones libres amortiguadas y vibracion forzada
+%  Vibraciones Mecanicas - Universidad Rafael Landivar
+%  Santiago Cruz Rivera - Carne 1310823
+%  Compilar con: pdflatex parcial2.tex   (dos veces)
+%
+%  Resolucion de Casos Amortiguados/parciales.m. Los enunciados van
+%  transcritos en texto: las figuras del parcial no estan en el repo.
+% =====================================================================
+\documentclass[12pt,letterpaper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-tabla]{babel}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{booktabs}
+
+% ------------------------- Colores y estilo de codigo ----------------
+\definecolor{mlkeyword}{RGB}{0,0,255}
+\definecolor{mlcomment}{RGB}{34,139,34}
+\definecolor{mlstring}{RGB}{160,32,240}
+\definecolor{fondo}{RGB}{248,248,248}
+\definecolor{fondoconsola}{RGB}{240,240,240}
+\definecolor{urlazul}{RGB}{0,51,102}
+\definecolor{avisofondo}{RGB}{255,248,225}
+
+\lstdefinestyle{matlab}{
+  language=Matlab,
+  backgroundcolor=\color{fondo},
+  basicstyle=\ttfamily\footnotesize,
+  keywordstyle=\color{mlkeyword},
+  commentstyle=\color{mlcomment}\itshape,
+  stringstyle=\color{mlstring},
+  numbers=left,
+  numberstyle=\tiny\color{gray},
+  numbersep=8pt,
+  frame=single,
+  rulecolor=\color{gray},
+  breaklines=true,
+  breakatwhitespace=false,
+  showstringspaces=false,
+  tabsize=2,
+  captionpos=b,
+  columns=flexible,
+  literate={á}{{\'a}}1 {é}{{\'e}}1 {í}{{\'i}}1 {ó}{{\'o}}1 {ú}{{\'u}}1 {ñ}{{\~n}}1
+}
+\lstset{style=matlab}
+
+% Estilo para la salida de la ventana de comandos (texto plano, sin numeros)
+\lstdefinestyle{consola}{
+  language=,
+  backgroundcolor=\color{fondoconsola},
+  basicstyle=\ttfamily\scriptsize,
+  numbers=none,
+  frame=single,
+  rulecolor=\color{gray},
+  breaklines=true,
+  showstringspaces=false,
+  columns=fullflexible,
+  keepspaces=true,
+  literate={á}{{\'a}}1 {é}{{\'e}}1 {í}{{\'i}}1 {ó}{{\'o}}1 {ú}{{\'u}}1 {ñ}{{\~n}}1
+}
+
+% ------------------------- Encabezado de secciones -------------------
+\usepackage{titlesec}
+\titleformat{\section}{\large\bfseries\color{urlazul}}{Problema \thesection.}{0.5em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{}{0em}{}
+
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\footnotesize Vibraciones Mecánicas --- Parcial \#2}
+\fancyhead[R]{\footnotesize Santiago Cruz Rivera --- 1310823}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% Caja de aviso para supuestos y datos faltantes
+\usepackage{mdframed}
+\newmdenv[backgroundcolor=avisofondo,linewidth=0.8pt,linecolor=gray,
+          innertopmargin=6pt,innerbottommargin=6pt]{aviso}
+
+\begin{document}
+
+% =====================================================================
+%                              CARÁTULA
+% =====================================================================
+\begin{titlepage}
+\centering
+\thispagestyle{empty}
+
+\vspace*{1.5cm}
+
+{\LARGE\bfseries UNIVERSIDAD RAFAEL LANDÍVAR\par}
+\vspace{0.4cm}
+{\large Facultad de Ingeniería\par}
+
+\vspace{2.5cm}
+
+\rule{\textwidth}{1.2pt}
+\vspace{0.6cm}
+
+{\Huge\bfseries VIBRACIONES MECÁNICAS\par}
+\vspace{0.8cm}
+{\LARGE PARCIAL \#2\par}
+\vspace{0.5cm}
+{\Large Vibración libre amortiguada y vibración forzada\par}
+
+\vspace{0.6cm}
+\rule{\textwidth}{1.2pt}
+
+\vspace{3cm}
+
+{\Large\bfseries Santiago Cruz Rivera\par}
+\vspace{0.4cm}
+{\large Carné: 1310823\par}
+
+\vfill
+
+{\large Guatemala, \today\par}
+
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+% =====================================================================
+%                            PROBLEMA 1
+% =====================================================================
+\section{Polea escalonada con dos masas, resorte y amortiguador}
+
+\subsection{Enunciado}
+
+Una polea escalonada gira alrededor de su centro $O$ y tiene momento de inercia de
+masa $J_O = 0.3$ kg$\cdot$m$^2$. El radio exterior es $R = 30$ cm y el interior
+$r = 10$ cm. Del radio exterior cuelga, por medio de un cable, un bloque de 5 kg y
+debajo de él un resorte de $3.2\times10^{4}$ N/m hasta el piso. Del radio interior
+cuelga un bloque de 40 kg y debajo de él un amortiguador de 150 N$\cdot$s/m hasta el
+piso. Las condiciones iniciales son $\theta(0) = 0$ y $\dot{\theta}(0) = 2.5$ rad/s.
+
+Se pide: (a) la rigidez del sistema, (b) el amortiguamiento del sistema, (c) el tipo
+de amortiguamiento, (d) la posición a los 0.5 s y (e) la velocidad a los 0.5 s.
+
+\subsection{Desarrollo}
+
+\textbf{Un solo grado de libertad.} Los cables son inextensibles y no resbalan sobre
+la polea, así que un solo ángulo $\theta$ describe todo el sistema. Si la polea gira
+$\theta$, el bloque de 5 kg (y el resorte) recorre $R\theta$ y el de 40 kg (y el
+amortiguador) recorre $r\theta$.
+
+\textbf{Sistema equivalente por energías.} Se expresa todo en función de $\theta$:
+\begin{align}
+T &= \tfrac{1}{2}J_O\dot{\theta}^2 + \tfrac{1}{2}m_1(R\dot{\theta})^2
+   + \tfrac{1}{2}m_2(r\dot{\theta})^2
+   = \tfrac{1}{2}\underbrace{\left(J_O + m_1R^2 + m_2r^2\right)}_{J_{eq}}\dot{\theta}^2 \\
+V &= \tfrac{1}{2}k(R\theta)^2 = \tfrac{1}{2}\underbrace{\left(kR^2\right)}_{k_{eq}}\theta^2 \\
+D &= \tfrac{1}{2}c(r\dot{\theta})^2 = \tfrac{1}{2}\underbrace{\left(cr^2\right)}_{c_{eq}}\dot{\theta}^2
+\end{align}
+
+El radio entra al cuadrado en los tres casos: es el mismo factor que aparece al pasar
+de fuerza a momento y de desplazamiento a ángulo. La ecuación de movimiento queda
+\begin{equation}
+J_{eq}\ddot{\theta} + c_{eq}\dot{\theta} + k_{eq}\theta = 0
+\end{equation}
+que es la misma $m\ddot{x} + c\dot{x} + kx = 0$ con otro vestuario.
+
+\textbf{La gravedad no aparece.} Los pesos producen momentos constantes respecto a
+$O$. Midiendo $\theta$ desde la posición de equilibrio estático, la deformación
+inicial del resorte ya equilibra esos momentos y ambos términos se cancelan. Por eso
+$\theta(0) = 0$ significa \emph{en el equilibrio estático}, no \emph{resorte sin
+deformar}.
+
+\textbf{Valores numéricos:}
+\begin{align}
+J_{eq} &= 0.3 + 5(0.30)^2 + 40(0.10)^2 = 1.15\ \text{kg}\cdot\text{m}^2 \\
+k_{eq} &= (3.2\times10^{4})(0.30)^2 = 2880\ \text{N}\cdot\text{m/rad} \\
+c_{eq} &= (150)(0.10)^2 = 1.5\ \text{N}\cdot\text{m}\cdot\text{s/rad}
+\end{align}
+
+\begin{equation}
+\omega_n = \sqrt{\frac{k_{eq}}{J_{eq}}} = 50.0435\ \text{rad/s}, \qquad
+c_{cr} = 2J_{eq}\omega_n = 115.10, \qquad
+\zeta = \frac{c_{eq}}{c_{cr}} = 0.013032
+\end{equation}
+
+Como $\zeta < 1$ el sistema es \textbf{sub-amortiguado}, con
+$\omega_d = \sqrt{1-\zeta^2}\,\omega_n = 50.0392$ rad/s.
+
+\textbf{Respuesta en el tiempo.} Con $\theta(0)=0$ se anula el coseno
+($C_1 = \theta_0 = 0$) y queda
+\begin{equation}
+\theta(t) = \frac{\dot{\theta}_0}{\omega_d}e^{-\zeta\omega_n t}\sin(\omega_d t)
+= 0.049961\,e^{-0.65217t}\sin(50.039t)
+\end{equation}
+
+\subsection{Código MATLAB}
+\begin{lstlisting}[style=matlab,numbers=none]
+Jeq = Jo + m1*R^2 + m2*r^2;   % inercia equivalente  [kg*m^2]
+keq = k*R^2;                  % rigidez equivalente  [N*m/rad]
+ceq = c*r^2;                  % amortiguamiento eq.  [N*m*s/rad]
+
+[res, regimen] = VM.amortA('m',Jeq, 'k',keq, 'c',ceq, 'x0',th0, 'v0',w0);
+
+theta_t = res.x;              % theta(t), expresion simbolica en t
+omega_t = diff(theta_t, t);   % thetapunto(t)
+\end{lstlisting}
+
+\subsection{Resultados}
+\begin{lstlisting}[style=consola]
+   Jeq = Jo + m1*R^2 + m2*r^2 = 1.1500 kg*m^2
+a) keq = k*R^2              = 2880.0 N*m/rad
+b) ceq = c*r^2              = 1.50 N*m*s/rad
+   wn  = sqrt(keq/Jeq)      = 50.0435 rad/s
+   ccr = 2*Jeq*wn           = 115.1000 N*m*s/rad
+   z   = ceq/ccr            = 0.013032
+c) Regimen: sub-amortiguado (z < 1)
+   wd  = sqrt(1-z^2)*wn     = 50.0392 rad/s
+   theta(t) = 0.049961*exp(-0.65217*t)*sin(50.039*t)
+d) theta(0.5 s)      = -0.004071 rad
+e) thetapunto(0.5 s) = 1.7955 rad/s
+\end{lstlisting}
+
+\begin{equation}
+\boxed{
+\begin{gathered}
+k_{eq} = 2880\ \tfrac{\text{N}\cdot\text{m}}{\text{rad}}, \qquad
+c_{eq} = 1.5\ \tfrac{\text{N}\cdot\text{m}\cdot\text{s}}{\text{rad}}, \qquad
+\text{sub-amortiguado} \\[4pt]
+\theta(0.5\ \text{s}) = -0.004071\ \text{rad}, \qquad
+\dot{\theta}(0.5\ \text{s}) = 1.7955\ \tfrac{\text{rad}}{\text{s}}
+\end{gathered}}
+\end{equation}
+
+\subsection{Nota sobre las unidades de la respuesta}
+
+La casilla del parcial pide N/m y N$\cdot$s/m, que no son las unidades que salen al
+trabajar en $\theta$. Para obtener un número en N/m hay que \emph{referir} el sistema
+al desplazamiento lineal de uno de los bloques, dividiendo por su radio al cuadrado
+(porque $x = \text{radio}\cdot\theta$):
+\begin{equation}
+m_{eq} = \frac{J_{eq}}{\text{radio}^2}, \qquad
+k_{lin} = \frac{k_{eq}}{\text{radio}^2}, \qquad
+c_{lin} = \frac{c_{eq}}{\text{radio}^2}
+\end{equation}
+
+\begin{center}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Coordenada} & $k$ & $c$ & $x(0.5)$ & $v(0.5)$ \\
+\midrule
+$\theta$ (la de la figura) & 2880 N$\cdot$m/rad & 1.50 N$\cdot$m$\cdot$s/rad & $-0.004071$ rad & $1.7955$ rad/s \\
+$x = R\theta$ (bloque 5 kg)  & 32\,000 N/m  & 16.67 N$\cdot$s/m & $-1.221$ mm & $0.5386$ m/s \\
+$x = r\theta$ (bloque 40 kg) & 288\,000 N/m & 150.00 N$\cdot$s/m & $-0.407$ mm & $0.1795$ m/s \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+En cada reducción lineal uno de los dos valores coincide con un dato del enunciado, y
+no es casualidad: el elemento que vive en la coordenada de referencia entra sin
+factor. Lo que \emph{no} cambia nunca es $\omega_n = 50.0435$ rad/s ni
+$\zeta = 0.013032$; elegir coordenada solo reescala $k$, $c$, $m$, $x$ y $v$. Si dos
+respuestas difieren en $\omega_n$, el error es de geometría y no de unidades.
+
+La figura marca $\theta$ (no una $x$) y las condiciones iniciales vienen en rad y
+rad/s, así que la respuesta coherente con el planteo es la primera fila.
+
+\newpage
+% =====================================================================
+%                            PROBLEMA 2
+% =====================================================================
+\section{Motor con desbalance rotatorio sobre cuatro resortes}
+
+\subsection{Enunciado}
+
+Un motor de 350 lb descansa sobre 4 resortes de 750 lb/in. El eje del motor tiene un
+desbalance de 1 oz a 6 in del eje de rotación. Sabiendo que la vibración únicamente
+puede ocurrir verticalmente, determine: (a) la frecuencia a la cual entra en
+resonancia el sistema, y (b) la amplitud del sistema si el motor gira a 1200 rpm.
+
+\subsection{Desarrollo}
+
+\textbf{Unidades: lb--in--s, no SI.} El enunciado viene en libras y pulgadas, así que
+se trabaja en ese sistema. Lo que no se negocia es que el sistema sea \emph{coherente}:
+con $k$ en lb/in la masa va en lb$\cdot$s$^2$/in, y para eso $g = 386.4$ in/s$^2$ (los
+32.2 ft/s$^2$ de siempre, por 12). Además 1 oz $= 1/16$ lb es un \emph{peso}, así que
+también se divide entre $g$.
+
+\textbf{Los cuatro resortes están en paralelo:} los cuatro sostienen el mismo motor y
+se deforman lo mismo, de modo que las rigideces se suman.
+\begin{equation}
+M = \frac{W}{g} = \frac{350}{386.4} = 0.90580\ \frac{\text{lb}\cdot\text{s}^2}{\text{in}},
+\qquad
+k_{eq} = 4(750) = 3000\ \frac{\text{lb}}{\text{in}}
+\end{equation}
+
+\textbf{(a) Resonancia.} La resonancia no depende del desbalance: ocurre cuando la
+frecuencia de excitación iguala a la natural, y $\omega_n$ sale solo de $k_{eq}$ y $M$.
+\begin{equation}
+\omega_n = \sqrt{\frac{k_{eq}}{M}} = \sqrt{\frac{3000}{0.90580}} = 57.55\ \text{rad/s}
+= 9.16\ \text{Hz} = 549.6\ \text{rpm}
+\end{equation}
+
+\textbf{(b) Amplitud a 1200 rpm.} La masa desbalanceada gira con el eje; su
+aceleración centrípeta genera una fuerza rotatoria cuya componente vertical vale
+$F(t) = m_d e\,\omega^2\sin(\omega t)$. La amplitud de esa fuerza crece con el
+\emph{cuadrado} de la velocidad de giro.
+\begin{equation}
+m_d = \frac{1/16}{386.4} = 1.617\times10^{-4}\ \frac{\text{lb}\cdot\text{s}^2}{\text{in}},
+\qquad
+\omega = \frac{1200(2\pi)}{60} = 125.66\ \text{rad/s}
+\end{equation}
+\begin{equation}
+F_0 = m_d e\,\omega^2 = 15.33\ \text{lb}, \qquad
+r_f = \frac{\omega}{\omega_n} = 2.1836
+\end{equation}
+
+Sin amortiguamiento, la respuesta en régimen permanente es
+\begin{equation}
+X = \frac{F_0/k_{eq}}{1 - r_f^2} = \frac{0.005108}{1 - (2.1836)^2} = -1.356\times10^{-3}\ \text{in}
+\end{equation}
+
+El signo negativo es física, no un error de cuenta: con $r_f > 1$ el motor vibra en
+\emph{contrafase} con el desbalance, desfasado 180$^\circ$. El tamaño de la vibración
+es $|X| = 0.00136$ in.
+
+\subsection{Código MATLAB}
+\begin{lstlisting}[style=matlab,numbers=none]
+Mmot = Wmot/g;                                  % masa del motor [lb*s^2/in]
+mDes = Wdes/g;                                  % masa desbalanceada [lb*s^2/in]
+kTot = VM.datosParalelos(kRes*ones(1,nRes));    % resortes en paralelo [lb/in]
+
+rOm = VM.omega('k',kTot, 'm',Mmot);             % de k y m salen wn, tau y f
+
+w   = rpm*2*pi/60;          % frecuencia de excitacion [rad/s]
+rf  = w/wn;                 % relacion de frecuencias [-]
+F0  = mDes*e*w^2;           % amplitud de la fuerza del desbalance [lb]
+X   = (F0/kTot)/(1 - rf^2); % amplitud en regimen permanente [in]
+\end{lstlisting}
+
+\subsection{Resultados}
+\begin{lstlisting}[style=consola]
+   M    = W/g                 = 0.90580 lb*s^2/in
+   keq  = 4 resortes paralelo = 3000 lb/in
+   mDes = (1/16 lb)/g         = 1.617e-04 lb*s^2/in
+a) wn = sqrt(keq/M)           = 57.55 rad/s
+                              = 9.16 Hz = 549.6 rpm
+   w a 1200 rpm               = 125.66 rad/s
+   rf = w/wn                  = 2.1836  (> 1: por arriba de resonancia)
+   F0 = mDes*e*w^2            = 15.33 lb
+   Xst = F0/keq               = 0.005108 in
+b) X  = Xst/(1-rf^2)          = -0.001356 in   (|X| = 0.001356 in)
+\end{lstlisting}
+
+\begin{equation}
+\boxed{\;\omega_n = 57.6\ \text{rad/s} \;(549.6\ \text{rpm}), \qquad
+|X| = 1.356\times10^{-3}\ \text{in}\;}
+\end{equation}
+
+\begin{aviso}
+\textbf{Sobre las opciones del parcial.} En (a) corresponde \textbf{57.6 rad/s}. Los
+distractores son coherentes con dos errores típicos: 3312 rad/s es $\omega_n^2$ sin
+sacar la raíz, y 57.6 RPM es el valor correcto con la unidad cambiada (en rpm son
+549.6).
+
+En (b) ninguna de las opciones listadas (0.033 in, $\pm$0.033 ft) coincide con el
+resultado. La cuenta se verificó en los dos sistemas coherentes (lb--in--s y
+lb--ft--slug) y da lo mismo. Un valor de 0.033 in requeriría un desbalance de
+$\approx 1.5$ lb (24 oz) en lugar de 1 oz, de modo que la diferencia está en el dato
+y no en el método.
+\end{aviso}
+
+\newpage
+% =====================================================================
+%                            PROBLEMA 3
+% =====================================================================
+\section{Masa en la punta de una columna tubular de aluminio}
+
+\subsection{Enunciado}
+
+Una masa de 5.00 kg se coloca en la punta de una columna con área transversal tubular
+y 1.25 m de altura. Una fuerza armónica horizontal $F(t) = 30\cos(75.4t)$ N actúa en
+la punta. La amplitud máxima que se desea bajo estas condiciones es de 0.01 m y el
+sistema parte del reposo. Determine: (a) el espesor del tubo de aluminio para resistir
+las condiciones dadas, y (b) el amortiguamiento para que la amplitud máxima se reduzca
+un 30\% luego de 7 oscilaciones.
+
+\begin{aviso}
+\textbf{Dato faltante.} El enunciado no da el diámetro exterior del tubo. Sin él, el
+espesor no tiene respuesta única: el mismo momento de inercia de área $I$ se consigue
+con un tubo ancho y de pared fina o con uno angosto y de pared gruesa. Todo lo demás
+($k$, $\omega_n$, $I$ y el amortiguamiento de (b)) queda determinado y se resuelve
+abajo. Como cota dura, $D_{ext} > 50.5$ mm: a ese diámetro haría falta una barra
+maciza para alcanzar la $I$ necesaria.
+
+Se toma además $E = 70$ GPa para el aluminio, valor típico que tampoco aparece en el
+enunciado.
+\end{aviso}
+
+\subsection{Desarrollo}
+
+\textbf{El modelo: voladizo con masa en la punta.} La columna está empotrada en la
+base y libre arriba, y la fuerza es horizontal, así que trabaja a \emph{flexión}. La
+rigidez que ve la masa es la de una viga en voladizo cargada en el extremo,
+$k = 3EI/L^3$. Despreciando la masa de la columna queda un sistema de 1 GDL:
+$m\ddot{x} + kx = F_0\cos(\omega t)$, con $F_0 = 30$ N y $\omega = 75.4$ rad/s.
+
+\textbf{Partir del reposo duplica el pico.} Con $x(0) = \dot{x}(0) = 0$ y sin
+amortiguamiento, la solución completa es
+\begin{equation}
+x(t) = X\left[\cos(\omega t) - \cos(\omega_n t)\right],
+\qquad X = \frac{F_0}{k - m\omega^2}
+\end{equation}
+
+Las dos cosenoides tienen la misma amplitud y frecuencias distintas: baten entre sí y,
+al ponerse en contrafase, se suman. El pico del movimiento es $2|X|$, no $|X|$. Esa es
+la razón por la que el enunciado aclara que parte del reposo.
+
+\textbf{La condición de diseño da dos raíces.}
+\begin{equation}
+2\left|\frac{F_0}{k - m\omega^2}\right| = A_{max}
+\quad\Longrightarrow\quad
+\left|k - m\omega^2\right| = \frac{2F_0}{A_{max}} = 6000\ \text{N/m}
+\end{equation}
+
+Con $m\omega^2 = 5(75.4)^2 = 28\,425.8$ N/m (la rigidez que pondría al sistema justo
+en resonancia):
+\begin{equation}
+k = 34\,425.8\ \text{N/m}\ (\omega_n > \omega,\ \text{rígido})
+\qquad\text{o}\qquad
+k = 22\,425.8\ \text{N/m}\ (\omega_n < \omega,\ \text{flexible})
+\end{equation}
+
+Entre esas dos la amplitud se pasa de 0.01 m. Se toma la rígida, que pide más $I$ y
+más material, por ser la lectura conservadora de ``resistir las condiciones dadas''.
+\begin{equation}
+\omega_n = \sqrt{\frac{k}{m}} = 82.98\ \text{rad/s}, \qquad
+I = \frac{kL^3}{3E} = 3.2018\times10^{-7}\ \text{m}^4 = 32.02\ \text{cm}^4
+\end{equation}
+
+\textbf{Del $I$ al espesor} (queda planteado a falta de $D_{ext}$):
+\begin{equation}
+I = \frac{\pi\left(D_{ext}^4 - D_{int}^4\right)}{64}
+\quad\Longrightarrow\quad
+D_{int} = \left(D_{ext}^4 - \frac{64I}{\pi}\right)^{1/4},
+\qquad t = \frac{D_{ext} - D_{int}}{2}
+\end{equation}
+
+\textbf{(b) Decremento logarítmico.} Que la amplitud se reduzca un 30\% luego de 7
+oscilaciones habla de cómo decae la vibración \emph{libre}: $x_2 = 0.7x_1$ con $n = 7$
+ciclos entre una y otra.
+\begin{equation}
+\delta = \frac{1}{n}\ln\frac{x_1}{x_2} = \frac{1}{7}\ln\frac{1}{0.7} = 0.050954
+\end{equation}
+\begin{equation}
+\zeta = \frac{\delta}{\sqrt{(2\pi)^2 + \delta^2}} = 0.008109, \qquad
+c_{cr} = 2\sqrt{km} = 829.77\ \text{N}\cdot\text{s/m}
+\end{equation}
+\begin{equation}
+c = \zeta\,c_{cr} = 6.7288\ \text{N}\cdot\text{s/m}
+\end{equation}
+
+\subsection{Código MATLAB}
+\begin{lstlisting}[style=matlab,numbers=none]
+Xadm  = Amax/factorPico;              % amplitud permanente admisible [m]
+kRes0 = mCol*wExc^2;                  % k que daria resonancia exacta [N/m]
+kReq  = kRes0 + F0/Xadm;              % raiz RIGIDA (wn > w) [N/m]
+Ireq  = kReq*Lcol^3/(3*Ecol);         % momento de inercia de area [m^4]
+
+% x1 = 1 y x2 = 1-0.30 porque solo cuenta el cociente entre amplitudes
+res3 = VM.subA('m',mCol, 'k',kReq, 'x1',1, 'x2',1-red, 'n',nOsc);
+\end{lstlisting}
+
+\subsection{Resultados}
+\begin{lstlisting}[style=consola]
+   k de resonancia (m*w^2)    = 28425.8 N/m
+   amplitud permanente adm.   = 0.0050 m  (pico/2)
+a) k necesaria (raiz rigida)  = 34425.8 N/m
+   (la raiz flexible, 22425.8 N/m, tambien cumple pero deja wn < w)
+   wn = sqrt(k/m)             = 82.98 rad/s   (w/wn = 0.9087)
+   I = k*L^3/(3*E)            = 3.2018e-07 m^4 = 32.02 cm^4
+   espesor: FALTA Dext, el diametro exterior del tubo.
+            Con Dext: Dint = (Dext^4 - 64*I/pi)^(1/4), t = (Dext-Dint)/2
+   delta = (1/n)*ln(x1/x2)    = 0.050954   (n = 7, x2/x1 = 0.70)
+   z     = delta/sqrt(4pi^2+delta^2) = 0.008109
+   ccr   = 2*sqrt(k*m)        = 829.77 N*s/m
+b) c     = z*ccr              = 6.7288 N*s/m
+\end{lstlisting}
+
+\begin{equation}
+\boxed{\;k = 34\,425.8\ \text{N/m}, \quad I = 32.02\ \text{cm}^4, \quad
+t = f(D_{ext})\ \text{pendiente}, \quad c = 6.73\ \text{N}\cdot\text{s/m}\;}
+\end{equation}
+
+\newpage
+% =====================================================================
+%                            PROBLEMA 4
+% =====================================================================
+\section{Palanca acodada con dos bloques, dos resortes y amortiguador}
+
+\subsection{Enunciado}
+
+Un bloque de 2 kg apoya sobre una superficie horizontal, unido a la pared por un
+resorte de 3000 N/m y un amortiguador de 200 N$\cdot$s/m. Del bloque sale un cable
+horizontal hasta el extremo de una palanca acodada en L que pivota en su codo: el
+brazo vertical mide $a = 0.3$ m (donde llega el cable del bloque de 2 kg) y el
+horizontal $b = 0.2$ m, de cuyo extremo cuelga un bloque de 9 kg. Debajo del bloque de
+9 kg hay un resorte de 9000 N/m al piso. Una fuerza de 50 N se aplica al bloque de
+9 kg y se suelta. La coordenada $x$ es la del bloque de 2 kg.
+
+Se pide: (a) la rigidez, (b) el amortiguamiento, (c) el tipo de amortiguamiento,
+(d) la posición a los 0.5 s y (e) la velocidad a los 0.5 s.
+
+\subsection{Desarrollo}
+
+\textbf{Un grado de libertad, atado por la palanca.} Los cables son inextensibles y la
+palanca es rígida y sin masa. Si la palanca gira un ángulo pequeño $\varphi$:
+\begin{equation}
+x = a\varphi \quad (\text{bloque de 2 kg}), \qquad
+y = b\varphi \quad (\text{bloque de 9 kg})
+\quad\Longrightarrow\quad
+y = \frac{b}{a}\,x = \frac{2}{3}\,x
+\end{equation}
+
+Ese cociente $b/a$ es la relación de transmisión y es el único número de geometría que
+entra en el problema.
+
+\textbf{Sistema equivalente en $x$.} Expresando todo en $x$ y $\dot{x}$:
+\begin{align}
+m_{eq} &= m_A + m_B\left(\tfrac{b}{a}\right)^2 = 2 + 9\left(\tfrac{4}{9}\right) = 6\ \text{kg} \\
+k_{eq} &= k_A + k_B\left(\tfrac{b}{a}\right)^2 = 3000 + 9000\left(\tfrac{4}{9}\right) = 7000\ \text{N/m} \\
+c_{eq} &= c_A = 200\ \text{N}\cdot\text{s/m}
+\end{align}
+
+El amortiguador está directo en $x$, así que entra sin factor; la masa y el resorte
+del lado de 9 kg entran con $(b/a)^2 = 4/9$, es decir, la palanca los ``achica''
+vistos desde $x$.
+\begin{equation}
+\omega_n = \sqrt{\frac{k_{eq}}{m_{eq}}} = 34.1565\ \text{rad/s}, \qquad
+c_{cr} = 2\sqrt{k_{eq}m_{eq}} = 409.878, \qquad
+\zeta = 0.4880
+\end{equation}
+
+Sub-amortiguado, con $\omega_d = 29.8142$ rad/s.
+
+\textbf{``Se aplica y se suelta'' son las condiciones iniciales.} La fuerza se aplica
+despacio, el sistema se acomoda en un nuevo equilibrio y recién ahí se suelta: $v_0 = 0$
+y $x_0$ es la deflexión estática. Como la fuerza actúa sobre el bloque de 9 kg (en $y$,
+no en $x$), se pasa a la coordenada $x$ por trabajo virtual, $F\,dy = F(b/a)\,dx$:
+\begin{equation}
+Q = F\frac{b}{a} = 50\left(\tfrac{2}{3}\right) = 33.333\ \text{N},
+\qquad
+x_0 = \frac{Q}{k_{eq}} = 4.7619\ \text{mm}
+\end{equation}
+
+\textbf{Por qué (d) y (e) dan prácticamente cero.} La envolvente decae como
+$e^{-\zeta\omega_n t}$ con $\zeta\omega_n = c_{eq}/(2m_{eq}) = 16.7$ s$^{-1}$. A los
+0.5 s eso vale $e^{-8.3} = 2.4\times10^{-4}$: queda el 0.02\% de los 4.76 mm
+iniciales. No es un error de cuenta, son ocho constantes de tiempo.
+
+\subsection{Código MATLAB}
+\begin{lstlisting}[style=matlab,numbers=none]
+nba  = b/a;                   % relacion de transmision y/x [-]
+meq  = mA + mB*nba^2;         % masa equivalente [kg]
+keq4 = kA + kB*nba^2;         % rigidez equivalente [N/m]
+ceq4 = cA;                    % amortiguamiento equivalente [N*s/m]
+
+Q   = Fap*nba;                % fuerza generalizada en x [N]
+x04 = Q/keq4;                 % deflexion estatica = x(0) [m]
+
+[res4, regimen4] = VM.amortA('m',meq, 'k',keq4, 'c',ceq4, 'x0',x04, 'v0',0);
+\end{lstlisting}
+
+\subsection{Resultados}
+\begin{lstlisting}[style=consola]
+   b/a = 0.6667  ->  (b/a)^2 = 0.4444
+   meq = mA + mB*(b/a)^2      = 6.0000 kg
+a) keq = kA + kB*(b/a)^2      = 7000.0 N/m
+b) ceq = cA                   = 200.0 N*s/m
+   wn  = sqrt(keq/meq)        = 34.1565 rad/s
+   ccr = 2*sqrt(keq*meq)      = 409.8780 N*s/m
+   z   = ceq/ccr              = 0.4880
+c) Regimen: sub-amortiguado
+   wd  = sqrt(1-z^2)*wn       = 29.8142 rad/s
+   Q  = F*(b/a)               = 33.3333 N
+   x0 = Q/keq                 = 0.004762 m  (4.7619 mm)
+   x(t) = exp(-16.667*t)*(0.0047619*cos(29.814*t) + 0.002662*sin(29.814*t))
+d) x(0.5 s) = -3.3739e-07 m = -0.000337 mm
+e) v(0.5 s) = -3.2157e-05 m/s = -0.032157 mm/s
+\end{lstlisting}
+
+\begin{equation}
+\boxed{
+\begin{gathered}
+k_{eq} = 7000\ \text{N/m}, \qquad c_{eq} = 200\ \text{N}\cdot\text{s/m}, \qquad
+\text{sub-amortiguado} \\[4pt]
+x(0.5\ \text{s}) \approx 0\ \text{mm}, \qquad
+v(0.5\ \text{s}) \approx 0\ \text{mm/s}
+\end{gathered}}
+\end{equation}
+
+El resultado se verificó por un camino independiente: equilibrio de momentos en la
+palanca, $\varphi = Fb/(k_Aa^2 + k_Bb^2)$, para $x_0$, y trayectoria por espacio de
+estados con \texttt{expm} (\texttt{VM.trayA}) en lugar de la solución simbólica. Ambos
+caminos coinciden dígito a dígito.
+
+\newpage
+% =====================================================================
+%                            PROBLEMA 5
+% =====================================================================
+\section{Bloque con dos resortes en paralelo y $\zeta$ dado}
+
+\subsection{Enunciado}
+
+El sistema mostrado está sub-amortiguado, con factor de amortiguamiento
+$\zeta = 0.25$. Los datos son $m = 0.2$ kg, $k_1 = 20$ N/m y $k_2 = 30$ N/m; los dos
+resortes van de la pared al bloque y el amortiguador $c$ va del bloque a la otra
+pared. Si las condiciones iniciales son $x = 0$ y $\dot{x} = 4$ m/s, determine: (a) el
+desplazamiento del bloque en $t = 0.10$ s, y (b) la velocidad del sistema en
+$t = 0.15$ s.
+
+\subsection{Desarrollo}
+
+\textbf{Los dos resortes están en paralelo.} $k_1$ y $k_2$ salen de la misma pared y
+llegan al mismo bloque: cuando el bloque se corre $x$, los dos se deforman $x$, las
+fuerzas se suman y la rigidez equivalente es la suma. Que estén dibujados uno arriba
+del otro no los pone en serie; en serie estarían encadenados.
+\begin{equation}
+k_{eq} = k_1 + k_2 = 50\ \text{N/m}, \qquad
+\omega_n = \sqrt{\frac{k_{eq}}{m}} = 15.8114\ \text{rad/s}
+\end{equation}
+
+\textbf{No hace falta $c$: alcanza con $\zeta$.} La solución sub-amortiguada depende
+solo de $\zeta$ y $\omega_n$. El coeficiente sale de yapa, $c = \zeta c_{cr} = 1.5811$
+N$\cdot$s/m, pero no se usa para contestar.
+\begin{equation}
+\omega_d = \sqrt{1-\zeta^2}\,\omega_n = 15.3093\ \text{rad/s}
+\end{equation}
+
+\textbf{$x(0) = 0$ mata el coseno:} $C_1 = x_0 = 0$ y $C_2 = v_0/\omega_d$, de modo que
+\begin{equation}
+x(t) = \frac{v_0}{\omega_d}\,e^{-\zeta\omega_n t}\sin(\omega_d t)
+= 0.26128\,e^{-3.9528t}\sin(15.309t)
+\end{equation}
+
+El bloque arranca del equilibrio con un golpe de 4 m/s y llega a su primer pico cerca
+de $t = \pi/(2\omega_d) = 0.103$ s, justo el instante que pide (a). Los dos incisos
+piden instantes distintos: en 0.15 s el bloque ya pasó el pico y vuelve hacia el
+equilibrio, por eso la velocidad sale negativa.
+
+\subsection{Código MATLAB}
+\begin{lstlisting}[style=matlab,numbers=none]
+keq5 = VM.datosParalelos([k1 k2]);    % resortes en paralelo [N/m]
+
+% VM.amortA acepta z en vez de c: clasifica con z y despeja wn, wd y c
+[res5, regimen5] = VM.amortA('m',m5, 'k',keq5, 'z',z5, 'x0',x05, 'v0',v05);
+
+x5_t = res5.x;                        % x(t) [m]
+v5_t = diff(x5_t, t);                 % v(t) [m/s]
+xa   = double(subs(x5_t, t, ta));     % x(0.10 s)
+vb   = double(subs(v5_t, t, tb));     % v(0.15 s)
+\end{lstlisting}
+
+\subsection{Resultados}
+\begin{lstlisting}[style=consola]
+   keq = k1 + k2              = 50.0 N/m
+   wn  = sqrt(keq/m)          = 15.8114 rad/s
+   wd  = sqrt(1-z^2)*wn       = 15.3093 rad/s
+   ccr = 2*sqrt(keq*m)        = 6.3246 N*s/m
+   c   = z*ccr                = 1.5811 N*s/m  (no lo piden)
+   regimen: sub (z = 0.25)
+   x(t) = 0.26128*exp(-3.9528*t)*sin(15.309*t)
+a) x(0.10 s) = 0.175828 m   = 175.83 mm
+b) v(0.15 s) = -1.894113 m/s = -1894.1 mm/s
+\end{lstlisting}
+
+\begin{equation}
+\boxed{\;x(0.10\ \text{s}) = 175.83\ \text{mm}, \qquad
+v(0.15\ \text{s}) = -1894.1\ \text{mm/s}\;}
+\end{equation}
+
+\end{document}

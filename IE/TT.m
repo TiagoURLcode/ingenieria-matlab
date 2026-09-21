@@ -9,6 +9,8 @@ classdef TT
       TT.DD(d)    Delta - Delta (Δ-Δ)
       TT.YD(d)    Estrella - Delta (Y-Δ)
       TT.DY(d)    Delta - Estrella (Δ-Y)
+      TT.YZ(d)    Estrella - Zig-Zag (Y-Z), grupo Yz1
+      TT.DZ(d)    Delta - Zig-Zag (Δ-Z), grupo Dz0
       TT.mono(d)  Monofásico: mismos campos, sin sqrt(3)
 
     VARIABLES (todas opcionales en d, se usa lo que haya)
@@ -35,6 +37,14 @@ classdef TT
           Y-Y y Δ-Δ  ->  desf = 0     (secundario en fase con el primario)
           Y-Δ        ->  desf = +30   (el secundario ATRASA 30°)
           Δ-Y        ->  desf = -30   (el secundario ADELANTA 30°)
+      El ZIG-ZAG agrega un desfase INTERNO de -30° entre la fem de la
+      columna y la tensión de fase, porque la fase es la resta de dos
+      medias bobinas a 120°. Combinado con lo de arriba:
+          Y-Z        ->  desf = +30   (grupo Yz1)
+          Δ-Z        ->  desf = 0     (grupo Dz0)
+      Y como esa resta rinde sqrt(3)/2 de lo que rendirían las dos mitades
+      alineadas, el zig-zag necesita 2/sqrt(3) = 1.155 veces más vueltas
+      para la misma tensión: el 15.5% de cobre de más.
       Si tu banco está marcado al revés (permutando dos fases) el signo se
       invierte: es la diferencia entre Dy11 y Dy1.
     %}
@@ -213,6 +223,69 @@ classdef TT
         end
 
         %{
+        YZ — ESTRELLA - ZIG-ZAG (Y - Z).  Grupo Yz1: el secundario ATRASA 30°.
+
+        Cada fase del secundario NO vive en una sola columna: se parte en
+        dos medias bobinas puestas en columnas DISTINTAS y conectadas en
+        oposición. Eso es todo el zig-zag.
+
+                 A o---+
+                       |            PRIMARIO en estrella, sin novedad
+                 B o---|---+
+                       |   |
+                 C o---|---|---+
+                       |   |   |
+                      --- --- ---
+                     ( . )( . )( . )
+                      --- --- ---
+                       |   |   |
+                 N o---+---+---+
+
+                 ==========================
+
+                  columna 1   columna 2   columna 3
+                     ---         ---         ---
+                    ( a1)       ( b1)       ( c1)     mitades "de ida"
+                     ---         ---         ---
+                      |           |           |
+                     ---         ---         ---
+                    ( c2)       ( a2)       ( b2)     mitades "de vuelta",
+                     ---         ---         ---      en oposición
+                      |           |           |
+                 n o--+-----------+-----------+
+
+          La fase "a" son a1 (columna 1) y a2 (columna 2) en oposición. Sus
+          fems están a 120°, así que la resta da sqrt(3) veces UNA media
+          bobina, no 2 veces. Con el mismo cobre se obtiene el 86.6% de la
+          tensión, o al revés: hace falta 15.5% más de vueltas. Eso se paga
+          a cambio de un neutro firme y de un camino para las corrientes de
+          secuencia cero, que es para lo que se usa.
+
+          N_S es el TOTAL de vueltas por fase, las dos mitades sumadas.
+          V_LS = sqrt(3)*V_phiS, igual que una estrella
+          a = V_phiP/V_phiS = N_P/(0.866*N_S)      desf = +30
+
+        Ej: r = TT.YZ(struct('V_LP',13800,'a',10))
+        %}
+        function res = YZ(d)
+            res = TT.resolver('Y', 'Z', d);
+        end
+
+        %{
+        DZ — DELTA - ZIG-ZAG (Δ - Z).  Grupo Dz0: secundario EN FASE.
+
+        El secundario es el mismo zig-zag de TT.YZ; lo único que cambia es
+        que el primario va en delta, que es justo lo que dice el
+        cuestionario del curso. Por eso el desfase pasa de +30 a 0: la
+        delta no mete los 30° que mete la estrella.
+
+        Ej: r = TT.DZ(struct('V_LP',13800,'a',10))
+        %}
+        function res = DZ(d)
+            res = TT.resolver('D', 'Z', d);
+        end
+
+        %{
         mono — MONOFÁSICO. Mismos campos que las trifásicas para poder
         intercambiarlas, pero sin sqrt(3): línea y fase son lo mismo de los
         dos lados, no hay desfase de conexión (desf = 0) y la potencia es
@@ -286,8 +359,8 @@ classdef TT
             Sy  = cell2struct(cellfun(@sym, nom, 'UniformOutput', false)', ...
                 nom', 1);
 
-            [kVP, dVP, kIP, dIP] = TT.factores(cP);
-            [kVS, dVS, kIS, dIS] = TT.factores(cS);
+            [kVP, dVP, kIP, dIP, kNP, dZP] = TT.factores(cP);
+            [kVS, dVS, kIS, dIS, kNS, dZS] = TT.factores(cS);
             if cP == '1', kS = 1; else, kS = sqrt(sym(3)); end
 
             eqs = [ % ---- lado PRIMARIO: línea vs fase
@@ -303,9 +376,9 @@ classdef TT
                 % ---- enlace entre los dos lados (bobinas en fase)
                 Sy.V_phiP   == Sy.a*Sy.V_phiS       % relación POR FASE
                 Sy.I_phiS   == Sy.a*Sy.I_phiP       % N_P*I_P = N_S*I_S
-                Sy.a        == Sy.N_P/Sy.N_S
-                Sy.ang_VphiS == Sy.ang_VphiP        % punto con punto
-                Sy.ang_IphiS == Sy.ang_IphiP
+                Sy.a        == (kNP*Sy.N_P)/(kNS*Sy.N_S)
+                Sy.ang_VphiS == Sy.ang_VphiP + dZS - dZP   % punto con punto
+                Sy.ang_IphiS == Sy.ang_IphiP + dZS - dZP
                 % ---- carga y potencia
                 Sy.ang_IphiS == Sy.ang_VphiS - Sy.theta
                 Sy.S        == kS*Sy.V_LP*Sy.I_LP
@@ -319,14 +392,24 @@ classdef TT
           kV, dV : V_L = kV*V_phi,  ang_VL = ang_Vphi + dV
           kI, dI : I_L = kI*I_phi,  ang_IL = ang_Iphi + dI
         %}
-        function [kV, dV, kI, dI] = factores(c)
+        function [kV, dV, kI, dI, kN, dZ] = factores(c)
             r3 = sqrt(sym(3));
+            % kN : cuánto del devanado se APROVECHA. 1 en las conexiones
+            %      normales; en zig-zag las dos mitades de una fase están
+            %      en columnas distintas y se suman a 120°, no alineadas,
+            %      así que rinden sqrt(3)/2 = 0.866 de lo que rendirían
+            %      juntas. De ahí el 15.5% de cobre de más.
+            % dZ : desfase INTERNO entre la fem de la columna y la tensión
+            %      de fase resultante. Cero salvo en zig-zag, donde la
+            %      resta de dos medias bobinas a 120° deja la fase 30°
+            %      atrás de la columna.
             switch c
-                case 'Y', kV = r3; dV =  30;  kI = 1;   dI =   0;
-                case 'D', kV = 1;  dV =   0;  kI = r3;  dI = -30;
-                case '1', kV = 1;  dV =   0;  kI = 1;   dI =   0;
+                case 'Y', kV = r3; dV =  30;  kI = 1;   dI =   0;  kN = 1;     dZ =   0;
+                case 'D', kV = 1;  dV =   0;  kI = r3;  dI = -30;  kN = 1;     dZ =   0;
+                case 'Z', kV = r3; dV =  30;  kI = 1;   dI =   0;  kN = r3/2;  dZ = -30;
+                case '1', kV = 1;  dV =   0;  kI = 1;   dI =   0;  kN = 1;     dZ =   0;
                 otherwise
-                    error('TT:conexion', 'Conexión "%s": usá Y, D o 1.', c);
+                    error('TT:conexion', 'Conexión "%s": usá Y, D, Z o 1.', c);
             end
         end
 

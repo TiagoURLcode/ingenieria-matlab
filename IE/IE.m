@@ -540,7 +540,7 @@ classdef IE
           eta = Pout / Pin = Pout / (Pout + Pfe + Pcu)
           Es MÁXIMO cuando las pérdidas variables igualan a las fijas,
           Pcu = Pfe. Como Pcu = x^2*PcuNom, eso pasa en la fracción de
-          carga  xopt = sqrt(Pfe/PcuNom)  (la calcula IE.perdidas). Un
+          carga  xopt = sqrt((Pfe+Padd)/PcuNom)  (la calcula IE.perdidas). Un
           trafo de distribución, que pasa muchas horas con poca carga, se
           diseña a propósito con xopt < 1.
 
@@ -797,12 +797,20 @@ classdef IE
                     r.etapct = 100*r.eta;
                 end
                 %  MÁXIMO RENDIMIENTO: donde las variables igualan a las
-                %  fijas, Pcu = Pfe. Como Pcu = x^2*PcuNom, sale la raíz.
+                %  fijas. Como Pcu = x^2*PcuNom, sale la raíz.
+                %
+                %  LAS FIJAS SON Pfe + Padd, NO SOLO Pfe. Las adicionales
+                %  entran en Pperd como constantes, así que también pesan
+                %  en dónde cae el máximo: con Padd = 40 W sobre Pfe = 80 W
+                %  y PcuNom = 300 W, xopt pasa de 0.516 a 0.632. Usar solo
+                %  Pfe daba un punto que NO era el máximo de la curva, y se
+                %  veía al barrer la carga y comparar con el valor devuelto.
                 if isfield(r,'PcuNom') && r.PcuNom > 0
-                    r.xopt = sqrt(r.Pfe / r.PcuNom);
+                    Pfij  = r.Pfe + r.Padd;
+                    r.xopt = sqrt(Pfij / r.PcuNom);
                     if hay('Snom')
                         Po = r.xopt * d.Snom * d.FP;
-                        r.etamax = 100 * Po / (Po + 2*r.Pfe + r.Padd);
+                        r.etamax = 100 * Po / (Po + 2*Pfij);
                     end
                 end
             end
@@ -1170,5 +1178,230 @@ classdef IE
                 end
             end
         end
+
+        %% ================================================================
+        %  MAQUINA LINEAL DE CORRIENTE CONTINUA (barra sobre rieles)
+        %
+        %  Una barra conductora de longitud l desliza sin friccion sobre
+        %  dos rieles, dentro de un campo B perpendicular al plano,
+        %  alimentada por una bateria VB a traves de una resistencia R.
+        %  Es el motor CC mas simple que existe: tiene la conversion
+        %  electromecanica completa y NO tiene colector, escobillas ni
+        %  reaccion de armadura.
+        %
+        %  NOMENCLATURA (SI):
+        %    B       densidad de flujo, CON SIGNO              [T]
+        %    l       longitud de la barra entre rieles         [m]
+        %    R       resistencia total del circuito            [ohm]
+        %    VB      tension de la bateria, CON SIGNO          [V]
+        %    m       masa de la barra                          [kg]
+        %    v       velocidad de la barra, con signo          [m/s]
+        %    i       corriente                                 [A]
+        %    eind    fuerza contraelectromotriz inducida       [V]
+        %    F       fuerza inducida sobre la barra            [N]
+        %    Fcarga  fuerza de carga aplicada                  [N]
+        %    dvdt    aceleracion de la barra                   [m/s^2]
+        %    Pbat    potencia entregada por la bateria         [W]
+        %    PR      potencia disipada en R                    [W]
+        %    Pmec    potencia mecanica, F*v                    [W]
+        %    Pconv   potencia convertida, eind*i               [W]
+        %    vvacio  velocidad de equilibrio sin carga         [m/s]
+        %    iarr    pico de corriente de arranque             [A]
+        %
+        %  DE DONDE SALEN LAS ECUACIONES. El planteo es vectorial y se
+        %  baja a escalares UNA sola vez, aca, con los rieles sobre x, la
+        %  barra sobre y y el campo sobre z:
+        %      v = v*xg,  B = B*zg,  l = l*yg
+        %      eind = (v x B).l  ->  Faraday, la barra barre area y el
+        %                            flujo encerrado cambia
+        %      F    = i*(l x B)  ->  Lorentz sobre los portadores
+        %  Hechos los productos cruzados y tomando el sentido de l como el
+        %  de la corriente positiva, las dos se reducen a eind = B*l*v y
+        %  F = B*l*i. El SIGNO vive en B y en VB, que entran con signo:
+        %  invertir el campo o la polaridad invierte ambas de una vez, que
+        %  es justo lo que hay que poder mostrar.
+        %
+        %  LEY DE LENZ, QUE ES EL PUNTO DEL BLOQUE. eind crece con v y
+        %  entra RESTANDO en la malla: i = (VB - eind)/R. Con la barra
+        %  quieta eind = 0 y la corriente es VB/R, el pico de arranque.
+        %  A medida que la barra acelera, eind sube, la corriente baja y
+        %  con ella la fuerza. Sin esa realimentacion negativa el arranque
+        %  quemaria la maquina. La resistencia de arranque solo sirve
+        %  mientras eind es baja; despues sobra y se retira.
+        %% ================================================================
+
+        function [eqs, S] = ecLineal()
+            % SISTEMA - maquina lineal CC. No resuelve: entrega las
+            % ecuaciones y el diccionario, igual que IE.ecB.
+            % SALIDAS:
+            %   eqs : vector simbolico con las relaciones, sin resolver
+            %   S   : struct-diccionario de simbolos del sistema
+            nom = {'B','l','R','VB','m','v','i','eind','F','Fcarga', ...
+                'dvdt','Pbat','PR','Pmec','Pconv','vvacio','iarr'};
+            S   = cell2struct(cellfun(@sym, nom, 'UniformOutput', false)', ...
+                nom', 1);
+            B = S.B; l = S.l; R = S.R; VB = S.VB; m = S.m; v = S.v;
+            i = S.i; eind = S.eind; F = S.F; Fcarga = S.Fcarga;
+            dvdt = S.dvdt; Pbat = S.Pbat; PR = S.PR; Pmec = S.Pmec;
+            Pconv = S.Pconv; vvacio = S.vvacio; iarr = S.iarr;
+
+            eqs = [ eind   == B*l*v            % Faraday, se opone (Lenz)
+                i      == (VB - eind)/R    % malla electrica
+                F      == B*l*i            % Lorentz
+                dvdt   == (F - Fcarga)/m   % 2a de Newton sobre la barra
+                Pbat   == VB*i
+                PR     == i^2*R
+                Pmec   == F*v
+                Pconv  == eind*i
+                vvacio == VB/(B*l)         % equilibrio con Fcarga = 0
+                iarr   == VB/R ];          % pico con v = 0, eind = 0
+
+            % Pconv Y Pmec SON IGUALES y estan las dos a proposito: su
+            % diferencia es el control de que la conversion electromecanica
+            % no inventa ni pierde potencia. eind*i = (B*l*v)*i y
+            % F*v = (B*l*i)*v son la misma cuenta, asi que toda la perdida
+            % esta en R y ninguna en la conversion. Si algun dia difieren,
+            % hay un error de signo.
+            %
+            % vvacio y iarr NO son redundantes: son los dos extremos de la
+            % recta de operacion. Con v = vvacio la corriente es cero, y
+            % con v = 0 la corriente es iarr. Entre esos dos puntos se
+            % mueve todo lo demas.
+        end
+
+        function res = lineal(varargin)
+            % DESPEJE - maquina lineal CC en REGIMEN ESTACIONARIO.
+            % Pone dvdt = 0 si no se lo das, que es lo que define el
+            % equilibrio, y despeja todo lo que los datos permitan.
+            %   r = IE.lineal('B',0.5, 'l',1, 'R',0.25, 'VB',120, 'Fcarga',30);
+            %   double(r.v)
+            % Funciona en cualquier direccion: dados v y Fcarga saca VB.
+            % Para el transitorio, IE.trayLineal.
+            d = Motor.datos(varargin, 'IE');
+            if ~isfield(d, 'dvdt'), d.dvdt = 0; end
+            [eqs, S] = IE.ecLineal();
+            res = Motor.despejar(eqs, S, d, 'prefijo','IE');
+        end
+
+        function [tt, vv, ii, FF, num] = trayLineal(varargin)
+            % TRAYECTORIA - transitorio desde el cierre del interruptor.
+            % ENTRADAS (pares nombre-valor o struct, ver Motor.datos):
+            %   B, l, R, VB, m : los del sistema. Obligatorias
+            %   Fcarga : fuerza de carga [N]. Por defecto 0
+            %   v0     : velocidad inicial [m/s]. Por defecto 0
+            %   tf     : tiempo final [s]. Si no se da, 5 constantes de
+            %            tiempo, tau = m*R/(B*l)^2
+            %   npts   : puntos de la curva. Por defecto 500
+            %   Rarr   : resistencia de arranque EN SERIE [ohm]. Por
+            %            defecto 0
+            %   tarr   : instante en que se retira Rarr [s]. Por defecto
+            %            Inf, o sea que no se retira en toda la corrida
+            % SALIDAS:
+            %   tt, vv, ii, FF : tiempo [s], velocidad [m/s], corriente
+            %                    [A] y fuerza [N], vectores 1 x npts
+            %   num : struct con vvacio, iarr, tau (la del ARRANQUE, que
+            %         incluye Rarr si la hay), Rini, Rv (la resistencia
+            %         vigente en cada instante) y el punto final
+            %
+            %   [t,v,i] = IE.trayLineal('B',0.5,'l',1,'R',0.25,'VB',120,'m',10);
+            %
+            % UNA SOLA FUENTE DE ECUACIONES: dvdt sale de resolver el
+            % MISMO sistema de IE.ecLineal, no de una formula reescrita a
+            % mano. Se sustituyen los datos, se despeja dvdt en funcion de
+            % v y recien ahi se baja a funcion numerica.
+            %
+            % POR QUE ode45 Y NO ode15s CON MATRIZ DE MASA: el modelo no
+            % tiene inductancia, asi que la malla es ALGEBRAICA y se
+            % sustituye en la mecanica. Queda una sola EDO explicita en v.
+            % El sistema recien se vuelve diferencial-algebraico el dia que
+            % se agregue L, y ahi si hace falta ode15s.
+            d = Motor.datos(varargin, 'IE');
+            req = {'B','l','R','VB','m'};
+            fal = req(~isfield(d, req));
+            if ~isempty(fal)
+                error('IE:faltaDato', ...
+                    'trayLineal necesita %s.', strjoin(fal, ', '));
+            end
+            if ~isfield(d,'Fcarga'), d.Fcarga = 0;   end
+            if ~isfield(d,'v0'),     d.v0     = 0;   end
+            if ~isfield(d,'npts'),   d.npts   = 500; end
+            if ~isfield(d,'Rarr'),   d.Rarr   = 0;   end
+            if ~isfield(d,'tarr'),   d.tarr   = Inf; end
+
+            Bl = d.B*d.l;
+
+            % La resistencia VIGENTE al arrancar manda sobre la constante
+            % de tiempo, y con ella sobre cuanto hay que integrar. Usar R
+            % pelado deja la corrida cortada cuando hay Rarr.
+            if d.Rarr > 0 && d.tarr > 0
+                Rini = d.R + d.Rarr;    % arranca con la resistencia puesta
+            else
+                Rini = d.R;             % nunca estuvo, o se quito en t = 0
+            end
+            tau = d.m*Rini/Bl^2;        % constante de tiempo del arranque [s]
+            if ~isfield(d,'tf'), d.tf = 5*tau; end
+            hayDosTramos = d.Rarr > 0 && d.tarr > 0 && d.tarr < d.tf;
+
+            tt  = linspace(0, d.tf, d.npts);
+            fA  = IE.dvdtLineal(d, Rini);
+            if hayDosTramos
+                fB = IE.dvdtLineal(d, d.R);
+                s1 = ode45(@(t,v) fA(v), [0 d.tarr], d.v0);
+                s2 = ode45(@(t,v) fB(v), [d.tarr d.tf], deval(s1, d.tarr));
+                antes = tt <= d.tarr;
+                vv = zeros(1, d.npts);
+                vv(antes)  = deval(s1, tt(antes));
+                vv(~antes) = deval(s2, tt(~antes));
+                Rv = Rini*antes + d.R*(~antes);     % la R vigente en cada t
+            else
+                s  = ode45(@(t,v) fA(v), [0 d.tf], d.v0);
+                vv = deval(s, tt);
+                Rv = repmat(Rini, 1, d.npts);
+            end
+
+            ii = (d.VB - Bl*vv) ./ Rv;      % malla, con la R vigente
+            FF = Bl*ii;
+
+            num = struct('vvacio', d.VB/Bl, 'iarr', d.VB/Rini, ...
+                'tau', tau, 'Rini', Rini, 'vfinal', vv(end), ...
+                'ifinal', ii(end), 'Rv', Rv);
+            % Rv sale porque la potencia disipada, i^2*Rv, necesita saber
+            % que resistencia estaba puesta en cada instante. Recalcularla
+            % afuera seria duplicar la regla de conmutacion.
+        end
+
+        function g = dvdtLinealSym()
+            % dvdt CON LOS PARAMETROS LIBRES, derivada una sola vez.
+            % Toma las CUATRO primeras ecuaciones de IE.ecLineal, que son
+            % la cadena fisica (Faraday, malla, Lorentz, Newton), elimina
+            % eind, i y F, y deja dvdt en funcion de la velocidad Y de
+            % todos los parametros:
+            %     g(v, B, l, R, VB, m, Fcarga)
+            %
+            % POR QUE PARAMETRICA Y CACHEADA. El solve simbolico cuesta
+            % 12 ms medidos. Rehacerlo en cada cuadro de una animacion o
+            % en cada movimiento de un slider, que disparan decenas de
+            % veces por segundo, cuelga la interfaz. Derivada una vez y
+            % guardada en persistent, cada evaluacion posterior es
+            % numerica y cuesta microsegundos. La fuente de ecuaciones
+            % sigue siendo una sola: IE.ecLineal.
+            persistent gc
+            if isempty(gc)
+                [eqs, S] = IE.ecLineal();
+                sol = solve(eqs(1:4), [S.dvdt, S.i, S.eind, S.F]);
+                gc  = matlabFunction(sol.dvdt, ...
+                    'Vars', {S.v, S.B, S.l, S.R, S.VB, S.m, S.Fcarga});
+            end
+            g = gc;
+        end
+
+        function f = dvdtLineal(d, Rtot)
+            % AUXILIAR de trayLineal: dvdt(v) con los datos ya puestos.
+            % Es IE.dvdtLinealSym con los parametros fijados; el unico
+            % argumento que queda libre es la velocidad.
+            g = IE.dvdtLinealSym();
+            f = @(v) g(v, d.B, d.l, Rtot, d.VB, d.m, d.Fcarga);
+        end
+
     end
 end
