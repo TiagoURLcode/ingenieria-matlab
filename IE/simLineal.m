@@ -27,7 +27,7 @@ end
 function [E, expl] = preset(n)
 % Datos del ejemplo 1-10 de Chapman como base de los cinco casos.
 E = struct('VB',120, 'R',0.3, 'B',0.1, 'l',10, 'm',10, ...
-    'Fcarga',0, 'Rarr',0, 'tarr',Inf, 'v0',0);
+    'Fcarga',0, 'Rarr',0, 'tarr',Inf, 'v0',0, 'Fext',0);
 switch n
     case 1
         expl = ['ARRANQUE EN VACIO. Con la barra quieta eind = 0 y la ' ...
@@ -109,10 +109,24 @@ function P = simular(E)
 % Corre el caso y, aparte, el MISMO caso sin resistencia de arranque,
 % para poder superponerlos.
 d = rmfield(E, 'v0');  d.v0 = E.v0;
+Bl = E.B*E.l;
+tauIni = E.m*max(abs(E.R + E.Rarr), eps)/Bl^2;   % con Rarr puesta [s]
 if ~isfield(d,'tf') || isempty(d.tf)
-    Bl = E.B*E.l;
-    d.tf = 6*E.m*max(abs(E.R + E.Rarr), eps)/Bl^2;
+    d.tf = 6*tauIni;
 end
+% Fext entra cuando la barra ya se estabilizo: 6 constantes de tiempo del
+% arranque y, si se retira Rarr, 6 mas de la R que queda. Despues se
+% integran otras 6 para ver llegar el nuevo estacionario.
+d.tFext = Inf;
+if E.Fext ~= 0
+    quita = E.Rarr > 0 && isfinite(E.tarr);
+    if quita, Rfin = E.R; else, Rfin = E.R + E.Rarr; end
+    tauFin = E.m*max(abs(Rfin), eps)/Bl^2;       % R que queda puesta [s]
+    d.tFext = 6*tauIni;
+    if quita, d.tFext = max(d.tFext, E.tarr + 6*tauFin); end
+    d.tf = d.tFext + 6*tauFin;
+end
+P.tFext = d.tFext;
 [P.t, P.v, P.i, P.F, P.n] = IE.trayLineal(d);
 
 dsin = d;  dsin.Rarr = 0;  dsin.tarr = Inf;
@@ -127,9 +141,14 @@ P.Pconv= P.eind .* P.i;
 P.errBal  = max(abs(P.Pbat - P.PR - P.Pmec));
 P.errConv = max(abs(P.Pconv - P.Pmec));
 
-e = E;  e = rmfield(e, {'Rarr','tarr','v0'});
+e = E;  e = rmfield(e, {'Rarr','tarr','v0','Fext'});
 if isfield(e,'tf'), e = rmfield(e,'tf'); end
 P.ss = IE.lineal(e);
+P.ssF = [];                              % estacionario con Fext aplicada
+if E.Fext ~= 0
+    e.Fcarga = E.Fcarga + E.Fext;
+    P.ssF = IE.lineal(e);
+end
 end
 
 %% ======================================================================
@@ -242,6 +261,12 @@ cla(axV); hold(axV,'on');
 plot(axV, P.t, P.v, 'LineWidth', 1.5, 'Color',[0 0.35 0.8]);
 yline(axV, double(P.ss.v), '--', 'estacionario', 'Color',[0.4 0.4 0.4], ...
     'LabelHorizontalAlignment','left');
+if ~isempty(P.ssF)
+    % El nuevo estacionario se rotula a la derecha, donde la curva lo alcanza
+    yline(axV, double(P.ssF.v), '--', 'con Fext', 'Color',[0.5 0 0.5], ...
+        'LabelHorizontalAlignment','right');
+    marcaFext(axV, P.tFext);
+end
 grid(axV,'on'); ylabel(axV,'v [m/s]'); title(axV,'Velocidad');
 ejeClaro(axV);  hold(axV,'off');
 
@@ -266,6 +291,7 @@ end
 if E.Rarr > 0
     legClaro(legend(axI, {'sin Rarr','con Rarr','pico'}, 'Location','best'));
 end
+if ~isempty(P.ssF), marcaFext(axI, P.tFext); end
 grid(axI,'on'); ylabel(axI,'i [A]'); title(axI,'Corriente');
 ejeClaro(axI);  hold(axI,'off');
 
@@ -278,6 +304,13 @@ grid(axP,'on'); xlabel(axP,'t [s]'); ylabel(axP,'P [W]');
 title(axP, sprintf(['Balance   (Pbat-PR-Pmec: %.1e W,   ' ...
     'eind*i-F*v: %.1e W)'], P.errBal, P.errConv));
 ejeClaro(axP);  hold(axP,'off');
+end
+
+function marcaFext(ax, t)
+% Vertical en el instante en que entra Fext. HandleVisibility off: sin
+% eso la leyenda, que se actualiza sola, la agrega como 'data1'.
+xline(ax, t, ':', 'entra Fext', 'Color',[0.5 0 0.5], 'LineWidth', 1.2, ...
+    'LabelVerticalAlignment','bottom', 'HandleVisibility','off');
 end
 
 %% ======================================================================
@@ -307,23 +340,36 @@ txtExpl = uicontrol('Parent',pE, 'Style','edit', 'Max',2, 'Min',0, ...
     'String',[{expl}; {''}; leyes()]);
 
 S = struct('E',E, 'P',P, 'f',f, 'axEsq',axEsq, 'axV',axV, 'axI',axI, ...
-    'axP',axP, 'txt',txtExpl, 'h',[], 'tmr',[]);
+    'axP',axP, 'txt',txtExpl, 'h',[], 'tmr',[], 'cajas',struct());
 S.h = esquemaCrear(axEsq, E);
 guidata(f, S);
 
-y = 0.93;  dy = 0.088;
+y = 0.93;
 mkPopup(pC, y, 'Preset', {'1 arranque en vacio','2 motor cargado', ...
     '3 generador','4 frenado','5 campo invertido', ...
     '6 resistencia de arranque'}, @cbPreset);
-y = y - dy;
-mkSlider(pC, y, 'VB [V]',      -240,  240, E.VB,     'VB');      y = y - dy;
-mkSlider(pC, y, 'R [ohm]',      0.05,   3, E.R,      'R');       y = y - dy;
-mkSlider(pC, y, 'B [T]',       -0.5,  0.5, E.B,      'B');       y = y - dy;
-mkSlider(pC, y, 'l [m]',          1,   20, E.l,      'l');       y = y - dy;
-mkSlider(pC, y, 'm [kg]',         1,   50, E.m,      'm');       y = y - dy;
-mkSlider(pC, y, 'Fcarga [N]',  -600,  600, E.Fcarga, 'Fcarga');  y = y - dy;
-mkSlider(pC, y, 'Rarr [ohm]',     0,    5, E.Rarr,   'Rarr');    y = y - dy;
-mkSlider(pC, y, 'quitar Rarr en t [s]', 0, 60, 30,   'tarr');    y = y - dy;
+y = y - 0.088;  dy = 0.072;
+% Cajas de texto y no barras: deslizar una barra recalcula en cada
+% movimiento y traba la interfaz. La caja recalcula una vez, con Enter.
+% Cada fila: etiqueta, campo de E, regla de validez, ayuda al pasar el mouse.
+positivo = @(x) isfinite(x) && x > 0;
+filas = {
+    'VB [V]',       'VB',     @isfinite,               'Tension de la bateria, con signo.'
+    'R [ohm]',      'R',      positivo,                'Resistencia del circuito, mayor que 0.'
+    'B [T]',        'B',      @(x) isfinite(x) && x ~= 0, 'Campo con signo: positivo sale del plano.'
+    'l [m]',        'l',      positivo,                'Largo de la barra entre rieles.'
+    'm [kg]',       'm',      positivo,                'Masa de la barra.'
+    'Fcarga [N]',   'Fcarga', @isfinite,               'Desde t = 0. Positiva frena, negativa empuja.'
+    'Rarr [ohm]',   'Rarr',   @(x) isfinite(x) && x >= 0, 'Resistencia de arranque. 0 = sin ella.'
+    'quitar Rarr en t [s]', 'tarr', @(x) x >= 0,       'Inf = no se quita en toda la corrida.'
+    'Fext tras estabilizar [N]', 'Fext', @isfinite,    ['Se suma a Fcarga cuando la barra ya se ' ...
+                                                        'estabilizo. Positiva frena, negativa empuja. 0 = sin ella.']
+    };
+for k = 1:size(filas,1)
+    S.cajas.(filas{k,2}) = mkCaja(pC, y, filas{k,:}, E.(filas{k,2}));
+    y = y - dy;
+end
+guidata(f, S);
 
 uicontrol('Parent',pC, 'Style','pushbutton', 'String','Animar', ...
     'Units','normalized', 'Position',[0.08 y 0.38 0.06], ...
@@ -337,19 +383,20 @@ uicontrol('Parent',pC, 'Style','pushbutton', 'String','Parar', ...
 refrescar(f);
 end
 
-function mkSlider(p, y, etiq, lo, hi, val, campo)
-uicontrol('Parent',p, 'Style','text', 'String',etiq, ...
+function h = mkCaja(p, y, etiq, campo, valido, ayuda, val)
+% Etiqueta a la izquierda, caja de texto a la derecha, en la misma fila.
+%   campo  : nombre del campo de E que edita la caja
+%   valido : funcion x -> true/false; un valor invalido no entra
+%   ayuda  : texto que aparece al dejar el mouse sobre la fila
+uicontrol('Parent',p, 'Style','text', 'String',etiq, 'Tooltip',ayuda, ...
     'BackgroundColor','w', 'ForegroundColor','k', ...
     'HorizontalAlignment','left', 'Units','normalized', ...
-    'Position',[0.05 y+0.035 0.60 0.035]);
-h = uicontrol('Parent',p, 'Style','text', 'String',num2str(val,'%.4g'), ...
-    'BackgroundColor','w', 'ForegroundColor',[0 0 0.7], ...
+    'Position',[0.05 y 0.58 0.045]);
+h = uicontrol('Parent',p, 'Style','edit', 'String',num2str(val,'%.4g'), ...
+    'Tooltip',ayuda, 'BackgroundColor','w', 'ForegroundColor',[0 0 0.7], ...
     'HorizontalAlignment','right', 'Units','normalized', ...
-    'Position',[0.62 y+0.035 0.33 0.035]);
-uicontrol('Parent',p, 'Style','slider', 'Min',lo, 'Max',hi, 'Value',val, ...
-    'Units','normalized', 'Position',[0.05 y 0.90 0.032], ...
-    'BackgroundColor',[0.95 0.95 0.95], ...
-    'Callback',@(s,~) cbSlider(s, campo, h));
+    'Position',[0.64 y 0.31 0.05], ...
+    'Callback',@(s,~) cbCaja(s, campo, valido));
 end
 
 function mkPopup(p, y, etiq, items, cb)
@@ -362,13 +409,17 @@ uicontrol('Parent',p, 'Style','popupmenu', 'String',items, ...
     'Units','normalized', 'Position',[0.05 y 0.90 0.035], 'Callback',cb);
 end
 
-function cbSlider(src, campo, hTxt)
+function cbCaja(src, campo, valido)
 f = ancestor(src,'figure');  S = guidata(f);
-S.E.(campo) = src.Value;
-if strcmp(campo,'tarr') && src.Value >= src.Max - eps
-    S.E.tarr = Inf;
+% La coma se acepta como punto decimal: str2double('0,5') da 5, no 0.5,
+% y ese error pasaria sin aviso.
+x = str2double(strrep(strtrim(src.String), ',', '.'));
+if isnan(x) || ~valido(x)
+    set(src, 'String', num2str(S.E.(campo),'%.4g'));  % vuelve al vigente
+    beep;  return
 end
-set(hTxt, 'String', num2str(src.Value,'%.4g'));
+S.E.(campo) = x;
+set(src, 'String', num2str(x,'%.4g'));
 guidata(f, S);
 refrescar(f);
 end
@@ -377,6 +428,10 @@ function cbPreset(src, ~)
 f = ancestor(src,'figure');  S = guidata(f);
 [S.E, expl] = preset(src.Value);
 set(S.txt, 'String', [{expl}; {''}; leyes()]);
+% Las cajas muestran los datos del preset nuevo, no los del anterior
+for c = fieldnames(S.cajas)'
+    set(S.cajas.(c{1}), 'String', num2str(S.E.(c{1}),'%.4g'));
+end
 guidata(f, S);
 refrescar(f);
 end
@@ -423,8 +478,20 @@ end
 %% ======================================================================
 function exportar()
 carpeta = fileparts(mfilename('fullpath'));
-for n = 1:6
-    [E, expl] = preset(n);
+for n = 1:7
+    if n <= 6
+        [E, expl] = preset(n);
+        dest = fullfile(carpeta, sprintf('simLineal_preset%d.png', n));
+    else
+        % No es un preset: verifica Fext, que la interfaz no puede
+        % mostrar bajo matlab -batch.
+        E = preset(2);
+        E.Fext = 30;
+        expl = ['VERIFICACION DE Fext. El preset 2 (Fcarga = 30 N) y, ' ...
+            'con la barra ya estable, 30 N mas. Estacionario esperado: ' ...
+            'Fcarga total 60 N, i = 60 A, v = 102 m/s.'];
+        dest = fullfile(carpeta, 'simLineal_fext.png');
+    end
     P = simular(E);
     f = figure('Visible','off', 'Color','w', 'Position',[0 0 1100 720]);
     axEsq = axes('Parent',f, 'Position',[0.06 0.60 0.55 0.36]);
@@ -439,10 +506,9 @@ for n = 1:6
         'EdgeColor',[0.8 0.8 0.8], 'BackgroundColor','w', ...
         'Color','k', 'FontSize', 10, 'FitBoxToText','off', ...
         'VerticalAlignment','top');
-    dest = fullfile(carpeta, sprintf('simLineal_preset%d.png', n));
     exportgraphics(f, dest, 'Resolution', 110);
     close(f);
-    fprintf('preset %d: pico |i| = %7.1f A, v final = %8.2f m/s, %s\n', ...
+    fprintf('caso %d: pico |i| = %7.1f A, v final = %8.2f m/s, %s\n', ...
         n, max(abs(P.i)), P.v(end), dest);
     fprintf('   balance Pbat-PR-Pmec = %.2e W, eind*i-F*v = %.2e W\n', ...
         P.errBal, P.errConv);

@@ -1296,6 +1296,10 @@ classdef IE
             %            defecto 0
             %   tarr   : instante en que se retira Rarr [s]. Por defecto
             %            Inf, o sea que no se retira en toda la corrida
+            %   Fext   : fuerza externa [N] que se SUMA a Fcarga desde
+            %            tFext, con el mismo signo que Fcarga (positiva
+            %            frena). Por defecto 0
+            %   tFext  : instante en que entra Fext [s]. Por defecto Inf
             % SALIDAS:
             %   tt, vv, ii, FF : tiempo [s], velocidad [m/s], corriente
             %                    [A] y fuerza [N], vectores 1 x npts
@@ -1327,6 +1331,8 @@ classdef IE
             if ~isfield(d,'npts'),   d.npts   = 500; end
             if ~isfield(d,'Rarr'),   d.Rarr   = 0;   end
             if ~isfield(d,'tarr'),   d.tarr   = Inf; end
+            if ~isfield(d,'Fext'),   d.Fext   = 0;   end
+            if ~isfield(d,'tFext'),  d.tFext  = Inf; end
 
             Bl = d.B*d.l;
 
@@ -1340,23 +1346,39 @@ classdef IE
             end
             tau = d.m*Rini/Bl^2;        % constante de tiempo del arranque [s]
             if ~isfield(d,'tf'), d.tf = 5*tau; end
-            hayDosTramos = d.Rarr > 0 && d.tarr > 0 && d.tarr < d.tf;
 
-            tt  = linspace(0, d.tf, d.npts);
-            fA  = IE.dvdtLineal(d, Rini);
-            if hayDosTramos
-                fB = IE.dvdtLineal(d, d.R);
-                s1 = ode45(@(t,v) fA(v), [0 d.tarr], d.v0);
-                s2 = ode45(@(t,v) fB(v), [d.tarr d.tf], deval(s1, d.tarr));
-                antes = tt <= d.tarr;
-                vv = zeros(1, d.npts);
-                vv(antes)  = deval(s1, tt(antes));
-                vv(~antes) = deval(s2, tt(~antes));
-                Rv = Rini*antes + d.R*(~antes);     % la R vigente en cada t
-            else
-                s  = ode45(@(t,v) fA(v), [0 d.tf], d.v0);
-                vv = deval(s, tt);
-                Rv = repmat(Rini, 1, d.npts);
+            % TRAMOS. La EDO cambia de forma en cada instante en que se
+            % retira Rarr o entra Fext. Se integra un ode45 por tramo,
+            % arrancando cada uno con la velocidad final del anterior: v
+            % es continua aunque R o la fuerza salten.
+            cortes = [0, d.tf];
+            if d.Rarr > 0 && d.tarr > 0 && d.tarr < d.tf
+                cortes(end+1) = d.tarr;
+            end
+            if d.Fext ~= 0 && d.tFext > 0 && d.tFext < d.tf
+                cortes(end+1) = d.tFext;
+            end
+            cortes = unique(cortes);        % ordenados y sin repetidos
+
+            tt = linspace(0, d.tf, d.npts);
+            vv = zeros(1, d.npts);
+            Rv = zeros(1, d.npts);          % R vigente en cada instante
+            v0 = d.v0;
+            for k = 1:numel(cortes) - 1
+                ta = cortes(k);  tb = cortes(k+1);
+                if d.Rarr > 0 && ta < d.tarr
+                    Rk = d.R + d.Rarr;      % la resistencia sigue puesta
+                else
+                    Rk = d.R;
+                end
+                dk = d;
+                if ta >= d.tFext, dk.Fcarga = d.Fcarga + d.Fext; end
+                fk = IE.dvdtLineal(dk, Rk);
+                s  = ode45(@(t,v) fk(v), [ta tb], v0);
+                if k == 1, en = tt <= tb; else, en = tt > ta & tt <= tb; end
+                vv(en) = deval(s, tt(en));
+                Rv(en) = Rk;
+                v0 = deval(s, tb);
             end
 
             ii = (d.VB - Bl*vv) ./ Rv;      % malla, con la R vigente
